@@ -28,7 +28,7 @@ public static class HardwareNetworkPlanValidator
     }
     catch (Exception ex)
     {
-      errors.Add("Invalid JSON: " + ex.Message);
+      errors.Add($"Invalid JSON: {ex.Message}");
     }
 
     var operations = root?["operations"] as JsonArray;
@@ -245,7 +245,7 @@ public static class HardwareNetworkPlanValidator
       or "devicename";
   }
 
-  private static bool IsSupportedSubnetType(string subnetType)
+  private static bool IsSupportedSubnetType(string? subnetType)
   {
     var value = (subnetType ?? string.Empty).Trim();
     return value.Equals("PROFINET", StringComparison.OrdinalIgnoreCase) ||

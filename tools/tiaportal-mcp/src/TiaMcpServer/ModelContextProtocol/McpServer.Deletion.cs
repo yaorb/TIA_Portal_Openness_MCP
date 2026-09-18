@@ -60,11 +60,9 @@ public static partial class McpServer
       // 「别删」，而是「删了就拿不回来，想保号就别删」。
       var pinnedWarning = pinned == null
         ? null
-        : $"该块钉着显式块号 {pinned}（AutoNumber=false）。" + (dryRun
+        : $"该块钉着显式块号 {pinned}（AutoNumber=false）。{(dryRun
           ? "一旦真的删除，这个号就没了 —— "
-          : "这个号已经随块一起没了 —— ") + "从外部源重建时新块会拿到自动分配的号，依赖原块号的实例 DB 关联会断，且不会有任何报错。" +
-        "若只是想更新块内容，请不要删，直接对已有块 GenerateBlocksFromExternalSource，编号会保留。" +
-        $"确实要删并重建的话，重建后用 InvokeObject 把号改回去：SetAttribute(\"AutoNumber\", false) 然后 SetAttribute(\"Number\", {pinned})。";
+          : "这个号已经随块一起没了 —— ")}从外部源重建时新块会拿到自动分配的号，依赖原块号的实例 DB 关联会断，且不会有任何报错。若只是想更新块内容，请不要删，直接对已有块 GenerateBlocksFromExternalSource，编号会保留。确实要删并重建的话，重建后用 InvokeObject 把号改回去：SetAttribute(\"AutoNumber\", false) 然后 SetAttribute(\"Number\", {pinned})。";
 
       return McpServer.BuildDeletionReport(data,
         dryRun,
@@ -73,13 +71,11 @@ public static partial class McpServer
         "确认无误后用 dryRun=false 实际删除。",
         pinnedWarning,
         dryRun
-          ? new JsonArray
-          {
-            "ExportAsDocuments —— 删之前先把这个块导出备份",
-            "GetCrossReferences —— 逐个看还有谁在调用它",
-            "确认后再 DeletePlcBlock(dryRun=false)",
-          }
-          : new JsonArray { "CompileSoftware —— 看调用方有没有变成悬空引用", "SaveProject —— 确认无误后再存盘", });
+          ?
+          [
+            "ExportAsDocuments —— 删之前先把这个块导出备份", "GetCrossReferences —— 逐个看还有谁在调用它", "确认后再 DeletePlcBlock(dryRun=false)",
+          ]
+          : ["CompileSoftware —— 看调用方有没有变成悬空引用", "SaveProject —— 确认无误后再存盘",]);
     }
     catch (PortalException pex)
     {
@@ -126,16 +122,12 @@ public static partial class McpServer
         "确认无误后用 dryRun=false 实际删除。",
         null,
         dryRun
-          ? new JsonArray
-          {
-            "ExportPlcTagTable —— 删之前先把这张表导出备份",
-            "逐个 GetCrossReferences 相关块 —— 表级交叉引用未必可用，块级可用",
+          ?
+          [
+            "ExportPlcTagTable —— 删之前先把这张表导出备份", "逐个 GetCrossReferences 相关块 —— 表级交叉引用未必可用，块级可用",
             "确认后再 DeletePlcTagTable(dryRun=false)",
-          }
-          : new JsonArray
-          {
-            "CompileSoftware —— 看 PLC 侧有没有断链", "⚠️ HMI 侧的符号绑定编译查不出来，请单独核对画面变量", "SaveProject —— 确认无误后再存盘",
-          });
+          ]
+          : ["CompileSoftware —— 看 PLC 侧有没有断链", "⚠️ HMI 侧的符号绑定编译查不出来，请单独核对画面变量", "SaveProject —— 确认无误后再存盘",]);
 
       report.Meta!["tagCount"] = tagCount;
       return report;
@@ -182,13 +174,12 @@ public static partial class McpServer
         "确认无误后用 dryRun=false 实际删除。",
         null,
         dryRun
-          ? new JsonArray
-          {
-            "ExportType —— 删之前先把这个 UDT 导出备份",
-            "GetCrossReferences —— 看还有哪些 DB / 块用它做数据类型",
+          ?
+          [
+            "ExportType —— 删之前先把这个 UDT 导出备份", "GetCrossReferences —— 看还有哪些 DB / 块用它做数据类型",
             "确认后再 DeletePlcType(dryRun=false)",
-          }
-          : new JsonArray { "CompileSoftware —— 失去类型定义的 DB / 块会在这里暴露", "SaveProject —— 确认无误后再存盘", });
+          ]
+          : ["CompileSoftware —— 失去类型定义的 DB / 块会在这里暴露", "SaveProject —— 确认无误后再存盘",]);
     }
     catch (PortalException pex)
     {
@@ -232,9 +223,9 @@ public static partial class McpServer
       // 预览路径：工程一行没动。交叉引用是预览的全部价值，取不到就必须明说，
       // 否则「成功」会被读成「确认可以删」—— 删除类工具里这是代价最大的错档。
       ok = true;
-      message = $"[dryRun] 未做任何改动。目标 {objectLabel}，" + (crossRefOk
+      message = $"[dryRun] 未做任何改动。目标 {objectLabel}，{(crossRefOk
         ? $"交叉引用 {data["crossReferenceCount"]} 条（见 data.crossReferences）。"
-        : "⚠️ 交叉引用查不到 —— 这不等于没人引用它，请先自行核对。") + dryRunTail;
+        : "⚠️ 交叉引用查不到 —— 这不等于没人引用它，请先自行核对。")}{dryRunTail}";
     }
     else if (deleted && verifiedAbsent)
     {
@@ -245,8 +236,8 @@ public static partial class McpServer
     {
       // 走到这里说明 Delete() 调过但回读没能确认对象消失。绝不当成功报。
       ok = false;
-      message = $"⚠️ 未验证：{objectLabel} 的删除结果无法确认（deleted={deleted}, verifiedAbsent={verifiedAbsent}）。" +
-        "请在 TIA 里手工确认该对象是否还在，不要按「已删除」继续操作。";
+      message =
+        $"⚠️ 未验证：{objectLabel} 的删除结果无法确认（deleted={deleted}, verifiedAbsent={verifiedAbsent}）。请在 TIA 里手工确认该对象是否还在，不要按「已删除」继续操作。";
       warnings.Add("删除后的回读确认没有通过，本次结果不可信。");
     }
 
@@ -256,7 +247,7 @@ public static partial class McpServer
       Message = message,
       Data = data,
       Warnings = warnings.Count > 0
-        ? warnings.ToArray()
+        ? [.. warnings,]
         : null,
       Meta = new JsonObject
       {

@@ -594,7 +594,7 @@ public class ResponseScaffold : ResponseMessage
   public string? CompileState { get; set; }
   public int? CompileErrorCount { get; set; }
   public int? CompileWarningCount { get; set; }
-  public List<ScaffoldStep> Steps { get; set; } = new();
+  public List<ScaffoldStep> Steps { get; set; } = [];
 }
 
 public class ResponseImportBlocksFromDocuments : ResponseMessage

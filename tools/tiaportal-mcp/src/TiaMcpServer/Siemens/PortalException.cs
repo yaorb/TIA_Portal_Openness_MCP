@@ -7,16 +7,14 @@ using System.Collections.Generic;
 
 namespace TiaMcpServer.Siemens;
 
-public class PortalException : Exception
+public class PortalException(
+  PortalErrorCode code,
+  string message,
+  IEnumerable<string>? candidates = null,
+  Exception? inner = null
+) : Exception(message, inner)
 {
-  public PortalException(PortalErrorCode code, string message, IEnumerable<string>? candidates = null,
-    Exception? inner = null) : base(message, inner)
-  {
-    this.Code = code;
-    this.Candidates = candidates;
-  }
+  public PortalErrorCode Code { get; } = code;
 
-  public PortalErrorCode Code { get; }
-
-  public IEnumerable<string>? Candidates { get; }
+  public IEnumerable<string>? Candidates { get; } = candidates;
 }

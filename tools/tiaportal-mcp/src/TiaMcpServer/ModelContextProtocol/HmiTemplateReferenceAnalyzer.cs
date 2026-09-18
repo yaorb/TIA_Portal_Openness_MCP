@@ -50,8 +50,8 @@ public static class HmiTemplateReferenceAnalyzer
     var md = new StringBuilder();
     md.AppendLine("# HMI Template Reference Analysis");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- Offline analysis only; no TIA connection, no project write, no global-library import.");
@@ -65,8 +65,8 @@ public static class HmiTemplateReferenceAnalyzer
       foreach (var node in templates)
       {
         var t = node as JsonObject;
-        md.AppendLine("- " + t?["templateName"] + ": tags=" + t?["requiredTagCount"] + ", items=" + t?["itemCount"] +
-          ", dynamizations=" + t?["dynamizationCount"] + ", actions=" + t?["actionCount"]);
+        md.AppendLine(
+          $"- {t?["templateName"]}: tags={t?["requiredTagCount"]}, items={t?["itemCount"]}, dynamizations={t?["dynamizationCount"]}, actions={t?["actionCount"]}");
       }
     }
 
@@ -78,7 +78,7 @@ public static class HmiTemplateReferenceAnalyzer
       foreach (var node in readiness)
       {
         var item = node as JsonObject;
-        md.AppendLine("- " + item?["templateName"] + ": " + item?["status"] + " - " + item?["detail"]);
+        md.AppendLine($"- {item?["templateName"]}: {item?["status"]} - {item?["detail"]}");
       }
     }
 
@@ -95,23 +95,22 @@ public static class HmiTemplateReferenceAnalyzer
         }
 
         var summary = t["actionRecipeSummary"] as JsonObject;
-        md.AppendLine("- " + t["templateName"] + ": actions=" + summary?["actionCount"] + ", effective=" +
-          summary?["effectiveActionCount"] + ", ready=" + summary?["readyForGeneration"] + ", needsConfirm=" +
-          summary?["requiresOperatorConfirm"] + ", highRisk=" + summary?["highRiskWrites"] + ", duplicates=" +
-          ((summary?["duplicateActions"] as JsonArray)?.Count ?? 0) + ", missingTargets=" +
-          ((summary?["missingTargets"] as JsonArray)?.Count ?? 0));
-        if (summary?["effectiveRecipes"] is JsonArray recipes)
+        md.AppendLine(
+          $"- {t["templateName"]}: actions={summary?["actionCount"]}, effective={summary?["effectiveActionCount"]}, ready={summary?["readyForGeneration"]}, needsConfirm={summary?["requiresOperatorConfirm"]}, highRisk={summary?["highRiskWrites"]}, duplicates={(summary?["duplicateActions"] as JsonArray)?.Count ?? 0}, missingTargets={(summary?["missingTargets"] as JsonArray)?.Count ?? 0}");
+        if (summary?["effectiveRecipes"] is not JsonArray recipes)
         {
-          foreach (var recipeNode in recipes.Take(8))
-          {
-            if (recipeNode is not JsonObject recipe)
-            {
-              continue;
-            }
+          continue;
+        }
 
-            md.AppendLine("  - " + recipe["item"] + "." + recipe["event"] + ": " + recipe["recipeKind"] + ", safety=" +
-              recipe["safetyLevel"] + ", status=" + recipe["status"]);
+        foreach (var recipeNode in recipes.Take(8))
+        {
+          if (recipeNode is not JsonObject recipe)
+          {
+            continue;
           }
+
+          md.AppendLine(
+            $"  - {recipe["item"]}.{recipe["event"]}: {recipe["recipeKind"]}, safety={recipe["safetyLevel"]}, status={recipe["status"]}");
         }
       }
     }
@@ -120,20 +119,22 @@ public static class HmiTemplateReferenceAnalyzer
 
     md.AppendLine("## Reference Signals");
     var hints = root["referenceHints"] as JsonObject;
-    md.AppendLine("- HMI runtime exists: " + hints?["hmiRuntimeExists"]);
-    md.AppendLine("- Screen RDF files: " + hints?["screenRdfCount"]);
-    md.AppendLine("- Faceplate RDF files: " + hints?["faceplateRdfCount"]);
-    md.AppendLine("- Global library exists: " + hints?["globalLibraryExists"]);
-    md.AppendLine("- Global library `.al*` files: " + hints?["globalLibraryFileCount"]);
+    md.AppendLine($"- HMI runtime exists: {hints?["hmiRuntimeExists"]}");
+    md.AppendLine($"- Screen RDF files: {hints?["screenRdfCount"]}");
+    md.AppendLine($"- Faceplate RDF files: {hints?["faceplateRdfCount"]}");
+    md.AppendLine($"- Global library exists: {hints?["globalLibraryExists"]}");
+    md.AppendLine($"- Global library `.al*` files: {hints?["globalLibraryFileCount"]}");
     md.AppendLine();
 
     md.AppendLine("## Recommendations");
-    if (root["recommendations"] is JsonArray recs)
+    if (root["recommendations"] is not JsonArray recs)
     {
-      foreach (var rec in recs)
-      {
-        md.AppendLine("- " + rec);
-      }
+      return md.ToString();
+    }
+
+    foreach (var rec in recs)
+    {
+      md.AppendLine($"- {rec}");
     }
 
     return md.ToString();
@@ -152,14 +153,13 @@ public static class HmiTemplateReferenceAnalyzer
     {
       try
       {
-        var json = JsonNode.Parse(File.ReadAllText(file, Encoding.UTF8)) as JsonObject;
-        if (json == null)
+        if (JsonNode.Parse(File.ReadAllText(file, Encoding.UTF8)) is not JsonObject json)
         {
           continue;
         }
 
-        var requiredTags = json["RequiredTags"] as JsonArray ?? new JsonArray();
-        var items = json["Items"] as JsonArray ?? new JsonArray();
+        var requiredTags = json["RequiredTags"] as JsonArray ?? [];
+        var items = json["Items"] as JsonArray ?? [];
         var dyn = new JsonArray();
         var actions = new JsonArray();
 
@@ -171,27 +171,32 @@ public static class HmiTemplateReferenceAnalyzer
           }
 
           HmiTemplateReferenceAnalyzer.CollectDynamizations(item, item["Name"]?.ToString() ?? "", dyn);
-          if (item["Actions"] is JsonArray actionArray)
+          if (item["Actions"] is not JsonArray actionArray)
           {
-            foreach (var actionNode in actionArray)
+            continue;
+          }
+
+          foreach (var actionNode in actionArray)
+          {
+            if (actionNode is not JsonObject action)
             {
-              if (actionNode is JsonObject action)
-              {
-                var itemName = item["Name"]?.ToString() ?? "";
-                var eventName = action["Event"]?.ToString() ?? "";
-                var script = action["Script"]?.ToString() ?? "";
-                var actionJson = new JsonObject
-                {
-                  ["item"] = itemName,
-                  ["event"] = eventName,
-                  ["script"] = script,
-                  ["referencedTags"] = new JsonArray(HmiTemplateReferenceAnalyzer.ExtractRuntimeTags(script)
-                    .Select(x => JsonValue.Create(x)).ToArray()),
-                };
-                actionJson["recipe"] = HmiTemplateReferenceAnalyzer.BuildHmiActionRecipe(actionJson, action);
-                actions.Add(actionJson);
-              }
+              continue;
             }
+
+            var itemName = item["Name"]?.ToString() ?? "";
+            var eventName = action["Event"]?.ToString() ?? "";
+            var script = action["Script"]?.ToString() ?? "";
+            var actionJson = new JsonObject
+            {
+              ["item"] = itemName,
+              ["event"] = eventName,
+              ["script"] = script,
+              ["referencedTags"] = new JsonArray([
+                .. HmiTemplateReferenceAnalyzer.ExtractRuntimeTags(script).Select(x => JsonValue.Create(x)),
+              ]),
+            };
+            actionJson["recipe"] = HmiTemplateReferenceAnalyzer.BuildHmiActionRecipe(actionJson, action);
+            actions.Add(actionJson);
           }
         }
 
@@ -213,8 +218,9 @@ public static class HmiTemplateReferenceAnalyzer
               ["targetScreen"] = action["TargetScreen"]?.ToString() ?? "",
               ["targetPopup"] = action["TargetPopup"]?.ToString() ?? "",
               ["script"] = action["Script"]?.ToString() ?? "",
-              ["referencedTags"] = new JsonArray(HmiTemplateReferenceAnalyzer.ExtractActionTags(action)
-                .Select(x => JsonValue.Create(x)).ToArray()),
+              ["referencedTags"] = new JsonArray([
+                .. HmiTemplateReferenceAnalyzer.ExtractActionTags(action).Select(x => JsonValue.Create(x)),
+              ]),
             };
             actionJson["recipe"] = HmiTemplateReferenceAnalyzer.BuildHmiActionRecipe(actionJson, action);
             actions.Add(actionJson);
@@ -225,7 +231,7 @@ public static class HmiTemplateReferenceAnalyzer
           .Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var templateObjectNames = HmiTemplateReferenceAnalyzer.BuildTemplateObjectNameSet(json, items);
         var actionTags = actions.OfType<JsonObject>()
-          .SelectMany(x => (x["referencedTags"] as JsonArray ?? new JsonArray()).Select(y => y?.ToString() ?? ""))
+          .SelectMany(x => (x["referencedTags"] as JsonArray ?? []).Select(y => y?.ToString() ?? ""))
           .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var missingActionTags = actionTags.Where(x => !tagNames.Contains(x)).ToArray();
         var actionRecipeSummary =
@@ -246,8 +252,7 @@ public static class HmiTemplateReferenceAnalyzer
           ["dynamizations"] = dyn,
           ["actions"] = actions,
           ["actionRecipeSummary"] = actionRecipeSummary,
-          ["missingRequiredTagsForActions"] =
-            new JsonArray(missingActionTags.Select(x => JsonValue.Create(x)).ToArray()),
+          ["missingRequiredTagsForActions"] = new JsonArray([.. missingActionTags.Select(x => JsonValue.Create(x)),]),
           ["bindingPolicy"] =
             "RequiredTags.Name must exist as HMI tag, RequiredTags.PlcTag must exist as PLC tag or DB member before template application is treated as verified.",
         });
@@ -280,26 +285,45 @@ public static class HmiTemplateReferenceAnalyzer
         : Path.GetDirectoryName(referenceGlobalLibraryPath) ?? referenceGlobalLibraryPath;
 
     var sampleStrings = new JsonArray();
-    if (!string.IsNullOrWhiteSpace(runtimeRoot) && Directory.Exists(runtimeRoot))
+    if (string.IsNullOrWhiteSpace(runtimeRoot) || !Directory.Exists(runtimeRoot))
     {
-      foreach (var file in Directory.EnumerateFiles(runtimeRoot, "*.rdf", SearchOption.AllDirectories).Take(80))
+      return new JsonObject
       {
-        try
+        ["hmiRuntimeExists"] = runtimeRoot != null,
+        ["runtimeRoot"] = runtimeRoot ?? "",
+        ["screenRdfCount"] = Directory.Exists(screenDir)
+          ? Directory.EnumerateFiles(screenDir, "*.rdf").Count()
+          : 0,
+        ["faceplateRdfCount"] = Directory.Exists(faceplateDir)
+          ? Directory.EnumerateFiles(faceplateDir, "*.rdf").Count()
+          : 0,
+        ["globalLibraryExists"] =
+          !string.IsNullOrWhiteSpace(libraryRoot) &&
+          (Directory.Exists(libraryRoot) || File.Exists(referenceGlobalLibraryPath)),
+        ["globalLibraryFileCount"] = Directory.Exists(libraryRoot)
+          ? Directory.EnumerateFiles(libraryRoot, "*.al*", SearchOption.TopDirectoryOnly).Count()
+          : 0,
+        ["sampleRuntimeStringHints"] = sampleStrings,
+      };
+    }
+
+    foreach (var file in Directory.EnumerateFiles(runtimeRoot, "*.rdf", SearchOption.AllDirectories).Take(80))
+    {
+      try
+      {
+        var text = Encoding.UTF8.GetString(File.ReadAllBytes(file));
+        foreach (var pattern in new[] { "Faceplate", "Screen", "Button", "IO", "Tag", "Alarm", "Trend", "Recipe", })
         {
-          var text = Encoding.UTF8.GetString(File.ReadAllBytes(file));
-          foreach (var pattern in new[] { "Faceplate", "Screen", "Button", "IO", "Tag", "Alarm", "Trend", "Recipe", })
+          var count = HmiTemplateReferenceAnalyzer.CountOccurrences(text, pattern);
+          if (count > 0 && sampleStrings.Count < 80)
           {
-            var count = HmiTemplateReferenceAnalyzer.CountOccurrences(text, pattern);
-            if (count > 0 && sampleStrings.Count < 80)
-            {
-              sampleStrings.Add(new JsonObject { ["file"] = file, ["pattern"] = pattern, ["count"] = count, });
-            }
+            sampleStrings.Add(new JsonObject { ["file"] = file, ["pattern"] = pattern, ["count"] = count, });
           }
         }
-        catch
-        {
-          // RDF内容可能是二进制或局部编码，离线学习只记录可读线索。
-        }
+      }
+      catch
+      {
+        // RDF内容可能是二进制或局部编码，离线学习只记录可读线索。
       }
     }
 
@@ -333,7 +357,7 @@ public static class HmiTemplateReferenceAnalyzer
         continue;
       }
 
-      var missingActionTags = t["missingRequiredTagsForActions"] as JsonArray ?? new JsonArray();
+      var missingActionTags = t["missingRequiredTagsForActions"] as JsonArray ?? [];
       var requiredTagCount = t["requiredTagCount"]?.GetValue<int>() ?? 0;
       var actionCount = t["actionCount"]?.GetValue<int>() ?? 0;
       var dynCount = t["dynamizationCount"]?.GetValue<int>() ?? 0;
@@ -342,8 +366,7 @@ public static class HmiTemplateReferenceAnalyzer
         : "needs-template-fix";
       var detail = missingActionTags.Count == 0
         ? $"Template has {requiredTagCount} required tags, {dynCount} dynamic bindings, and {actionCount} event actions. Next validation must verify PLC-side tags in TIA before applying."
-        : "Action scripts reference tags not listed in RequiredTags: " +
-        string.Join(", ", missingActionTags.Select(x => x?.ToString()));
+        : $"Action scripts reference tags not listed in RequiredTags: {string.Join(", ", missingActionTags.Select(x => x?.ToString()))}";
       list.Add(new JsonObject
       {
         ["templateName"] = t["templateName"]?.ToString() ?? "", ["status"] = status, ["detail"] = detail,
@@ -396,9 +419,8 @@ public static class HmiTemplateReferenceAnalyzer
     var actionKind = sourceAction["ActionKind"]?.ToString() ?? normalizedAction["actionKind"]?.ToString() ?? "";
     var eventName = normalizedAction["event"]?.ToString() ?? "";
     var script = normalizedAction["script"]?.ToString() ?? "";
-    var referencedTags = (normalizedAction["referencedTags"] as JsonArray ?? new JsonArray())
-      .Select(x => x?.ToString() ?? "").Where(x => !string.IsNullOrWhiteSpace(x))
-      .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    var referencedTags = (normalizedAction["referencedTags"] as JsonArray ?? []).Select(x => x?.ToString() ?? "")
+      .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
 
     if (string.IsNullOrWhiteSpace(actionKind))
     {
@@ -409,14 +431,14 @@ public static class HmiTemplateReferenceAnalyzer
     var targetScreen = sourceAction["TargetScreen"]?.ToString() ?? "";
     var targetPopup = sourceAction["TargetPopup"]?.ToString() ?? "";
     var explicitNavigationScript = !string.IsNullOrWhiteSpace(script);
-    if ((recipeKind == "open-popup" || recipeKind == "goto-screen") && !explicitNavigationScript)
+    if (recipeKind is "open-popup" or "goto-screen" && !explicitNavigationScript)
     {
       recipeKind = "project-binding-placeholder";
     }
 
     var writesPlcOrHmiTag = recipeKind is "set-bit" or "reset-bit" or "toggle-bit" or "set-value" or "confirm-write";
     var requiresConfirm = recipeKind == "confirm-write" || sourceAction["RequiresConfirm"]?.GetValue<bool?>() == true;
-    var highRisk = recipeKind == "confirm-write" || recipeKind == "set-value";
+    var highRisk = recipeKind is "confirm-write" or "set-value";
     var status = "ready-for-generation";
     var warnings = new JsonArray();
 
@@ -432,18 +454,45 @@ public static class HmiTemplateReferenceAnalyzer
       warnings.Add("Write action has no TargetTag/TargetTags/script tag reference.");
     }
 
-    if (highRisk && !requiresConfirm)
+    if (!highRisk || requiresConfirm)
     {
-      status = "needs-confirmation-policy";
-      warnings.Add("High-risk value write must require operator confirmation and range validation.");
+      return new JsonObject
+      {
+        ["recipeKind"] = recipeKind,
+        ["actionKind"] = actionKind,
+        ["event"] = eventName,
+        ["targetTags"] = new JsonArray([.. referencedTags.Select(x => JsonValue.Create(x)),]),
+        ["targetScreen"] = targetScreen,
+        ["targetPopup"] = targetPopup,
+        ["writesTag"] = writesPlcOrHmiTag,
+        ["requiresOperatorConfirm"] = requiresConfirm,
+        ["safetyLevel"] = recipeKind == "project-binding-placeholder"
+          ? "structure-placeholder"
+          : highRisk
+            ? "high"
+            : writesPlcOrHmiTag
+              ? "command"
+              : "navigation",
+        ["status"] = status,
+        ["applyAsScript"] = recipeKind != "project-binding-placeholder",
+        ["verificationRequired"] =
+          new JsonArray([
+            .. HmiTemplateReferenceAnalyzer.BuildActionVerificationSteps(recipeKind, referencedTags)
+              .Select(x => JsonValue.Create(x)),
+          ]),
+        ["warnings"] = warnings,
+      };
     }
+
+    status = "needs-confirmation-policy";
+    warnings.Add("High-risk value write must require operator confirmation and range validation.");
 
     return new JsonObject
     {
       ["recipeKind"] = recipeKind,
       ["actionKind"] = actionKind,
       ["event"] = eventName,
-      ["targetTags"] = new JsonArray(referencedTags.Select(x => JsonValue.Create(x)).ToArray()),
+      ["targetTags"] = new JsonArray([.. referencedTags.Select(x => JsonValue.Create(x)),]),
       ["targetScreen"] = targetScreen,
       ["targetPopup"] = targetPopup,
       ["writesTag"] = writesPlcOrHmiTag,
@@ -458,8 +507,10 @@ public static class HmiTemplateReferenceAnalyzer
       ["status"] = status,
       ["applyAsScript"] = recipeKind != "project-binding-placeholder",
       ["verificationRequired"] =
-        new JsonArray(HmiTemplateReferenceAnalyzer.BuildActionVerificationSteps(recipeKind, referencedTags)
-          .Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([
+          .. HmiTemplateReferenceAnalyzer.BuildActionVerificationSteps(recipeKind, referencedTags)
+            .Select(x => JsonValue.Create(x)),
+        ]),
       ["warnings"] = warnings,
     };
   }
@@ -487,7 +538,7 @@ public static class HmiTemplateReferenceAnalyzer
         row["item"]?.ToString() ?? "",
         row["event"]?.ToString() ?? "",
         row["recipeKind"]?.ToString() ?? "",
-        string.Join(",", (row["targetTags"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString() ?? "")),
+        string.Join(",", (row["targetTags"] as JsonArray ?? []).Select(x => x?.ToString() ?? "")),
         row["targetScreen"]?.ToString() ?? "",
         row["targetPopup"]?.ToString() ?? "");
       if (!seenActions.Add(actionKey))
@@ -519,7 +570,7 @@ public static class HmiTemplateReferenceAnalyzer
         highRisk++;
       }
 
-      foreach (var tagNode in recipe["targetTags"] as JsonArray ?? new JsonArray())
+      foreach (var tagNode in recipe["targetTags"] as JsonArray ?? [])
       {
         var tag = tagNode?.ToString() ?? "";
         if (!string.IsNullOrWhiteSpace(tag) && !requiredTagNames.Contains(tag))
@@ -577,21 +628,13 @@ public static class HmiTemplateReferenceAnalyzer
   {
     var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-    void Add(string value)
-    {
-      if (!string.IsNullOrWhiteSpace(value))
-      {
-        names.Add(value);
-      }
-    }
-
     Add(template["Screen"]?["Name"]?.ToString() ?? "");
     foreach (var item in items.OfType<JsonObject>())
     {
       Add(item["Name"]?.ToString() ?? "");
     }
 
-    foreach (var component in template["Components"] as JsonArray ?? new JsonArray())
+    foreach (var component in template["Components"] as JsonArray ?? [])
     {
       if (component is JsonObject obj)
       {
@@ -600,6 +643,14 @@ public static class HmiTemplateReferenceAnalyzer
     }
 
     return names;
+
+    void Add(string value)
+    {
+      if (!string.IsNullOrWhiteSpace(value))
+      {
+        names.Add(value);
+      }
+    }
   }
 
   private static string InferActionKindFromScript(string script)
@@ -634,12 +685,9 @@ public static class HmiTemplateReferenceAnalyzer
       return "OpenPopup";
     }
 
-    if (Regex.IsMatch(script, @"ChangeScreen|SetScreen", RegexOptions.IgnoreCase))
-    {
-      return "GotoScreen";
-    }
-
-    return "Script";
+    return Regex.IsMatch(script, @"ChangeScreen|SetScreen", RegexOptions.IgnoreCase)
+      ? "GotoScreen"
+      : "Script";
   }
 
   private static string NormalizeActionKind(string actionKind)
@@ -723,9 +771,9 @@ public static class HmiTemplateReferenceAnalyzer
   {
     foreach (var kv in node)
     {
-      if (kv.Value is JsonObject child)
+      switch (kv.Value)
       {
-        if (kv.Key.Equals("Dynamizations", StringComparison.OrdinalIgnoreCase))
+        case JsonObject child when kv.Key.Equals("Dynamizations", StringComparison.OrdinalIgnoreCase):
         {
           foreach (var dyn in child)
           {
@@ -737,17 +785,22 @@ public static class HmiTemplateReferenceAnalyzer
               ["readOnly"] = dyn.Value?["ReadOnly"]?.ToString() ?? "",
             });
           }
+
+          break;
         }
-        else
-        {
+
+        case JsonObject child:
           HmiTemplateReferenceAnalyzer.CollectDynamizations(child, itemName, output);
-        }
-      }
-      else if (kv.Value is JsonArray array)
-      {
-        foreach (var item in array.OfType<JsonObject>())
+          break;
+
+        case JsonArray array:
         {
-          HmiTemplateReferenceAnalyzer.CollectDynamizations(item, itemName, output);
+          foreach (var item in array.OfType<JsonObject>())
+          {
+            HmiTemplateReferenceAnalyzer.CollectDynamizations(item, itemName, output);
+          }
+
+          break;
         }
       }
     }
@@ -755,7 +808,11 @@ public static class HmiTemplateReferenceAnalyzer
 
   private static IEnumerable<string> ExtractRuntimeTags(string script)
   {
-    var matches = Regex.Matches(script, @"Tags\.SysFct\.\w+\(\s*""([^""]+)""", RegexOptions.IgnoreCase);
+    var matches = Regex.Matches(script,
+      """
+      Tags\.SysFct\.\w+\(\s*"([^"]+)"
+      """,
+      RegexOptions.IgnoreCase);
     foreach (Match match in matches)
     {
       if (match.Groups.Count > 1)
@@ -782,7 +839,11 @@ public static class HmiTemplateReferenceAnalyzer
       yield return targetTag;
     }
 
-    if (action["TargetTags"] is JsonArray targetTags)
+    if (action["TargetTags"] is not JsonArray targetTags)
+    {
+      yield break;
+    }
+
     {
       foreach (var node in targetTags)
       {
@@ -796,8 +857,7 @@ public static class HmiTemplateReferenceAnalyzer
   }
 
   private static JsonArray CloneArray(JsonArray array) =>
-    JsonNode.Parse(array.ToJsonString(new JsonSerializerOptions { WriteIndented = false, })) as JsonArray ??
-    new JsonArray();
+    JsonNode.Parse(array.ToJsonString(new JsonSerializerOptions { WriteIndented = false, })) as JsonArray ?? [];
 
   private static int CountOccurrences(string text, string pattern)
   {

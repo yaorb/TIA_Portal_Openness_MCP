@@ -63,7 +63,7 @@ public partial class Portal
       return null;
     }
 
-    var matched = Guard.MatchPlcName(all.Select(p => p.Name).ToList(), softwarePath);
+    var matched = Guard.MatchPlcName([.. all.Select(p => p.Name),], softwarePath);
     if (matched == null)
     {
       return null;
@@ -111,6 +111,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
 
         try
@@ -128,6 +129,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
       }
     }
@@ -147,6 +149,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
       }
     }
@@ -167,6 +170,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
       }
     }
@@ -174,17 +178,11 @@ public partial class Portal
     try
     {
       WalkDevices(this.CurrentProject.Devices);
-    }
-    catch
-    {
-    }
-
-    try
-    {
       WalkGroups(this.CurrentProject.DeviceGroups);
     }
     catch
     {
+      // ignored
     }
 
     return result;
@@ -294,7 +292,7 @@ public partial class Portal
     {
       // "no such table" and "found it, but Openness refused the export" used to share one
       // message, so a caller could not tell a typo from a real failure (GitHub issue #22).
-      var known = this.GetPlcTagTables(softwarePath) ?? new List<string>();
+      var known = this.GetPlcTagTables(softwarePath) ?? [];
       error = $"no tag table named '{tagTableName}' in '{softwarePath}'" + (known.Count > 0
         ? ". Available: " + string.Join(", ", known)
         : " (this PLC has no tag tables)");
@@ -328,7 +326,7 @@ public partial class Portal
     public string? TagTablesPropertyError { get; set; }
     public int GroupsVisited { get; set; }
     public int TablesFound { get; set; }
-    public List<string> Notes { get; } = new();
+    public List<string> Notes { get; } = [];
   }
 
   private static void CollectTagTableNames(object group, string prefix, List<string> result, HashSet<object> visited,
@@ -604,12 +602,15 @@ public partial class Portal
     if (group == null)
     {
       return Portal.TryListNamesFromCollection(plc,
-        new[] { "WatchTables", "PlcWatchTables", "Tables", },
+        ["WatchTables", "PlcWatchTables", "Tables",],
         "WatchTables");
     }
 
-    return Portal.EnumeratePlcWatchTables(group).Select(x => x.Path).Distinct(StringComparer.OrdinalIgnoreCase)
-      .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    return
+    [
+      .. Portal.EnumeratePlcWatchTables(group).Select(x => x.Path).Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+    ];
   }
 
   public bool ExportPlcWatchTable(string softwarePath, string watchTableName, string exportPath)
@@ -636,7 +637,7 @@ public partial class Portal
     else
     {
       table = Portal.TryFindByNameInCollection(plc,
-        new[] { "WatchTables", "PlcWatchTables", "Tables", },
+        ["WatchTables", "PlcWatchTables", "Tables",],
         watchTableName);
     }
 
@@ -714,7 +715,7 @@ public partial class Portal
     var group = Portal.ResolvePlcWatchAndForceTableGroup(plc);
     if (group == null)
     {
-      return new List<string>();
+      return [];
     }
 
     var result = new List<string>();
@@ -1002,6 +1003,7 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
   }
 
@@ -1047,7 +1049,7 @@ public partial class Portal
       }
 
       var tables = Portal.EnumeratePlcWatchTables(group);
-      data["watchTables"] = new JsonArray(tables.Select(x => JsonValue.Create(x.Path)).ToArray());
+      data["watchTables"] = new JsonArray([.. tables.Select(x => JsonValue.Create(x.Path)),]);
       var table = tables.FirstOrDefault(x =>
         string.Equals(x.Path, watchTableName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(x.Name, watchTableName, StringComparison.OrdinalIgnoreCase)).Table;
@@ -1057,12 +1059,13 @@ public partial class Portal
       }
 
       data["tableType"] = table.GetType().FullName ?? table.GetType().Name;
-      data["tableMembers"] = new JsonArray(Portal.DescribeMembers(table, 220)
-        .Select(m => JsonValue.Create($"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")).ToArray());
+      data["tableMembers"] = new JsonArray([
+        .. Portal.DescribeMembers(table, 220).Select(m => JsonValue.Create($"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")),
+      ]);
       var entries = Portal.TryGetPropertyValue(table, "Entries", "WatchTableEntries", "Rows", "Items");
       data["entriesCollectionType"] = entries?.GetType().FullName ?? "";
       var rows = new JsonArray();
-      if (entries is IEnumerable enumerable && entries is not string)
+      if (entries is IEnumerable enumerable and not string)
       {
         foreach (var entry in enumerable)
         {
@@ -1170,8 +1173,8 @@ public partial class Portal
         });
       }
 
-      var watchTables = this.GetPlcWatchTables(softwarePath) ?? new List<string>();
-      data["watchTables"] = new JsonArray(watchTables.Select(x => JsonValue.Create(x)).ToArray());
+      var watchTables = this.GetPlcWatchTables(softwarePath) ?? [];
+      data["watchTables"] = new JsonArray([.. watchTables.Select(x => JsonValue.Create(x)),]);
       data["matchingMembers"] = members;
       data["serviceProbe"] = services;
       warnings.Add(
@@ -1205,7 +1208,7 @@ public partial class Portal
           Ok = false,
           LibraryPath = libraryPath,
           Error = "TIA Portal is not connected. Call Connect first.",
-          Warnings = new[] { "This is a read-only probe and does not import library content.", },
+          Warnings = ["This is a read-only probe and does not import library content.",],
           Raw = raw,
         };
       }
@@ -1219,7 +1222,7 @@ public partial class Portal
           Ok = false,
           LibraryPath = libraryPath,
           Error = "Global library .al file not found.",
-          Warnings = new[] { "Pass either the .al21 file path or its containing folder.", },
+          Warnings = ["Pass either the .al21 file path or its containing folder.",],
           Raw = raw,
         };
       }
@@ -1234,7 +1237,7 @@ public partial class Portal
           LibraryPath = libraryPath,
           ResolvedLibraryFile = resolved,
           Error = "TiaPortal.GlobalLibraries property not found.",
-          Warnings = new[] { "Installed Openness API may not expose global library access through this build.", },
+          Warnings = ["Installed Openness API may not expose global library access through this build.",],
           Raw = raw,
         };
       }
@@ -1248,7 +1251,7 @@ public partial class Portal
           LibraryPath = libraryPath,
           ResolvedLibraryFile = resolved,
           Error = openError ?? "Failed to open global library.",
-          Warnings = new[] { "No write operation was attempted.", },
+          Warnings = ["No write operation was attempted.",],
           Raw = raw,
         };
       }
@@ -1403,8 +1406,10 @@ public partial class Portal
         }
 
         raw["masterCopyType"] = masterCopy.GetType().FullName ?? masterCopy.GetType().Name;
-        raw["masterCopyMembers"] = new JsonArray(Portal.DescribeMembers(masterCopy, 240)
-          .Select(m => JsonValue.Create($"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")).ToArray());
+        raw["masterCopyMembers"] = new JsonArray([
+          .. Portal.DescribeMembers(masterCopy, 240)
+            .Select(m => JsonValue.Create($"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")),
+        ]);
         raw["masterCopyAttributes"] = Portal.ToJsonArray(Portal.TryReadInterestingAttributes(masterCopy));
         var expectedName = string.IsNullOrWhiteSpace(importedItemName)
           ? Portal.LastPathSegment(masterCopyName)
@@ -1481,7 +1486,7 @@ public partial class Portal
         ScreenName = screenName,
         ImportedItemName = importedItemName,
         Attempts = attempts,
-        ReadbackItems = Array.Empty<string>(),
+        ReadbackItems = [],
         Warnings = warnings,
         Error = error,
         Raw = raw,
@@ -1822,7 +1827,7 @@ public partial class Portal
       return (sw.Name, "Unified", TryListScreens(sw));
     }
 
-    return (sw.ToString(), "Unknown", new List<string>());
+    return (sw.ToString(), "Unknown", []);
   }
 
   public ResponseObjectDescribe DescribeHmiSoftware(string softwarePath, int maxMembers = 200)
@@ -1835,7 +1840,7 @@ public partial class Portal
         ObjectKind = "Software",
         ObjectPath = softwarePath,
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -1857,7 +1862,7 @@ public partial class Portal
       ObjectKind = "Software",
       ObjectPath = softwarePath,
       TypeName = sw.GetType().FullName ?? sw.GetType().Name,
-      Members = Portal.DescribeMembers(sw, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(sw, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 
@@ -1871,7 +1876,7 @@ public partial class Portal
         ObjectKind = "HmiScreen",
         ObjectPath = $"{softwarePath}:{screenName}",
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -1904,7 +1909,7 @@ public partial class Portal
       ObjectKind = "HmiScreen",
       ObjectPath = $"{softwarePath}:{screenName}",
       TypeName = screen.GetType().FullName ?? screen.GetType().Name,
-      Members = Portal.DescribeMembers(screen, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(screen, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 
@@ -1918,7 +1923,7 @@ public partial class Portal
         ObjectKind = "HmiTagTable",
         ObjectPath = $"{softwarePath}:{tagTableName}",
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -1951,7 +1956,7 @@ public partial class Portal
       ObjectKind = "HmiTagTable",
       ObjectPath = $"{softwarePath}:{tagTableName}",
       TypeName = table.GetType().FullName ?? table.GetType().Name,
-      Members = Portal.DescribeMembers(table, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(table, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 
@@ -1966,7 +1971,7 @@ public partial class Portal
         ObjectKind = "HmiTag",
         ObjectPath = $"{softwarePath}:{tagTableName}:{tagName}",
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -2043,7 +2048,7 @@ public partial class Portal
       ObjectKind = "HmiTag",
       ObjectPath = $"{softwarePath}:{tagTableName}:{tagName}",
       TypeName = tagObj.GetType().FullName ?? tagObj.GetType().Name,
-      Members = Portal.DescribeMembers(tagObj, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(tagObj, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 
@@ -2058,7 +2063,7 @@ public partial class Portal
         ObjectKind = "HmiScreenItem",
         ObjectPath = $"{softwarePath}:{screenName}:{itemName}",
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -2132,7 +2137,7 @@ public partial class Portal
       ObjectKind = "HmiScreenItem",
       ObjectPath = $"{softwarePath}:{screenName}:{itemName}",
       TypeName = itemObj.GetType().FullName ?? itemObj.GetType().Name,
-      Members = Portal.DescribeMembers(itemObj, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(itemObj, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 
@@ -2209,7 +2214,7 @@ public partial class Portal
 
       Step("findScreen", true, screen.GetType().FullName);
 
-      var tagTable = Portal.TryFindByNameInCollection(sw, new[] { "TagTables", }, tagTableName);
+      var tagTable = Portal.TryFindByNameInCollection(sw, ["TagTables",], tagTableName);
       if (tagTable == null)
       {
         Step("findTagTable", false, $"TagTable '{tagTableName}' not found");
@@ -2267,7 +2272,7 @@ public partial class Portal
           }
 
           // create by reflection: Create(string)
-          var mCreate = tagsComp.GetType().GetMethod("Create", new[] { typeof(string), });
+          var mCreate = tagsComp.GetType().GetMethod("Create", [typeof(string),]);
           if (mCreate == null)
           {
             Step($"tag:{tn}", false, $"No Create(string) on {tagsComp.GetType().FullName}");
@@ -2277,7 +2282,7 @@ public partial class Portal
           object? tagObj = null;
           try
           {
-            tagObj = mCreate.Invoke(tagsComp, new object[] { tn, });
+            tagObj = mCreate.Invoke(tagsComp, [tn,]);
           }
           catch (TargetInvocationException tie) when (tie.InnerException != null)
           {
@@ -2398,7 +2403,7 @@ public partial class Portal
               try
               {
                 var gm = m.MakeGenericMethod(t!);
-                var obj = gm.Invoke(itemsComp, new object[] { name, });
+                var obj = gm.Invoke(itemsComp, [name,]);
                 if (obj != null)
                 {
                   allAttempts.Add($"OK {m.Name}<{t!.Name}>(name)");
@@ -2429,7 +2434,7 @@ public partial class Portal
             {
               try
               {
-                var obj = m.Invoke(itemsComp, new object[] { name, t!, });
+                var obj = m.Invoke(itemsComp, [name, t!,]);
                 if (obj != null)
                 {
                   allAttempts.Add($"OK {m.Name}(name, typeof({t!.Name}))");
@@ -2460,7 +2465,7 @@ public partial class Portal
             {
               try
               {
-                var obj = m.Invoke(itemsComp, new object[] { t!, name, });
+                var obj = m.Invoke(itemsComp, [t!, name,]);
                 if (obj != null)
                 {
                   allAttempts.Add($"OK {m.Name}(typeof({t!.Name}), name)");
@@ -2522,7 +2527,7 @@ public partial class Portal
           {
             try
             {
-              var obj = m.Invoke(itemsComp, new object[] { name, });
+              var obj = m.Invoke(itemsComp, [name,]);
               if (obj != null)
               {
                 allAttempts.Add($"OK {m.Name}(name)");
@@ -2549,20 +2554,20 @@ public partial class Portal
         return null;
       }
 
-      var hdrBar = CreateItem("HDR_Bar", new[] { tRectangle, }, new[] { "HmiRectangle", "Rectangle", });
+      var hdrBar = CreateItem("HDR_Bar", [tRectangle,], ["HmiRectangle", "Rectangle",]);
       Step("ui:HDR_Bar", hdrBar != null, hdrBar?.GetType().FullName);
       var hdrTitle = CreateItem("HDR_Title",
-        new[] { tLabel, tIOField, },
-        new[] { "HmiLabel", "Label", "HmiText", "Text", });
+        [tLabel, tIOField,],
+        ["HmiLabel", "Label", "HmiText", "Text",]);
       Step("ui:HDR_Title", hdrTitle != null, hdrTitle?.GetType().FullName);
 
-      var btnStart = CreateItem("BTN_Start", new[] { tButton, }, new[] { "HmiButton", "Button", });
+      var btnStart = CreateItem("BTN_Start", [tButton,], ["HmiButton", "Button",]);
       Step("ui:BTN_Start", btnStart != null, btnStart?.GetType().FullName);
-      var btnStop = CreateItem("BTN_Stop", new[] { tButton, }, new[] { "HmiButton", "Button", });
+      var btnStop = CreateItem("BTN_Stop", [tButton,], ["HmiButton", "Button",]);
       Step("ui:BTN_Stop", btnStop != null, btnStop?.GetType().FullName);
       var lampRun = CreateItem("LAMP_Run",
-        new[] { tRectangle, tIOField, },
-        new[] { "HmiRectangle", "HmiIOField", "Lamp", "HmiLamp", });
+        [tRectangle, tIOField,],
+        ["HmiRectangle", "HmiIOField", "Lamp", "HmiLamp",]);
       Step("ui:LAMP_Run", lampRun != null, lampRun?.GetType().FullName);
 
       // Layout + styling (Unified RT): header strip + grouped controls
@@ -2678,7 +2683,7 @@ public partial class Portal
           {
             try
             {
-              var o = m0.Invoke(pst, Array.Empty<object>());
+              var o = m0.Invoke(pst, []);
               if (o != null)
               {
                 var path = string.IsNullOrWhiteSpace(table)
@@ -2708,7 +2713,7 @@ public partial class Portal
           }
 
           // Try Create(string)
-          var m1 = pst.GetType().GetMethod("Create", new[] { typeof(string), });
+          var m1 = pst.GetType().GetMethod("Create", [typeof(string),]);
           if (m1 != null)
           {
             try
@@ -2716,7 +2721,7 @@ public partial class Portal
               var path2 = string.IsNullOrWhiteSpace(table)
                 ? tagName
                 : $"{table}/{tagName}";
-              var o = m1.Invoke(pst, new object[] { path2, });
+              var o = m1.Invoke(pst, [path2,]);
               Step($"bind:{Portal.TryGetName(button)}:{tagName}", o != null, o?.GetType().FullName);
               return;
             }
@@ -2795,13 +2800,13 @@ public partial class Portal
         var action = "exists";
         if (screen == null)
         {
-          var mCreate = screens.GetType().GetMethod("Create", new[] { typeof(string), });
+          var mCreate = screens.GetType().GetMethod("Create", [typeof(string),]);
           if (mCreate == null)
           {
             throw new InvalidOperationException($"Create(string) not found on {screens.GetType().FullName}.");
           }
 
-          screen = Portal.InvokeCreate(mCreate, screens, new object[] { screenName, });
+          screen = Portal.InvokeCreate(mCreate, screens, [screenName,]);
           action = "created";
         }
 
@@ -3127,8 +3132,8 @@ public partial class Portal
   {
     try
     {
-      var get = connection.GetType().GetMethod("GetAttribute", new[] { typeof(string), });
-      var set = connection.GetType().GetMethod("SetAttribute", new[] { typeof(string), typeof(object), });
+      var get = connection.GetType().GetMethod("GetAttribute", [typeof(string),]);
+      var set = connection.GetType().GetMethod("SetAttribute", [typeof(string), typeof(object),]);
       if (get == null || set == null)
       {
         return false;
@@ -3145,7 +3150,7 @@ public partial class Portal
       {
         try
         {
-          var cur = get.Invoke(connection, new object[] { "CommunicationDriver", });
+          var cur = get.Invoke(connection, ["CommunicationDriver",]);
           if (cur != null && cur.GetType().IsEnum)
           {
             enumType = cur.GetType();
@@ -3181,7 +3186,7 @@ public partial class Portal
         return false;
       }
 
-      set.Invoke(connection, new[] { "CommunicationDriver", ev, });
+      set.Invoke(connection, ["CommunicationDriver", ev,]);
       if (prop != null && prop.CanWrite)
       {
         try
@@ -3283,13 +3288,13 @@ public partial class Portal
     var connection = Portal.FindExistingByName(connections, connectionName);
     if (connection == null)
     {
-      var create = connections.GetType().GetMethod("Create", new[] { typeof(string), });
+      var create = connections.GetType().GetMethod("Create", [typeof(string),]);
       if (create == null)
       {
         throw new InvalidOperationException($"Create(string) not found on {connections.GetType().FullName}.");
       }
 
-      connection = Portal.InvokeCreate(create, connections, new object[] { connectionName, });
+      connection = Portal.InvokeCreate(create, connections, [connectionName,]);
     }
 
     if (connection == null)
@@ -3560,7 +3565,7 @@ public partial class Portal
             throw new InvalidOperationException($"Create() not found on {pressedStateTags.GetType().FullName}.");
           }
 
-          existing = Portal.InvokeCreate(mCreate, pressedStateTags, Array.Empty<object>());
+          existing = Portal.InvokeCreate(mCreate, pressedStateTags, []);
           action = "created";
         }
 
@@ -3608,7 +3613,7 @@ public partial class Portal
       }
       catch (ReflectionTypeLoadException ex)
       {
-        types = ex.Types.Where(t => t != null).ToArray();
+        types = [.. ex.Types.Where(t => t != null),];
       }
       catch
       {
@@ -3686,13 +3691,13 @@ public partial class Portal
           m.Name == "Find" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == enumType);
         if (find != null)
         {
-          handler = find.Invoke(eventHandlers, new[] { enumValue, });
+          handler = find.Invoke(eventHandlers, [enumValue,]);
         }
 
         var action = "exists";
         if (handler == null)
         {
-          handler = Portal.InvokeCreate(create, eventHandlers, new[] { enumValue, });
+          handler = Portal.InvokeCreate(create, eventHandlers, [enumValue,]);
           action = "created";
         }
 
@@ -3725,7 +3730,7 @@ public partial class Portal
           Message = "Project is null",
           ObjectKind = "HmiButtonEventScript",
           ObjectPath = $"{hmiSoftwarePath}:{screenName}:{buttonName}:{eventType}",
-          Members = Array.Empty<ObjectMember>(),
+          Members = [],
         };
       }
 
@@ -3768,7 +3773,7 @@ public partial class Portal
         try
         {
           var infos = script.GetType().GetMethod("GetAttributeInfos", Type.EmptyTypes)
-            ?.Invoke(script, Array.Empty<object>());
+            ?.Invoke(script, []);
           if (infos is IEnumerable en)
           {
             foreach (var info in en.Cast<object>().Take(100))
@@ -3793,7 +3798,7 @@ public partial class Portal
         try
         {
           var infos = handler.GetType().GetMethod("GetAttributeInfos", Type.EmptyTypes)
-            ?.Invoke(handler, Array.Empty<object>());
+            ?.Invoke(handler, []);
           if (infos is IEnumerable en)
           {
             foreach (var info in en.Cast<object>().Take(100))
@@ -3831,7 +3836,7 @@ public partial class Portal
         Message = ex.ToString(),
         ObjectKind = "HmiButtonEventScript",
         ObjectPath = $"{hmiSoftwarePath}:{screenName}:{buttonName}:{eventType}.Script",
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
   }
@@ -3891,7 +3896,7 @@ public partial class Portal
           try
           {
             syntaxResult = script.GetType().GetMethod("SyntaxCheck", Type.EmptyTypes)
-              ?.Invoke(script, Array.Empty<object>());
+              ?.Invoke(script, []);
             if (syntaxResult != null)
             {
               var syntaxErrors = Portal.TryGetEnumerableStrings(syntaxResult, "Errors").ToList();
@@ -3917,7 +3922,7 @@ public partial class Portal
           }
           catch (Exception ex)
           {
-            var real = ex is TargetInvocationException tie && tie.InnerException != null
+            var real = ex is TargetInvocationException { InnerException: not null, } tie
               ? tie.InnerException
               : ex;
             meta["syntaxCheckStatus"] = "faulted";
@@ -3954,8 +3959,8 @@ public partial class Portal
           throw new InvalidOperationException($"Dynamizations not found on '{itemName}'.");
         }
 
-        var find = dynamizations.GetType().GetMethod("Find", new[] { typeof(string), });
-        var existing = find?.Invoke(dynamizations, new object[] { propertyName, });
+        var find = dynamizations.GetType().GetMethod("Find", [typeof(string),]);
+        var existing = find?.Invoke(dynamizations, [propertyName,]);
         if (existing != null)
         {
           meta["action"] = "exists";
@@ -3988,7 +3993,7 @@ public partial class Portal
           try
           {
             var created = createMethods[0].MakeGenericMethod(candidate)
-              .Invoke(dynamizations, new object[] { propertyName, });
+              .Invoke(dynamizations, [propertyName,]);
             if (created == null)
             {
               continue;
@@ -4051,8 +4056,8 @@ public partial class Portal
           throw new InvalidOperationException($"Dynamizations not found on '{itemName}'.");
         }
 
-        var find = dynamizations.GetType().GetMethod("Find", new[] { typeof(string), });
-        var dyn = find?.Invoke(dynamizations, new object[] { propertyName, });
+        var find = dynamizations.GetType().GetMethod("Find", [typeof(string),]);
+        var dyn = find?.Invoke(dynamizations, [propertyName,]);
         var action = "exists";
         if (dyn == null)
         {
@@ -4072,7 +4077,7 @@ public partial class Portal
             throw new InvalidOperationException($"Create<T>(string) not found on {dynamizations.GetType().FullName}.");
           }
 
-          dyn = create.MakeGenericMethod(tagDynType).Invoke(dynamizations, new object[] { propertyName, });
+          dyn = create.MakeGenericMethod(tagDynType).Invoke(dynamizations, [propertyName,]);
           action = "created";
         }
 
@@ -4224,13 +4229,13 @@ public partial class Portal
     var find = eventHandlers.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m =>
       m.Name == "Find" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == enumType);
 
-    var handler = find?.Invoke(eventHandlers, new[] { enumValue, });
+    var handler = find?.Invoke(eventHandlers, [enumValue,]);
     if (handler != null)
     {
       return handler;
     }
 
-    handler = Portal.InvokeCreate(create, eventHandlers, new[] { enumValue, });
+    handler = Portal.InvokeCreate(create, eventHandlers, [enumValue,]);
     if (handler == null)
     {
       throw new InvalidOperationException($"Button event handler '{eventType}' create/find returned null.");
@@ -4279,19 +4284,19 @@ public partial class Portal
       object?[]? args = null;
       if (ps.Length == 1 && ps[0].ParameterType == typeof(string))
       {
-        args = new object?[] { name, };
+        args = [name,];
       }
       else if (ps.Length == 2 && ps[0].ParameterType == typeof(string) && ps[1].ParameterType == typeof(string))
       {
-        args = new object?[] { name, name, };
+        args = [name, name,];
       }
       else if (ps.Length == 2 && ps[0].ParameterType == typeof(string) && ps[1].ParameterType.IsEnum)
       {
-        args = new[] { name, Enum.ToObject(ps[1].ParameterType, 0), };
+        args = [name, Enum.ToObject(ps[1].ParameterType, 0),];
       }
-      else if (ps.Length == 2 && ps[0].ParameterType.IsEnum && ps[1].ParameterType == typeof(string))
+      else if (ps is [{ ParameterType.IsEnum: true, }, _,] && ps[1].ParameterType == typeof(string))
       {
-        args = new[] { Enum.ToObject(ps[0].ParameterType, 0), name, };
+        args = [Enum.ToObject(ps[0].ParameterType, 0), name,];
       }
       else
       {
@@ -4352,8 +4357,8 @@ public partial class Portal
   private static object? TryFindHmiTagTable(object hmiSoftware, string tagTableName)
   {
     var root = Portal.TryGetHmiTagRoot(hmiSoftware);
-    return Portal.TryFindByNameInCollection(root, new[] { "TagTables", "HmiTagTables", "Tables", }, tagTableName) ??
-      Portal.TryFindByNameInCollection(hmiSoftware, new[] { "TagTables", "HmiTagTables", "Tables", }, tagTableName) ??
+    return Portal.TryFindByNameInCollection(root, ["TagTables", "HmiTagTables", "Tables",], tagTableName) ??
+      Portal.TryFindByNameInCollection(hmiSoftware, ["TagTables", "HmiTagTables", "Tables",], tagTableName) ??
       Portal.FindExistingByName(Portal.TryGetHmiTagTablesCollection(hmiSoftware) ?? root, tagTableName);
   }
 
@@ -4398,18 +4403,18 @@ public partial class Portal
     var key = (itemType ?? string.Empty).Trim();
     var candidates = key.Equals("Button", StringComparison.OrdinalIgnoreCase) ||
       key.Equals("HmiButton", StringComparison.OrdinalIgnoreCase)
-        ? new[] { "Siemens.Engineering.HmiUnified.UI.Widgets.HmiButton", }
+        ? ["Siemens.Engineering.HmiUnified.UI.Widgets.HmiButton",]
         : key.Equals("Text", StringComparison.OrdinalIgnoreCase) ||
         key.Equals("HmiText", StringComparison.OrdinalIgnoreCase)
-          ? new[] { "Siemens.Engineering.HmiUnified.UI.Shapes.HmiText", }
+          ? ["Siemens.Engineering.HmiUnified.UI.Shapes.HmiText",]
           : key.Equals("Rectangle", StringComparison.OrdinalIgnoreCase) ||
           key.Equals("Lamp", StringComparison.OrdinalIgnoreCase) ||
           key.Equals("HmiRectangle", StringComparison.OrdinalIgnoreCase)
-            ? new[]
-            {
+            ?
+            [
               "Siemens.Engineering.HmiUnified.UI.Shapes.HmiRectangle",
               "Siemens.Engineering.HmiUnified.UI.Widgets.HmiRectangle",
-            }
+            ]
             : key.Equals("IOField", StringComparison.OrdinalIgnoreCase) ||
             key.Equals("HmiIOField", StringComparison.OrdinalIgnoreCase)
               ? new[] { "Siemens.Engineering.HmiUnified.UI.Widgets.HmiIOField", }
@@ -4440,13 +4445,13 @@ public partial class Portal
   {
     var filter = (dynamizationType ?? string.Empty).Trim();
     var preferredNames = string.IsNullOrWhiteSpace(filter)
-      ? new[]
-      {
+      ?
+      [
         "Siemens.Engineering.HmiUnified.UI.Dynamization.TagDynamization",
         "Siemens.Engineering.HmiUnified.UI.Dynamization.DiscreteDynamization",
         "Siemens.Engineering.HmiUnified.UI.Dynamization.RangeDynamization",
         "Siemens.Engineering.HmiUnified.UI.Dynamization.ScriptDynamization",
-      }
+      ]
       : filter.Contains(".")
         ? new[] { filter, }
         : new[]
@@ -4486,7 +4491,7 @@ public partial class Portal
         }
         catch (ReflectionTypeLoadException ex)
         {
-          types = ex.Types.Where(t => t != null).ToArray();
+          types = [.. ex.Types.Where(t => t != null),];
         }
         catch
         {
@@ -4524,7 +4529,7 @@ public partial class Portal
       var ps = m.GetParameters();
       if (itemClrType != null && m.IsGenericMethodDefinition && ps.Length == 1 && ps[0].ParameterType == typeof(string))
       {
-        var created = m.MakeGenericMethod(itemClrType).Invoke(items, new object[] { itemName, });
+        var created = m.MakeGenericMethod(itemClrType).Invoke(items, [itemName,]);
         if (created != null)
         {
           return created;
@@ -4617,7 +4622,7 @@ public partial class Portal
     foreach (var propName in propertyNames)
     {
       var prop = target.GetType().GetProperty(propName, BindingFlags.Public | BindingFlags.Instance);
-      if (prop != null && prop.CanWrite && prop.PropertyType.IsEnum)
+      if (prop != null && prop is { CanWrite: true, PropertyType.IsEnum: true, })
       {
         foreach (var candidate in valueCandidates)
         {
@@ -4684,8 +4689,8 @@ public partial class Portal
   {
     try
     {
-      var get = target.GetType().GetMethod("GetAttribute", new[] { typeof(string), });
-      return get?.Invoke(target, new object[] { attributeName, });
+      var get = target.GetType().GetMethod("GetAttribute", [typeof(string),]);
+      return get?.Invoke(target, [attributeName,]);
     }
     catch
     {
@@ -4946,7 +4951,7 @@ public partial class Portal
 
   private static string FirstPathSegment(string path)
   {
-    return (path ?? string.Empty).Trim().Split(new[] { '/', }, StringSplitOptions.RemoveEmptyEntries)
+    return (path ?? string.Empty).Trim().Split(['/',], StringSplitOptions.RemoveEmptyEntries)
       .FirstOrDefault() ?? string.Empty;
   }
 
@@ -5097,7 +5102,7 @@ public partial class Portal
         return string.Empty;
       }
 
-      var head = (plcSoftwarePath ?? string.Empty).Trim().Split(new[] { '/', }, StringSplitOptions.RemoveEmptyEntries)
+      var head = (plcSoftwarePath ?? string.Empty).Trim().Split(['/',], StringSplitOptions.RemoveEmptyEntries)
         .FirstOrDefault() ?? string.Empty;
       if (string.IsNullOrWhiteSpace(head))
       {
@@ -5276,7 +5281,7 @@ public partial class Portal
     try
     {
       var prop = connection.GetType().GetProperty("CommunicationDriver", BindingFlags.Public | BindingFlags.Instance);
-      if (prop != null && prop.CanWrite && prop.PropertyType.IsEnum)
+      if (prop != null && prop is { CanWrite: true, PropertyType.IsEnum: true, })
       {
         var ev = Portal.SelectCommunicationDriverEnumValue(prop.PropertyType, plcFamily);
         if (ev != null)
@@ -5510,8 +5515,8 @@ public partial class Portal
   {
     try
     {
-      var get = target.GetType().GetMethod("GetAttribute", new[] { typeof(string), });
-      var set = target.GetType().GetMethod("SetAttribute", new[] { typeof(string), typeof(object), });
+      var get = target.GetType().GetMethod("GetAttribute", [typeof(string),]);
+      var set = target.GetType().GetMethod("SetAttribute", [typeof(string), typeof(object),]);
       if (set == null)
       {
         return false;
@@ -5520,7 +5525,7 @@ public partial class Portal
       object? oldValue = null;
       try
       {
-        oldValue = get?.Invoke(target, new object[] { attributeName, });
+        oldValue = get?.Invoke(target, [attributeName,]);
       }
       catch
       {
@@ -5529,7 +5534,7 @@ public partial class Portal
       var typed = oldValue == null
         ? value
         : Portal.CoerceReflectionValue(value, oldValue.GetType());
-      set.Invoke(target, new[] { attributeName, typed, });
+      set.Invoke(target, [attributeName, typed,]);
       return true;
     }
     catch
@@ -5960,7 +5965,7 @@ public partial class Portal
 
   private static string FormatExceptionDetail(Exception ex)
   {
-    if (ex is TargetInvocationException tie && tie.InnerException != null)
+    if (ex is TargetInvocationException { InnerException: not null, } tie)
     {
       return $"{tie.InnerException.GetType().FullName}: {tie.InnerException.Message}\n{tie.InnerException}";
     }
@@ -6007,10 +6012,10 @@ public partial class Portal
     var tables = Portal.TryGetHmiTagTablesCollection(sw);
     if (tables == null)
     {
-      return new List<string>();
+      return [];
     }
 
-    return Portal.TryListNamesFromCollection(tables, Array.Empty<string>(), "TagTables");
+    return Portal.TryListNamesFromCollection(tables, [], "TagTables");
   }
 
   public List<string>? GetHmiTags(string softwarePath, string tagTableName = "")
@@ -6033,7 +6038,7 @@ public partial class Portal
       : Portal.TryFindHmiTagTable(sw, tagTableName);
 
     var root = tagTable ?? tagRoot;
-    return Portal.TryListNamesFromCollection(root, new[] { "Tags", }, "Tags");
+    return Portal.TryListNamesFromCollection(root, ["Tags",], "Tags");
   }
 
   public List<string>? GetHmiConnections(string softwarePath)
@@ -6053,10 +6058,10 @@ public partial class Portal
     var connections = Portal.TryGetPropertyValue(sw, "Connections");
     if (connections == null)
     {
-      return new List<string>();
+      return [];
     }
 
-    return Portal.TryListNamesFromCollection(connections, Array.Empty<string>(), "Connections");
+    return Portal.TryListNamesFromCollection(connections, [], "Connections");
   }
 
   public void ExportHmiScreen(string softwarePath, string screenName, string exportPath)
@@ -6208,7 +6213,7 @@ public partial class Portal
     sb.AppendLine("CreationInfos:");
     var creationInfos = Portal.TryInvokeExplicitEngineeringMethod(connections,
       "GetCreationInfos",
-      Array.Empty<object?>(),
+      [],
       out var creationInfoErr);
     if (creationInfos == null && !string.IsNullOrWhiteSpace(creationInfoErr))
     {
@@ -6236,7 +6241,7 @@ public partial class Portal
         sb.AppendLine($"CreateAttempt {attempt.Description}");
         created = Portal.TryInvokeExplicitEngineeringMethod(connections,
           "Create",
-          new object?[] { connectionType, attempt.Parameters, },
+          [connectionType, attempt.Parameters,],
           out createErr);
         if (created != null)
         {
@@ -6289,7 +6294,7 @@ public partial class Portal
 
     if (exportScreens)
     {
-      var screens = this.GetHmiScreens(softwarePath) ?? new List<string>();
+      var screens = this.GetHmiScreens(softwarePath) ?? [];
       foreach (var s in screens)
       {
         var safe = Portal.MakeSafeFileName(s);
@@ -6308,7 +6313,7 @@ public partial class Portal
 
     if (exportTagTables)
     {
-      var tables = this.GetHmiTagTables(softwarePath) ?? new List<string>();
+      var tables = this.GetHmiTagTables(softwarePath) ?? [];
       foreach (var t in tables)
       {
         var safe = Portal.MakeSafeFileName(t);
@@ -6694,9 +6699,9 @@ public partial class Portal
       if (Directory.Exists(tempPlcBlocks))
       {
         var r = this.ImportBlocksFromDirectory(plcSoftwarePath, plcBlockGroupPath, tempPlcBlocks);
-        imported.AddRange(r.Imported?.Select(x => "plc:block:" + x) ?? Array.Empty<string>());
+        imported.AddRange(r.Imported?.Select(x => "plc:block:" + x) ?? []);
         failed.AddRange(r.Failed?.Select(x => new ImportFailure { Path = x.Path, Error = "plc:block:" + x.Error, }) ??
-          Array.Empty<ImportFailure>());
+          []);
       }
 
       // PLC types (UDT)
@@ -6721,18 +6726,18 @@ public partial class Portal
       if (Directory.Exists(tempHmiTags))
       {
         var r = this.ImportHmiTagTablesFromDirectory(hmiSoftwarePath, hmiTagTableFolderPath, tempHmiTags);
-        imported.AddRange(r.Imported?.Select(x => "hmi:tagtable:" + x) ?? Array.Empty<string>());
+        imported.AddRange(r.Imported?.Select(x => "hmi:tagtable:" + x) ?? []);
         failed.AddRange(
           r.Failed?.Select(x => new ImportFailure { Path = x.Path, Error = "hmi:tagtable:" + x.Error, }) ??
-          Array.Empty<ImportFailure>());
+          []);
       }
 
       if (Directory.Exists(tempHmiScreens))
       {
         var r = this.ImportHmiScreensFromDirectory(hmiSoftwarePath, hmiScreenFolderPath, tempHmiScreens);
-        imported.AddRange(r.Imported?.Select(x => "hmi:screen:" + x) ?? Array.Empty<string>());
+        imported.AddRange(r.Imported?.Select(x => "hmi:screen:" + x) ?? []);
         failed.AddRange(r.Failed?.Select(x => new ImportFailure { Path = x.Path, Error = "hmi:screen:" + x.Error, }) ??
-          Array.Empty<ImportFailure>());
+          []);
       }
 
       return new ResponseSeed
@@ -6806,24 +6811,24 @@ public partial class Portal
         {
           if (ps.Length == 1 && ps[0].ParameterType == typeof(FileInfo))
           {
-            return m.Invoke(globalLibraries, new object[] { fi, });
+            return m.Invoke(globalLibraries, [fi,]);
           }
 
           if (ps.Length == 1 && ps[0].ParameterType == typeof(string))
           {
-            return m.Invoke(globalLibraries, new object[] { libraryFile, });
+            return m.Invoke(globalLibraries, [libraryFile,]);
           }
 
           if (ps.Length == 2 && ps[0].ParameterType == typeof(FileInfo))
           {
             var arg2 = Portal.BuildDefaultArgument(ps[1].ParameterType);
-            return m.Invoke(globalLibraries, new[] { fi, arg2, });
+            return m.Invoke(globalLibraries, [fi, arg2,]);
           }
 
           if (ps.Length == 2 && ps[0].ParameterType == typeof(string))
           {
             var arg2 = Portal.BuildDefaultArgument(ps[1].ParameterType);
-            return m.Invoke(globalLibraries, new[] { libraryFile, arg2, });
+            return m.Invoke(globalLibraries, [libraryFile, arg2,]);
           }
         }
         catch (TargetInvocationException tie) when (tie.InnerException != null)
@@ -6898,7 +6903,7 @@ public partial class Portal
           continue;
         }
 
-        if (value is IEnumerable enumerable && value is not string)
+        if (value is IEnumerable enumerable and not string)
         {
           foreach (var item in enumerable)
           {
@@ -6976,7 +6981,7 @@ public partial class Portal
 
         attempts.Add($"Scan {node.GetType().Name}.{hint}: {value.GetType().FullName}");
 
-        if (value is IEnumerable enumerable && value is not string)
+        if (value is IEnumerable enumerable and not string)
         {
           foreach (var child in enumerable)
           {
@@ -7218,7 +7223,7 @@ public partial class Portal
     }
     catch
     {
-      return Array.Empty<Type>();
+      return [];
     }
   }
 
@@ -7569,7 +7574,7 @@ public partial class Portal
       return string.Empty;
     }
 
-    var parts = value.Split(new[] { '/', '\\', }, StringSplitOptions.RemoveEmptyEntries);
+    var parts = value.Split(['/', '\\',], StringSplitOptions.RemoveEmptyEntries);
     return parts.Length == 0
       ? value
       : parts[^1];
@@ -7750,7 +7755,7 @@ public partial class Portal
     }
 
     var watchTables = Portal.TryGetPropertyValue(group, "WatchTables", "PlcWatchTables", "Tables");
-    if (watchTables is IEnumerable tableEnumerable && watchTables is not string)
+    if (watchTables is IEnumerable tableEnumerable and not string)
     {
       foreach (var table in tableEnumerable)
       {
@@ -7773,7 +7778,7 @@ public partial class Portal
     }
 
     var groups = Portal.TryGetPropertyValue(group, "Groups", "WatchAndForceTableGroups", "UserGroups");
-    if (groups is IEnumerable groupEnumerable && groups is not string)
+    if (groups is IEnumerable groupEnumerable and not string)
     {
       foreach (var child in groupEnumerable)
       {
@@ -7825,7 +7830,7 @@ public partial class Portal
     var getAttr = methods.FirstOrDefault(m =>
       m.Name == "GetAttribute" && m.GetParameters().Length == 1 &&
       m.GetParameters()[0].ParameterType == typeof(string));
-    var infos = getInfos?.Invoke(entry, Array.Empty<object>()) as IEnumerable;
+    var infos = getInfos?.Invoke(entry, []) as IEnumerable;
     if (infos != null && getAttr != null)
     {
       foreach (var info in infos)
@@ -7848,7 +7853,7 @@ public partial class Portal
 
         try
         {
-          var value = getAttr.Invoke(entry, new object[] { name, });
+          var value = getAttr.Invoke(entry, [name,]);
           attributes[name] = value?.ToString() ?? "";
         }
         catch
@@ -7864,8 +7869,9 @@ public partial class Portal
 
     if (includeMembers)
     {
-      row["members"] = new JsonArray(Portal.DescribeMembers(entry, 180)
-        .Select(m => JsonValue.Create($"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")).ToArray());
+      row["members"] = new JsonArray([
+        .. Portal.DescribeMembers(entry, 180).Select(m => JsonValue.Create($"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")),
+      ]);
     }
 
     return row;
@@ -7886,10 +7892,10 @@ public partial class Portal
       var t = engineeringObject.GetType();
 
       // Prefer Export(FileInfo, ExportOptions)
-      var m2 = t.GetMethod("Export", new[] { typeof(FileInfo), typeof(ExportOptions), });
+      var m2 = t.GetMethod("Export", [typeof(FileInfo), typeof(ExportOptions),]);
       if (m2 != null)
       {
-        m2.Invoke(engineeringObject, new object[] { fi, ExportOptions.None, });
+        m2.Invoke(engineeringObject, [fi, ExportOptions.None,]);
         return true;
       }
 
@@ -7931,15 +7937,15 @@ public partial class Portal
           }
         }
 
-        any.Method.Invoke(engineeringObject, new[] { fi, arg2!, });
+        any.Method.Invoke(engineeringObject, [fi, arg2!,]);
         return true;
       }
 
       // Export(FileInfo)
-      var m1 = t.GetMethod("Export", new[] { typeof(FileInfo), });
+      var m1 = t.GetMethod("Export", [typeof(FileInfo),]);
       if (m1 != null)
       {
-        m1.Invoke(engineeringObject, new object[] { fi, });
+        m1.Invoke(engineeringObject, [fi,]);
         return true;
       }
     }
@@ -7973,19 +7979,19 @@ public partial class Portal
       var t = collection.GetType();
 
       // Prefer Import(FileInfo, ImportOptions)
-      var m2 = t.GetMethod("Import", new[] { typeof(FileInfo), typeof(ImportOptions), });
+      var m2 = t.GetMethod("Import", [typeof(FileInfo), typeof(ImportOptions),]);
       if (m2 != null)
       {
-        var list = m2.Invoke(collection, new object[] { fi, ImportOptions.Override, });
+        var list = m2.Invoke(collection, [fi, ImportOptions.Override,]);
         importedName = Portal.BestEffortExtractFirstName(list) ?? Path.GetFileNameWithoutExtension(importPath);
         return true;
       }
 
       // Import(FileInfo)
-      var m1 = t.GetMethod("Import", new[] { typeof(FileInfo), });
+      var m1 = t.GetMethod("Import", [typeof(FileInfo),]);
       if (m1 != null)
       {
-        var list = m1.Invoke(collection, new object[] { fi, });
+        var list = m1.Invoke(collection, [fi,]);
         importedName = Portal.BestEffortExtractFirstName(list) ?? Path.GetFileNameWithoutExtension(importPath);
         return true;
       }
@@ -8220,12 +8226,12 @@ public partial class Portal
     {
       var dictType = typeof(Dictionary<,>).MakeGenericType(typeof(string), typeof(object));
       var dict = Activator.CreateInstance(dictType);
-      var addMethod = dictType.GetMethod("Add", new[] { typeof(string), typeof(object), });
+      var addMethod = dictType.GetMethod("Add", [typeof(string), typeof(object),]);
       if (value is IEnumerable<KeyValuePair<string, object?>> kvps)
       {
         foreach (var kv in kvps)
         {
-          addMethod?.Invoke(dict, new[] { kv.Key, kv.Value, });
+          addMethod?.Invoke(dict, [kv.Key, kv.Value,]);
         }
 
         return dict;
@@ -8234,7 +8240,7 @@ public partial class Portal
 
     if (typeof(IEnumerable).IsAssignableFrom(nonNullable) && nonNullable != typeof(string))
     {
-      var enumerableInterface = nonNullable.IsInterface && nonNullable.IsGenericType
+      var enumerableInterface = nonNullable is { IsInterface: true, IsGenericType: true, }
         ? nonNullable
         : nonNullable.GetInterfaces()
           .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
@@ -8284,7 +8290,7 @@ public partial class Portal
       return rootGroup;
     }
 
-    var parts = groupPath.Trim().Trim('/').Split(new[] { '/', '\\', }, StringSplitOptions.RemoveEmptyEntries);
+    var parts = groupPath.Trim().Trim('/').Split(['/', '\\',], StringSplitOptions.RemoveEmptyEntries);
     var current = rootGroup;
     foreach (var part in parts)
     {
@@ -8295,7 +8301,7 @@ public partial class Portal
 
       // common group collections used by HMI objects
       var next = Portal.TryFindByNameInCollection(current,
-        new[] { "Groups", "ScreenGroups", "TagTableGroups", "Folders", },
+        ["Groups", "ScreenGroups", "TagTableGroups", "Folders",],
         part);
       if (next == null)
       {
@@ -8304,7 +8310,7 @@ public partial class Portal
         if (groupContainer != null)
         {
           next = Portal.TryFindByNameInCollection(groupContainer,
-            new[] { "Groups", "ScreenGroups", "TagTableGroups", "Folders", },
+            ["Groups", "ScreenGroups", "TagTableGroups", "Folders",],
             part);
         }
       }
@@ -8372,7 +8378,7 @@ public partial class Portal
         }
         catch
         {
-          return Array.Empty<Type>();
+          return [];
         }
       }).FirstOrDefault(t =>
         t.Name.Equals(serviceTypeNameSuffix, StringComparison.OrdinalIgnoreCase) ||
@@ -8382,7 +8388,7 @@ public partial class Portal
         return null;
       }
 
-      return getService.MakeGenericMethod(serviceType).Invoke(target, Array.Empty<object>());
+      return getService.MakeGenericMethod(serviceType).Invoke(target, []);
     }
     catch
     {
@@ -8403,13 +8409,13 @@ public partial class Portal
       }
 
       var filterValue = Enum.Parse(filterType, filterName, true);
-      var m = svcType.GetMethod("GetCrossReferences", new[] { filterType, });
+      var m = svcType.GetMethod("GetCrossReferences", [filterType,]);
       if (m == null)
       {
         return null;
       }
 
-      return m.Invoke(crossReferenceService, new[] { filterValue, });
+      return m.Invoke(crossReferenceService, [filterValue,]);
     }
     catch
     {
@@ -8513,7 +8519,7 @@ public partial class Portal
     var sources = Portal.TryGetExternalSourcesCollection(plcSoftware);
     if (sources == null)
     {
-      return new List<string>();
+      return [];
     }
 
     var names = new List<string>();
@@ -8677,11 +8683,14 @@ public partial class Portal
       }).Select(m => (Target: tgt, Method: m)));
     }
 
-    candidates = candidates.OrderBy(c => c.Method.GetParameters()[0].ParameterType == typeof(FileInfo)
-      ? 0
-      : 1).ThenBy(c => c.Method.Name.StartsWith("Import", StringComparison.OrdinalIgnoreCase)
-      ? 0
-      : 1).ThenBy(c => c.Method.GetParameters().Length).ToList();
+    candidates =
+    [
+      .. candidates.OrderBy(c => c.Method.GetParameters()[0].ParameterType == typeof(FileInfo)
+        ? 0
+        : 1).ThenBy(c => c.Method.Name.StartsWith("Import", StringComparison.OrdinalIgnoreCase)
+        ? 0
+        : 1).ThenBy(c => c.Method.GetParameters().Length),
+    ];
 
     if (candidates.Count == 0)
     {
@@ -8735,7 +8744,7 @@ public partial class Portal
         }
         catch (Exception ex)
         {
-          var inner = ex is TargetInvocationException tie && tie.InnerException != null
+          var inner = ex is TargetInvocationException { InnerException: not null, } tie
             ? tie.InnerException
             : ex;
           failures.Add($"{sig} threw {inner.GetType().FullName}: {inner.Message}");
@@ -8800,7 +8809,7 @@ public partial class Portal
 
     if (parms.Length == 1)
     {
-      result.Add(new[] { firstArg, });
+      result.Add([firstArg,]);
       return result;
     }
 
@@ -8809,10 +8818,10 @@ public partial class Portal
     // Older reflection code wrongly passed (FullPath, fileTitleWithoutExtension).
     if (parms.Length == 2 && parms[0].ParameterType == typeof(string) && parms[1].ParameterType == typeof(string))
     {
-      result.Add(new object?[] { fi.Name, fi.FullName, });
+      result.Add([fi.Name, fi.FullName,]);
       if (!string.IsNullOrEmpty(sourceName) && !string.Equals(sourceName, fi.Name, StringComparison.OrdinalIgnoreCase))
       {
-        result.Add(new object?[] { sourceName, fi.FullName, });
+        result.Add([sourceName, fi.FullName,]);
       }
 
       return result;
@@ -8820,17 +8829,17 @@ public partial class Portal
 
     if (parms.Length == 2 && parms[0].ParameterType == typeof(FileInfo) && parms[1].ParameterType == typeof(string))
     {
-      result.Add(new object?[] { fi, sourceName, });
+      result.Add([fi, sourceName,]);
       return result;
     }
 
-    if (parms.Length == 2 && parms[1].ParameterType.IsEnum)
+    if (parms is [_, { ParameterType.IsEnum: true, },])
     {
       foreach (var preferred in new[] { "Override", "Overwrite", "Replace", "None", })
       {
         try
         {
-          result.Add(new[] { firstArg, Enum.Parse(parms[1].ParameterType, preferred, true), });
+          result.Add([firstArg, Enum.Parse(parms[1].ParameterType, preferred, true),]);
         }
         catch
         {
@@ -8841,7 +8850,7 @@ public partial class Portal
       {
         if (!result.Any(args => object.Equals(args[1], value)))
         {
-          result.Add(new[] { firstArg, value, });
+          result.Add([firstArg, value,]);
         }
       }
 
@@ -8850,7 +8859,7 @@ public partial class Portal
 
     if (parms.Skip(1).All(p => p.IsOptional))
     {
-      result.Add(new[] { firstArg, }.Concat(parms.Skip(1).Select(p => p.DefaultValue)).ToArray());
+      result.Add([firstArg, parms.Skip(1).Select(p => p.DefaultValue),]);
     }
 
     return result;
@@ -8923,11 +8932,11 @@ public partial class Portal
       {
         if (ps.Length == 0)
         {
-          gen.Invoke(src, Array.Empty<object>());
+          gen.Invoke(src, []);
           return;
         }
 
-        if (ps.Length == 2 && ps[1].ParameterType.IsEnum)
+        if (ps is [_, { ParameterType.IsEnum: true, },])
         {
           var folderType = ps[0].ParameterType;
           var blockRoot = plcSoftware.BlockGroup;
@@ -8960,13 +8969,13 @@ public partial class Portal
             optionVal = vals.GetValue(0)!;
           }
 
-          gen.Invoke(src, new[] { blockRoot, optionVal, });
+          gen.Invoke(src, [blockRoot, optionVal,]);
           return;
         }
       }
       catch (Exception ex)
       {
-        var inner = ex is TargetInvocationException tie && tie.InnerException != null
+        var inner = ex is TargetInvocationException { InnerException: not null, } tie
           ? tie.InnerException
           : ex;
         failures.Add($"{gen.Name}({ps.Length}): {inner.Message}");
@@ -9012,7 +9021,7 @@ public partial class Portal
         return root;
       }
 
-      var segments = groupPath.Split(new[] { '/', }, StringSplitOptions.RemoveEmptyEntries);
+      var segments = groupPath.Split(['/',], StringSplitOptions.RemoveEmptyEntries);
       var current = root;
       foreach (var seg in segments)
       {
@@ -9075,19 +9084,16 @@ public partial class Portal
       var deviceItem = softwareContainer?.Parent as DeviceItem;
 
       var admin = deviceItem?.GetService<SafetyAdministration>();
-      if (admin != null)
+      if (admin is { IsLoggedOnToSafetyOfflineProgram: false, })
       {
-        if (!admin.IsLoggedOnToSafetyOfflineProgram)
+        var secString = new NetworkCredential("", password).SecurePassword;
+        try
         {
-          var secString = new NetworkCredential("", password).SecurePassword;
-          try
-          {
-            admin.LoginToSafetyOfflineProgram(secString);
-          }
-          catch (Exception ex)
-          {
-            throw new PortalException(PortalErrorCode.OpennessError, $"Safety login failed: {ex.Message}", null, ex);
-          }
+          admin.LoginToSafetyOfflineProgram(secString);
+        }
+        catch (Exception ex)
+        {
+          throw new PortalException(PortalErrorCode.OpennessError, $"Safety login failed: {ex.Message}", null, ex);
         }
       }
     }

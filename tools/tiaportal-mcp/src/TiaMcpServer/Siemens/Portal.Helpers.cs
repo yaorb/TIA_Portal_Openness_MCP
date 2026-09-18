@@ -69,6 +69,7 @@ public partial class Portal
           }
           catch
           {
+            // ignored
           }
 
           if (tiaRunning)
@@ -134,7 +135,7 @@ public partial class Portal
     }
 
     // Check if this is the last main section
-    var hasOtherSections = (this.CurrentProject?.DeviceGroups != null && this.CurrentProject.DeviceGroups.Count > 0) ||
+    var hasOtherSections = this.CurrentProject?.DeviceGroups is { Count: > 0, } ||
       this.CurrentProject?.UngroupedDevicesGroup != null;
     var isLastMainSection = !hasOtherSections;
 
@@ -151,11 +152,11 @@ public partial class Portal
       sb.AppendLine(
         $"{this.GetTreePrefix(newAncestorStates, isLastDevice)}{device.Name} [Device: {device.TypeIdentifier}]");
 
-      if (device.DeviceItems != null && device.DeviceItems.Count > 0)
+      if (device.DeviceItems is { Count: > 0, })
       {
         this.GetProjectTreeDeviceItemsRecursive(sb,
           device.DeviceItems,
-          new List<bool>(newAncestorStates) { isLastDevice, });
+          [.. newAncestorStates, isLastDevice,]);
       }
     }
   }
@@ -183,15 +184,15 @@ public partial class Portal
 
       var groupAncestorStates = new List<bool>(newAncestorStates) { isLastGroup, };
 
-      if (group.Devices != null && group.Devices.Count > 0)
+      if (group.Devices is { Count: > 0, })
       {
         this.GetProjectTreeGroupDevices(sb,
           group.Devices,
           groupAncestorStates,
-          group.Groups != null && group.Groups.Count > 0);
+          group.Groups is { Count: > 0, });
       }
 
-      if (group.Groups != null && group.Groups.Count > 0)
+      if (group.Groups is { Count: > 0, })
       {
         this.GetProjectTreeSubGroups(sb, group.Groups, groupAncestorStates);
       }
@@ -210,11 +211,11 @@ public partial class Portal
 
       sb.AppendLine($"{this.GetTreePrefix(ancestorStates, isLastDevice)}{device.Name} [Device]");
 
-      if (device.DeviceItems != null && device.DeviceItems.Count > 0)
+      if (device.DeviceItems is { Count: > 0, })
       {
         this.GetProjectTreeDeviceItemsRecursive(sb,
           device.DeviceItems,
-          new List<bool>(ancestorStates) { isLastDevice, });
+          [.. ancestorStates, isLastDevice,]);
       }
     }
   }
@@ -232,15 +233,15 @@ public partial class Portal
 
       var groupAncestorStates = new List<bool>(ancestorStates) { isLastGroup, };
 
-      if (group.Devices != null && group.Devices.Count > 0)
+      if (group.Devices is { Count: > 0, })
       {
         this.GetProjectTreeGroupDevices(sb,
           group.Devices,
           groupAncestorStates,
-          group.Groups != null && group.Groups.Count > 0);
+          group.Groups is { Count: > 0, });
       }
 
-      if (group.Groups != null && group.Groups.Count > 0)
+      if (group.Groups is { Count: > 0, })
       {
         this.GetProjectTreeSubGroups(sb, group.Groups, groupAncestorStates);
       }
@@ -265,16 +266,16 @@ public partial class Portal
       this.GetProjectTreeDeviceItemSoftware(sb, deviceItem, itemAncestorStates);
 
       // Then get items
-      if (deviceItem.Items != null && deviceItem.Items.Count > 0)
+      if (deviceItem.Items is { Count: > 0, })
       {
         this.GetProjectTreeItems(sb,
           deviceItem.Items,
           itemAncestorStates,
-          deviceItem.DeviceItems != null && deviceItem.DeviceItems.Count > 0);
+          deviceItem.DeviceItems is { Count: > 0, });
       }
 
       // Finally get sub-device items
-      if (deviceItem.DeviceItems != null && deviceItem.DeviceItems.Count > 0)
+      if (deviceItem.DeviceItems is { Count: > 0, })
       {
         this.GetProjectTreeDeviceItemsRecursive(sb, deviceItem.DeviceItems, itemAncestorStates);
       }
@@ -304,8 +305,8 @@ public partial class Portal
     //PLC software
     if (softwareContainer?.Software is PlcSoftware plcSoftware)
     {
-      var hasOtherItems = (deviceItem.Items != null && deviceItem.Items.Count > 0) ||
-        (deviceItem.DeviceItems != null && deviceItem.DeviceItems.Count > 0);
+      var hasOtherItems = deviceItem.Items is { Count: > 0, } ||
+        deviceItem.DeviceItems is { Count: > 0, };
       sb.AppendLine(
         $"{this.GetTreePrefix(ancestorStates, !hasOtherItems)}PlcSoftware: {plcSoftware.Name} [PLC Program]");
       hasSoftware = true;
@@ -314,8 +315,8 @@ public partial class Portal
     //WinCC HMI software
     if (softwareContainer?.Software is HmiTarget hmiTarget)
     {
-      var hasOtherItems = (deviceItem.Items != null && deviceItem.Items.Count > 0) ||
-        (deviceItem.DeviceItems != null && deviceItem.DeviceItems.Count > 0);
+      var hasOtherItems = deviceItem.Items is { Count: > 0, } ||
+        deviceItem.DeviceItems is { Count: > 0, };
       sb.AppendLine(
         $"{this.GetTreePrefix(ancestorStates, !hasOtherItems && !hasSoftware)}HmiTarget: {hmiTarget.Name} [HMI Program]");
     }
@@ -333,8 +334,8 @@ public partial class Portal
     var software = softwareContainer?.Software;
     if (software != null && Portal.IsUnifiedHmiSoftware(software))
     {
-      var hasOtherItems = (deviceItem.Items != null && deviceItem.Items.Count > 0) ||
-        (deviceItem.DeviceItems != null && deviceItem.DeviceItems.Count > 0);
+      var hasOtherItems = deviceItem.Items is { Count: > 0, } ||
+        deviceItem.DeviceItems is { Count: > 0, };
       sb.AppendLine(
         $"{this.GetTreePrefix(ancestorStates, !hasOtherItems && !hasSoftware)}HmiSoftware: {software.Name} [HMI Program]");
       hasSoftware = true;
@@ -358,7 +359,7 @@ public partial class Portal
     sb.AppendLine(
       $"{this.GetTreePrefix(ancestorStates, true)}UngroupedDevicesGroup: {ungroupedDevicesGroup.Name} [System Group]");
 
-    if (ungroupedDevicesGroup.Devices != null && ungroupedDevicesGroup.Devices.Count > 0)
+    if (ungroupedDevicesGroup.Devices is { Count: > 0, })
     {
       var deviceList = ungroupedDevicesGroup.Devices.ToList();
       var newAncestorStates = new List<bool>(ancestorStates) { true, };
@@ -674,10 +675,9 @@ public partial class Portal
     return new HandlerScope(() => conn.OnlineLegitimation -= handler);
   }
 
-  private sealed class HandlerScope : IDisposable
+  private sealed class HandlerScope(Action detach) : IDisposable
   {
-    private Action? _detach;
-    public HandlerScope(Action detach) => this._detach = detach;
+    private Action? _detach = detach;
 
     public void Dispose()
     {
@@ -806,7 +806,7 @@ public partial class Portal
         {
           deviceItem =
             device.DeviceItems.FirstOrDefault(di => di.Name.Equals(nextSegment, StringComparison.OrdinalIgnoreCase));
-          softwareContainer = this.GetSoftwareContainerInDeviceItem(deviceItem, pathSegments, index + 1);
+          softwareContainer = Portal.GetSoftwareContainerInDeviceItem(deviceItem, pathSegments, index + 1);
           if (softwareContainer != null)
           {
             return softwareContainer;
@@ -829,7 +829,7 @@ public partial class Portal
       deviceItem = flatItems.FirstOrDefault(di => di.Name.Equals(segment, StringComparison.OrdinalIgnoreCase));
       if (deviceItem != null)
       {
-        return this.GetSoftwareContainerInDeviceItem(deviceItem, pathSegments, index);
+        return Portal.GetSoftwareContainerInDeviceItem(deviceItem, pathSegments, index);
       }
     }
 
@@ -870,7 +870,7 @@ public partial class Portal
   {
     try
     {
-      var stack = new Stack<DeviceItem>(roots?.Where(x => x != null) ?? Enumerable.Empty<DeviceItem>());
+      var stack = new Stack<DeviceItem>(roots?.Where(x => x != null) ?? []);
       while (stack.Count > 0)
       {
         var it = stack.Pop();
@@ -941,37 +941,36 @@ public partial class Portal
     }
   }
 
-  private SoftwareContainer? GetSoftwareContainerInGroups(DeviceUserGroupComposition groups, string[] pathSegments,
-    int index)
+  private SoftwareContainer? GetSoftwareContainerInGroups(DeviceUserGroupComposition? groups, string[] pathSegments, int index)
   {
-    if (index >= pathSegments.Length)
+    while (true)
     {
-      return null;
-    }
-
-    var segment = pathSegments[index];
-    SoftwareContainer? softwareContainer = null;
-
-    if (groups != null)
-    {
-      var group = groups.FirstOrDefault(g => g.Name.Equals(segment));
-      if (group != null)
+      if (index >= pathSegments.Length)
       {
-        // when segment matched
-        softwareContainer = this.GetSoftwareContainerInDevices(group.Devices, pathSegments, index + 1);
-        if (softwareContainer != null)
-        {
-          return softwareContainer;
-        }
-
-        return this.GetSoftwareContainerInGroups(group.Groups, pathSegments, index + 1);
+        return null;
       }
-    }
 
-    return null;
+      var segment = pathSegments[index];
+
+      var group = groups?.FirstOrDefault(g => g.Name.Equals(segment));
+      if (group == null)
+      {
+        return null;
+      }
+
+      // when segment matched
+      var softwareContainer = this.GetSoftwareContainerInDevices(group.Devices, pathSegments, index + 1);
+      if (softwareContainer != null)
+      {
+        return softwareContainer;
+      }
+
+      groups = group.Groups;
+      index = index + 1;
+    }
   }
 
-  private SoftwareContainer? GetSoftwareContainerInDeviceItem(DeviceItem deviceItem, string[] pathSegments, int index)
+  private static SoftwareContainer? GetSoftwareContainerInDeviceItem(DeviceItem? deviceItem, string[] pathSegments, int index)
   {
     if (deviceItem != null)
     {
@@ -1021,7 +1020,7 @@ public partial class Portal
       return byItem;
     }
 
-    var pathSegments = devicePath.Split(new[] { '/', }, StringSplitOptions.RemoveEmptyEntries);
+    var pathSegments = devicePath.Split(['/',], StringSplitOptions.RemoveEmptyEntries);
     if (pathSegments.Length == 0)
     {
       return null;
@@ -1128,13 +1127,13 @@ public partial class Portal
 
   private DeviceItem? GetDeviceItemByPath(string deviceItemPath)
   {
-    if (this.CurrentProject == null || this.CurrentProject.Devices == null)
+    if (this.CurrentProject?.Devices == null)
     {
       return null;
     }
 
-    // Split the device path by '/' to get each device name  
-    var pathSegments = deviceItemPath.Split(new[] { '/', }, StringSplitOptions.RemoveEmptyEntries);
+    // Split the device path by '/' to get each device name
+    var pathSegments = deviceItemPath.Split(['/',], StringSplitOptions.RemoveEmptyEntries);
 
     DeviceItem? deviceItem = null;
 
@@ -1197,6 +1196,10 @@ public partial class Portal
   ///   认领了却返回 null，意思是「锚点对上了，但后面某一段不存在」——
   ///   调用方必须就此判定失败，不能再把窗口往后滑（滑动会让错误路径解析成祖先节点）。
   /// </param>
+  /// <param name="index"></param>
+  /// <param name="consumed"></param>
+  /// <param name="children"></param>
+  /// <param name="segments"></param>
   /// <summary>
   ///   在一组子设备项里按名字找一个，**允许名字本身含 '/'**。
   ///   为什么要这样：deviceItemPath 用 '/' 分段，而西门子的模块名常常自带 '/'——
@@ -1216,7 +1219,7 @@ public partial class Portal
       return null;
     }
 
-    var list = children as IList<DeviceItem> ?? children.ToList();
+    var list = children as IList<DeviceItem> ?? [.. children,];
     var maxSpan = segments.Length - index;
     for (var span = maxSpan; span >= 1; span--)
     {
@@ -1247,56 +1250,59 @@ public partial class Portal
 
     // a pc based plc has a Device.Name = 'PC-System_1' or something like that, which is visible in the TIA-Portal IDE
     // use segment to find device
-    var device = devices.FirstOrDefault(d => d.Name.Equals(segment, StringComparison.OrdinalIgnoreCase));
-    if (device != null)
+    if (devices != null)
     {
-      anchorMatched = true;
-      if (string.IsNullOrWhiteSpace(nextSegment))
-      {
-        deviceItem =
-          device.DeviceItems.FirstOrDefault(di => di.Name.Equals(segment, StringComparison.OrdinalIgnoreCase)) ??
-          device.DeviceItems.FirstOrDefault();
-      }
-      else
-      {
-        // 名字里可能含 '/'，所以每一层都走贪心匹配，吃掉几段由匹配结果决定。
-        deviceItem = Portal.MatchChildByName(device.DeviceItems, pathSegments, index + 1, out var used);
-        var nextIndex = index + 1 + used;
-        while (deviceItem != null && nextIndex < pathSegments.Length)
-        {
-          deviceItem = Portal.MatchChildByName(deviceItem.DeviceItems, pathSegments, nextIndex, out used);
-          if (used == 0)
-          {
-            break;
-          }
-
-          nextIndex += used;
-        }
-      }
-    }
-
-    // a hardware plc has a Device.Name = 'S7-1500/ET200MP-Station_1' or something like that, which is not visible in
-    // the TIA-Portal IDE
-    if (device == null)
-    {
-      deviceItem = devices.SelectMany(d => d.DeviceItems)
-        .FirstOrDefault(di => di.Name.Equals(segment, StringComparison.OrdinalIgnoreCase));
-
-      // 这一段被认领了就得把**剩下的段也走完**。原来这里找到就直接返回，
-      // 后面的段整段被忽略：'安全PLC/不存在的模块' 会返回 '安全PLC' 本身。
-      if (deviceItem != null)
+      var device = devices.FirstOrDefault(d => d.Name.Equals(segment, StringComparison.OrdinalIgnoreCase));
+      if (device != null)
       {
         anchorMatched = true;
-        var next = index + 1;
-        while (deviceItem != null && next < pathSegments.Length)
+        if (string.IsNullOrWhiteSpace(nextSegment))
         {
-          deviceItem = Portal.MatchChildByName(deviceItem.DeviceItems, pathSegments, next, out var used);
-          if (used == 0)
+          deviceItem =
+            device.DeviceItems.FirstOrDefault(di => di.Name.Equals(segment, StringComparison.OrdinalIgnoreCase)) ??
+            device.DeviceItems.FirstOrDefault();
+        }
+        else
+        {
+          // 名字里可能含 '/'，所以每一层都走贪心匹配，吃掉几段由匹配结果决定。
+          deviceItem = Portal.MatchChildByName(device.DeviceItems, pathSegments, index + 1, out var used);
+          var nextIndex = index + 1 + used;
+          while (deviceItem != null && nextIndex < pathSegments.Length)
           {
-            break;
-          }
+            deviceItem = Portal.MatchChildByName(deviceItem.DeviceItems, pathSegments, nextIndex, out used);
+            if (used == 0)
+            {
+              break;
+            }
 
-          next += used;
+            nextIndex += used;
+          }
+        }
+      }
+
+      // a hardware plc has a Device.Name = 'S7-1500/ET200MP-Station_1' or something like that, which is not visible in
+      // the TIA-Portal IDE
+      if (device == null)
+      {
+        deviceItem = devices.SelectMany(d => d.DeviceItems)
+          .FirstOrDefault(di => di.Name.Equals(segment, StringComparison.OrdinalIgnoreCase));
+
+        // 这一段被认领了就得把**剩下的段也走完**。原来这里找到就直接返回，
+        // 后面的段整段被忽略：'安全PLC/不存在的模块' 会返回 '安全PLC' 本身。
+        if (deviceItem != null)
+        {
+          anchorMatched = true;
+          var next = index + 1;
+          while (deviceItem != null && next < pathSegments.Length)
+          {
+            deviceItem = Portal.MatchChildByName(deviceItem.DeviceItems, pathSegments, next, out var used);
+            if (used == 0)
+            {
+              break;
+            }
+
+            next += used;
+          }
         }
       }
     }
@@ -1365,7 +1371,7 @@ public partial class Portal
   // group names that were newly created this call (for reporting / idempotency).
   public PlcBlockGroup? EnsurePlcBlockGroup(string softwarePath, string groupPath, out List<string> created)
   {
-    created = new List<string>();
+    created = [];
     if (this.IsProjectNull())
     {
       return null;
@@ -1448,7 +1454,7 @@ public partial class Portal
       try
       {
         var exp = block.ExportAsDocuments(new DirectoryInfo(tempDir), blockName);
-        usedDocs = exp != null && exp.State == DocumentResultState.Success;
+        usedDocs = exp is { State: DocumentResultState.Success, };
       }
       catch (EngineeringNotSupportedException)
       {
@@ -1461,7 +1467,7 @@ public partial class Portal
         var res = targetGroup.Blocks.ImportFromDocuments(new DirectoryInfo(tempDir),
           blockName,
           ImportDocumentOptions.Override);
-        if (res == null || res.State != DocumentResultState.Success)
+        if (res is not { State: DocumentResultState.Success, })
         {
           throw new PortalException(PortalErrorCode.ImportFailed,
             $"Re-import of '{blockName}' into '{targetGroupPath}' failed (documents)");
@@ -1548,7 +1554,7 @@ public partial class Portal
     return null;
   }
 
-  private string GetPlcBlockGroupPath(PlcBlockGroup group)
+  private string GetPlcBlockGroupPath(PlcBlockGroup? group)
   {
     if (group == null)
     {
@@ -1558,7 +1564,7 @@ public partial class Portal
     var nullableGroup = group;
     var path = group.Name;
 
-    while (nullableGroup != null && nullableGroup.Parent != null)
+    while (nullableGroup is { Parent: not null, })
     {
       try
       {
@@ -1586,7 +1592,7 @@ public partial class Portal
     return path;
   }
 
-  private string GetPlcTypeGroupPath(PlcTypeGroup group)
+  private string GetPlcTypeGroupPath(PlcTypeGroup? group)
   {
     if (group == null)
     {
@@ -1596,7 +1602,7 @@ public partial class Portal
     var nullableGroup = group;
     var path = group.Name;
 
-    while (nullableGroup != null && nullableGroup.Parent != null)
+    while (nullableGroup is { Parent: not null, })
     {
       try
       {
@@ -1634,25 +1640,27 @@ public partial class Portal
 
     foreach (var composition in group.Devices)
     {
-      if (composition is Device device)
+      if (composition is not { } device)
       {
-        try
-        {
-          if (!string.IsNullOrEmpty(regexName) && !Regex.IsMatch(device.Name, regexName, RegexOptions.IgnoreCase))
-          {
-            continue; // Skip this device if it doesn't match the pattern
-          }
-        }
-        catch (Exception)
-        {
-          // Invalid regex pattern, skip this device
-          continue;
-        }
-
-        list.Add(device);
-
-        anySuccess = true;
+        continue;
       }
+
+      try
+      {
+        if (!string.IsNullOrEmpty(regexName) && !Regex.IsMatch(device.Name, regexName, RegexOptions.IgnoreCase))
+        {
+          continue; // Skip this device if it doesn't match the pattern
+        }
+      }
+      catch (Exception)
+      {
+        // Invalid regex pattern, skip this device
+        continue;
+      }
+
+      list.Add(device);
+
+      anySuccess = true;
     }
 
     foreach (var subgroup in group.Groups)
@@ -1675,15 +1683,17 @@ public partial class Portal
 
     foreach (var composition in group.Blocks)
     {
-      if (composition is PlcBlock block)
+      if (composition is not { } block)
       {
-        if (filter != null && !filter.IsMatch(block.Name))
-        {
-          continue; // Skip this block if it doesn't match the pattern
-        }
-
-        list.Add(block);
+        continue;
       }
+
+      if (filter != null && !filter.IsMatch(block.Name))
+      {
+        continue; // Skip this block if it doesn't match the pattern
+      }
+
+      list.Add(block);
     }
 
     foreach (var subgroup in group.Groups)
@@ -1724,15 +1734,17 @@ public partial class Portal
 
     foreach (var composition in group.Types)
     {
-      if (composition is PlcType type)
+      if (composition is not { } type)
       {
-        if (filter != null && !filter.IsMatch(type.Name))
-        {
-          continue; // Skip this type if it doesn't match the pattern
-        }
-
-        list.Add(type);
+        continue;
       }
+
+      if (filter != null && !filter.IsMatch(type.Name))
+      {
+        continue; // Skip this type if it doesn't match the pattern
+      }
+
+      list.Add(type);
     }
 
     foreach (PlcTypeGroup subgroup in group.Groups)
@@ -1743,7 +1755,7 @@ public partial class Portal
 
   #region meta (reflection helpers)
 
-  private object? ResolveObject(string objectKind, string objectPath, string softwarePath)
+  private object? ResolveObject(string? objectKind, string objectPath, string softwarePath)
   {
     if (this.IsProjectNull())
     {
@@ -1789,6 +1801,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
 
         return null;
@@ -1809,6 +1822,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
 
         return null;
@@ -1835,7 +1849,7 @@ public partial class Portal
       case "hmi-screen":
       {
         // objectPath: "HMI_RT_1:Main"
-        var parts = (objectPath ?? "").Split(new[] { ':', }, 2);
+        var parts = (objectPath ?? "").Split([':',], 2);
         if (parts.Length != 2)
         {
           return null;
@@ -1857,7 +1871,7 @@ public partial class Portal
       case "hmi-tagtable":
       {
         // objectPath: "HMI_RT_1:默认变量表"
-        var parts = (objectPath ?? "").Split(new[] { ':', }, 2);
+        var parts = (objectPath ?? "").Split([':',], 2);
         if (parts.Length != 2)
         {
           return null;
@@ -1871,7 +1885,7 @@ public partial class Portal
           return null;
         }
 
-        return Portal.TryFindByNameInCollection(sc.Software, new[] { "TagTables", }, tableName);
+        return Portal.TryFindByNameInCollection(sc.Software, ["TagTables",], tableName);
       }
 
       case "hmitag":
@@ -1879,7 +1893,7 @@ public partial class Portal
       case "hmi-tag":
       {
         // objectPath: "HMI_RT_1:默认变量表:StartPB"
-        var parts = (objectPath ?? "").Split(new[] { ':', }, 3);
+        var parts = (objectPath ?? "").Split([':',], 3);
         if (parts.Length != 3)
         {
           return null;
@@ -1894,7 +1908,7 @@ public partial class Portal
           return null;
         }
 
-        var table = Portal.TryFindByNameInCollection(sc.Software, new[] { "TagTables", }, tableName);
+        var table = Portal.TryFindByNameInCollection(sc.Software, ["TagTables",], tableName);
         if (table == null)
         {
           return null;
@@ -1923,6 +1937,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
 
         // 原来这里还有一层 TryFindByNameInCollection(tagsComp, Array.Empty<string>(), ...) 的"兜底"，
@@ -1935,7 +1950,7 @@ public partial class Portal
       case "hmi-connection":
       {
         // objectPath: "HMI_RT_1:HMI_Connection_1"
-        var parts = (objectPath ?? "").Split(new[] { ':', }, 2);
+        var parts = (objectPath ?? "").Split([':',], 2);
         if (parts.Length != 2)
         {
           return null;
@@ -1967,7 +1982,7 @@ public partial class Portal
       case "hmi-screen-item":
       {
         // objectPath: "HMI_RT_1:Main:BTN_Start"
-        var parts = (objectPath ?? "").Split(new[] { ':', }, 3);
+        var parts = (objectPath ?? "").Split([':',], 3);
         if (parts.Length != 3)
         {
           return null;
@@ -2011,6 +2026,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
 
         return null;
@@ -2089,7 +2105,7 @@ public partial class Portal
   private static object? GetPropertyPathValue(object root, string propertyPath)
   {
     var current = root;
-    foreach (var part in (propertyPath ?? string.Empty).Split(new[] { '.', }, StringSplitOptions.RemoveEmptyEntries))
+    foreach (var part in (propertyPath ?? string.Empty).Split(['.',], StringSplitOptions.RemoveEmptyEntries))
     {
       if (current == null)
       {
@@ -2136,7 +2152,7 @@ public partial class Portal
       ObjectKind = objectKind,
       ObjectPath = objectPath,
       TypeName = o.GetType().FullName ?? o.GetType().Name,
-      Members = Portal.DescribeMembers(o, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(o, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 
@@ -2165,7 +2181,7 @@ public partial class Portal
         ObjectKind = objectKind,
         ObjectPath = $"{objectPath}.{propertyPath}",
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -2175,7 +2191,7 @@ public partial class Portal
       ObjectKind = objectKind,
       ObjectPath = $"{objectPath}.{propertyPath}",
       TypeName = v.GetType().FullName ?? v.GetType().Name,
-      Members = Portal.DescribeMembers(v, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(v, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 
@@ -2199,7 +2215,7 @@ public partial class Portal
     var vt = v?.GetType();
 
     var outValue = v;
-    if (v is IEnumerable enumerable && v is not string)
+    if (v is IEnumerable enumerable and not string)
     {
       var items = new List<string>();
       foreach (var it in enumerable)
@@ -2224,9 +2240,7 @@ public partial class Portal
       Message = "OK",
       ObjectKind = objectKind,
       ObjectPath = objectPath,
-      ValueType = vt?.FullName ?? (v == null
-        ? null
-        : v.GetType().Name),
+      ValueType = vt?.FullName ?? v?.GetType().Name,
       Value = outValue,
     };
   }
@@ -2256,7 +2270,7 @@ public partial class Portal
         ObjectKind = objectKind,
         ObjectPath = objectPath,
         Collection = collectionProperty,
-        Items = Array.Empty<string>(),
+        Items = [],
       };
     }
 
@@ -2416,10 +2430,10 @@ public partial class Portal
         }
 
         if (pt == typeof(object) && methodName.Equals("SetAttribute", StringComparison.OrdinalIgnoreCase) && i == 1 &&
-          argValues.Count >= 2 && argValues[0] is string attrName)
+          argValues is [string attrName, _, ..,])
         {
-          var oldValue = instance.GetType().GetMethod("GetAttribute", new[] { typeof(string), })
-            ?.Invoke(instance, new object[] { attrName, });
+          var oldValue = instance.GetType().GetMethod("GetAttribute", [typeof(string),])
+            ?.Invoke(instance, [attrName,]);
           converted[i] = oldValue == null
             ? av
             : Portal.CoerceReflectionValue(av, oldValue.GetType());
@@ -2432,7 +2446,7 @@ public partial class Portal
       var result = mi.Invoke(instance, converted);
 
       var outValue = result;
-      if (result is IEnumerable enumerable && result is not string)
+      if (result is IEnumerable enumerable and not string)
       {
         var items = new List<string>();
         foreach (var it in enumerable)
@@ -2457,9 +2471,7 @@ public partial class Portal
         Message = "OK",
         ObjectKind = resultKind,
         ObjectPath = resultPath,
-        ValueType = result?.GetType().FullName ?? (result == null
-          ? null
-          : result.GetType().Name),
+        ValueType = result?.GetType().FullName ?? result?.GetType().Name,
         Value = outValue,
       };
     }
@@ -2598,7 +2610,7 @@ public partial class Portal
         ObjectKind = objectKind,
         ObjectPath = objectPath,
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -2624,7 +2636,7 @@ public partial class Portal
         ObjectKind = objectKind,
         ObjectPath = objectPath,
         TypeName = null,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -2637,7 +2649,7 @@ public partial class Portal
         ObjectKind = objectKind,
         ObjectPath = objectPath,
         TypeName = st.FullName ?? st.Name,
-        Members = Array.Empty<ObjectMember>(),
+        Members = [],
       };
     }
 
@@ -2647,7 +2659,7 @@ public partial class Portal
       ObjectKind = "Service",
       ObjectPath = $"{objectKind}:{objectPath}::{serviceTypeSuffix}",
       TypeName = svc.GetType().FullName ?? svc.GetType().Name,
-      Members = Portal.DescribeMembers(svc, Math.Max(10, Math.Min(2000, maxMembers))).ToList(),
+      Members = [.. Portal.DescribeMembers(svc, Math.Max(10, Math.Min(2000, maxMembers))),],
     };
   }
 

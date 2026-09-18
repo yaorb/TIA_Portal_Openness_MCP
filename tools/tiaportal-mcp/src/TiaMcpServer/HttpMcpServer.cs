@@ -107,6 +107,7 @@ internal static class HttpMcpServer
           }
           catch
           {
+            // ignored
           }
         }
       });
@@ -176,8 +177,8 @@ internal static class HttpMcpServer
     }
 
     // Body length guard: real MCP requests are tens of KB; cap defensively.
-    const long MaxBodyBytes = 10L * 1024 * 1024;
-    if (req.ContentLength64 > MaxBodyBytes)
+    const long maxBodyBytes = 10L * 1024 * 1024;
+    if (req.ContentLength64 > maxBodyBytes)
     {
       res.StatusCode = 413;
       res.Close();
@@ -194,10 +195,10 @@ internal static class HttpMcpServer
       var buf = new byte[8192];
       var input = req.InputStream;
       int read;
-      while ((read = input.Read(buf, 0, buf.Length)) > 0)
+      while ((read = await input.ReadAsync(buf, 0, buf.Length)) > 0)
       {
         ms.Write(buf, 0, read);
-        if (ms.Length > MaxBodyBytes)
+        if (ms.Length > maxBodyBytes)
         {
           res.StatusCode = 413;
           res.Close();
@@ -252,7 +253,7 @@ internal static class HttpMcpServer
       await requestLock.WaitAsync().ConfigureAwait(false);
       try
       {
-        mcpWriter.WriteLine(body);
+        await mcpWriter.WriteLineAsync(body);
       }
       finally
       {
@@ -270,7 +271,7 @@ internal static class HttpMcpServer
     var timedOut = false;
     try
     {
-      mcpWriter.WriteLine(body);
+      await mcpWriter.WriteLineAsync(body);
       var expectedId = requestId!.ToJsonString();
 
       // ReadLineAsync on a StreamReader wrapping a blocking stream can block the
@@ -278,8 +279,7 @@ internal static class HttpMcpServer
       // wall-clock delay to guarantee a 504 rather than an indefinite hang.
       var readWork = Task.Run(() =>
       {
-        string? line;
-        while ((line = mcpReader.ReadLine()) != null)
+        while (mcpReader.ReadLine() is { } line)
         {
           if (string.IsNullOrWhiteSpace(line))
           {
@@ -366,7 +366,7 @@ internal static class HttpMcpServer
 
     var authz = req.Headers["Authorization"];
     if (!string.IsNullOrEmpty(authz) && authz!.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
-      authz.Substring(7).Trim() == secret)
+      authz[7..].Trim() == secret)
     {
       return true;
     }

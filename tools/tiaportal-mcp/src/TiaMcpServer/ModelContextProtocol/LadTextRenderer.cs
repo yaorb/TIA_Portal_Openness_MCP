@@ -29,7 +29,7 @@ public static class LadTextRenderer
     }
     catch (Exception ex)
     {
-      return "Could not parse block XML: " + ex.Message;
+      return $"Could not parse block XML: {ex.Message}";
     }
 
     LadTextRenderer.StripNamespaces(doc);
@@ -82,7 +82,7 @@ public static class LadTextRenderer
       sb.Append('\n');
     }
 
-    return sb.ToString().TrimEnd() + "\n";
+    return $"{sb.ToString().TrimEnd()}\n";
   }
 
   private static string RenderLadNetwork(XElement flg)
@@ -109,9 +109,13 @@ public static class LadTextRenderer
         continue;
       }
 
-      var part = new Part { UId = uid, Name = p.Attribute("Name")?.Value ?? "?", };
-      part.Negated = p.Elements("Negated").Any();
-      part.Instance = p.Descendants("Instance").Descendants("Component").FirstOrDefault()?.Attribute("Name")?.Value;
+      var part = new Part
+      {
+        UId = uid,
+        Name = p.Attribute("Name")?.Value ?? "?",
+        Negated = p.Elements("Negated").Any(),
+        Instance = p.Descendants("Instance").Descendants("Component").FirstOrDefault()?.Attribute("Name")?.Value,
+      };
       parts[uid] = part;
     }
 
@@ -136,57 +140,60 @@ public static class LadTextRenderer
       {
         foreach (var nc in names)
         {
-          if (parts.TryGetValue(nc.uid!, out var pt) && accessText.TryGetValue(idents[0]!, out var at))
+          if (!parts.TryGetValue(nc.uid!, out var pt) || !accessText.TryGetValue(idents[0]!, out var at))
           {
-            var pin = nc.pin ?? "operand";
-            var text = at.text;
-            if (at.literal && LadTextRenderer.IsContact(pt.Name) && pin == "operand")
-            {
-              var truthy = at.text is "1" or "TRUE" or "True";
-              var falsy = at.text is "0" or "FALSE" or "False";
-              // NO contact: passes when operand true; NC (Negated): passes when operand false.
-              var alwaysOpen = (!pt.Negated && falsy) || (pt.Negated && truthy);
-              var alwaysClosed = (!pt.Negated && truthy) || (pt.Negated && falsy);
-              text += alwaysOpen
-                ? " ⟨恒断·禁用本行⟩"
-                : alwaysClosed
-                  ? " ⟨恒通⟩"
-                  : " ⟨常量触点⟩";
-            }
-
-            pt.Operands[pin] = text;
+            continue;
           }
+
+          var pin = nc.pin ?? "operand";
+          var text = at.text;
+          if (at.literal && LadTextRenderer.IsContact(pt.Name) && pin == "operand")
+          {
+            var truthy = at.text is "1" or "TRUE" or "True";
+            var falsy = at.text is "0" or "FALSE" or "False";
+            // NO contact: passes when operand true; NC (Negated): passes when operand false.
+            var alwaysOpen = (!pt.Negated && falsy) || (pt.Negated && truthy);
+            var alwaysClosed = (!pt.Negated && truthy) || (pt.Negated && falsy);
+            text += alwaysOpen
+              ? " ⟨恒断·禁用本行⟩"
+              : alwaysClosed
+                ? " ⟨恒通⟩"
+                : " ⟨常量触点⟩";
+          }
+
+          pt.Operands[pin] = text;
         }
       }
 
-      // flow: split named endpoints into sources (out-like) and destinations (in-like)
-      bool IsOut(string? pin) =>
-        pin != null && (pin.Equals("out", StringComparison.OrdinalIgnoreCase) ||
-          pin.Equals("eno", StringComparison.OrdinalIgnoreCase) || pin == "Q" || pin.StartsWith("out"));
-
-      bool IsIn(string? pin) =>
-        pin != null && (pin.Equals("in", StringComparison.OrdinalIgnoreCase) ||
-          pin.Equals("en", StringComparison.OrdinalIgnoreCase) ||
-          pin.Equals("pre", StringComparison.OrdinalIgnoreCase) || pin.StartsWith("in"));
-
       var sources = names.Where(t => IsOut(t.pin)).ToList();
       var dests = names.Where(t => IsIn(t.pin)).ToList();
-      foreach (var d in dests)
+      foreach (var key in dests.Select(d => $"{d.uid}:{d.pin}"))
       {
-        var key = d.uid + ":" + d.pin;
         if (hasRail && sources.Count == 0)
         {
           flowSource[key] = "RAIL";
         }
         else if (sources.Count > 0)
         {
-          flowSource[key] = sources[0].uid + ":" + sources[0].pin;
+          flowSource[key] = $"{sources[0].uid}:{sources[0].pin}";
         }
         else if (hasRail)
         {
           flowSource[key] = "RAIL";
         }
       }
+
+      continue;
+
+      bool IsIn(string? pin) =>
+        pin != null && (pin.Equals("in", StringComparison.OrdinalIgnoreCase) ||
+          pin.Equals("en", StringComparison.OrdinalIgnoreCase) ||
+          pin.Equals("pre", StringComparison.OrdinalIgnoreCase) || pin.StartsWith("in"));
+
+      // flow: split named endpoints into sources (out-like) and destinations (in-like)
+      bool IsOut(string? pin) =>
+        pin != null && (pin.Equals("out", StringComparison.OrdinalIgnoreCase) ||
+          pin.Equals("eno", StringComparison.OrdinalIgnoreCase) || pin == "Q" || pin.StartsWith("out"));
     }
 
     // Render every output element: coils and boxes that write (Move/Call/Set...). Trace their EN/in.
@@ -211,7 +218,7 @@ public static class LadTextRenderer
     {
       if (LadTextRenderer.IsCoil(outp.Name))
       {
-        var inKey = outp.UId + ":in";
+        var inKey = $"{outp.UId}:in";
         var expr = flowSource.TryGetValue(inKey, out var src)
           ? LadTextRenderer.TraceChain(src, parts, flowSource, guard)
           : "?";
@@ -223,7 +230,7 @@ public static class LadTextRenderer
       }
       else // writing box (MOVE etc.) driven by EN
       {
-        var enKey = outp.UId + ":en";
+        var enKey = $"{outp.UId}:en";
         var en = flowSource.TryGetValue(enKey, out var src)
           ? LadTextRenderer.TraceChain(src, parts, flowSource, guard)
           : "";
@@ -258,7 +265,7 @@ public static class LadTextRenderer
 
       if (LadTextRenderer.IsContact(p.Name))
       {
-        var upstream = flowSource.TryGetValue(uid + ":in", out var src)
+        var upstream = flowSource.TryGetValue($"{uid}:in", out var src)
           ? LadTextRenderer.TraceChain(src, parts, flowSource, guard)
           : "";
         var lit = (p.Negated
@@ -271,7 +278,7 @@ public static class LadTextRenderer
 
       if (LadTextRenderer.IsCompare(p.Name))
       {
-        var upstream = flowSource.TryGetValue(uid + ":pre", out var src)
+        var upstream = flowSource.TryGetValue($"{uid}:pre", out var src)
           ? LadTextRenderer.TraceChain(src, parts, flowSource, guard)
           : "";
         var a = p.Operands.TryGetValue("in1", out var i1)
@@ -297,20 +304,20 @@ public static class LadTextRenderer
             continue;
           }
 
-          if (flowSource.TryGetValue(uid + ":" + pin, out var src))
+          if (flowSource.TryGetValue($"{uid}:{pin}", out var src))
           {
             branches.Add(LadTextRenderer.TraceChain(src, parts, flowSource, guard));
           }
         }
 
-        branches = branches.Where(b => !string.IsNullOrEmpty(b)).Distinct().ToList();
+        branches = [.. branches.Where(b => !string.IsNullOrEmpty(b)).Distinct(),];
         return branches.Count == 0
           ? ""
-          : "(" + string.Join(" + ", branches) + ")";
+          : $"({string.Join(" + ", branches)})";
       }
 
       // timers / edges / other boxes producing power at Q/out
-      var en = flowSource.TryGetValue(uid + ":in", out var s2)
+      var en = flowSource.TryGetValue($"{uid}:in", out var s2)
         ? LadTextRenderer.TraceChain(s2, parts, flowSource, guard)
         : "";
       var box = LadTextRenderer.DescribeBoxInline(p);
@@ -325,17 +332,16 @@ public static class LadTextRenderer
   private static string Series(string upstream, string term) =>
     string.IsNullOrEmpty(upstream)
       ? term
-      : upstream + " · " + term;
+      : $"{upstream} · {term}";
 
   // ---- helpers ----
 
   private static bool IsContact(string n) => n == "Contact";
 
-  private static bool IsCoil(string n) =>
-    n == "Coil" || n == "SCoil" || n == "RCoil" || n == "SetCoil" || n == "ResetCoil";
+  private static bool IsCoil(string n) => n is "Coil" or "SCoil" or "RCoil" or "SetCoil" or "ResetCoil";
 
   private static bool IsCompare(string n) => n is "Eq" or "Ne" or "Gt" or "Lt" or "Ge" or "Le";
-  private static bool IsWritingBox(string n) => n == "Move" || n == "Call";
+  private static bool IsWritingBox(string n) => n is "Move" or "Call";
 
   private static string CoilGlyph(string n) =>
     n switch
@@ -359,20 +365,20 @@ public static class LadTextRenderer
 
   private static string DescribeBox(Part p)
   {
-    if (p.Name == "Move")
+    if (p.Name != "Move")
     {
-      var src = p.Operands.TryGetValue("in", out var i)
-        ? i
-        : "?";
-      var dst = p.Operands.TryGetValue("out1", out var o)
-        ? o
-        : p.Operands.TryGetValue("out", out var o2)
-          ? o2
-          : "?";
-      return $"MOVE {src} → {dst}";
+      return LadTextRenderer.DescribeBoxInline(p);
     }
 
-    return LadTextRenderer.DescribeBoxInline(p);
+    var src = p.Operands.TryGetValue("in", out var i)
+      ? i
+      : "?";
+    var dst = p.Operands.TryGetValue("out1", out var o)
+      ? o
+      : p.Operands.TryGetValue("out", out var o2)
+        ? o2
+        : "?";
+    return $"MOVE {src} → {dst}";
   }
 
   private static string DescribeBoxInline(Part p)
@@ -384,18 +390,13 @@ public static class LadTextRenderer
     }
 
     var ops = LadTextRenderer.FormatOperands(p);
-    // timers commonly produce power at Q; note it
-    if (p.Name is "TP" or "TON" or "TOF" or "TONR")
+    return p.Name switch
     {
-      return $"{name}{ops}.Q";
-    }
-
-    if (p.Name is "PBox" or "NBox" or "P_TRIG" or "N_TRIG" or "Coil_P" or "Coil_N")
-    {
-      return $"{name}{ops}(边沿)";
-    }
-
-    return $"{name}{ops}";
+      // timers commonly produce power at Q; note it
+      "TP" or "TON" or "TOF" or "TONR"                                 => $"{name}{ops}.Q",
+      "PBox" or "NBox" or "P_TRIG" or "N_TRIG" or "Coil_P" or "Coil_N" => $"{name}{ops}(边沿)",
+      _                                                                => $"{name}{ops}",
+    };
   }
 
   private static string FormatOperands(Part p)
@@ -435,7 +436,7 @@ public static class LadTextRenderer
   private static string IndentBlock(string text, string indent)
   {
     var lines = text.Replace("\r\n", "\n").Split('\n');
-    return string.Join("\n", lines.Select(l => indent + l)) + "\n";
+    return $"{string.Join("\n", lines.Select(l => indent + l))}\n";
   }
 
   private static void StripNamespaces(XDocument doc)

@@ -39,7 +39,7 @@ public sealed class OpcUaReadResult
   public long ElapsedMs;
   public string Endpoint = "";
   public string? Error;
-  public List<OpcUaReadItem> Items = new();
+  public List<OpcUaReadItem> Items = [];
   public bool Ok;
   public bool ReusedSession; // true if an already-open cached session was used
 }
@@ -126,6 +126,7 @@ public static class OpcUaLiveReader
       }
       catch
       {
+        // ignored
       }
     }
   }
@@ -178,7 +179,7 @@ public static class OpcUaLiveReader
       OpcUaLiveReader.Channels.TryGetValue(endpointUrl, out existing);
     }
 
-    if (!forceNew && existing != null && existing.State == CommunicationState.Opened)
+    if (!forceNew && existing is { State: CommunicationState.Opened, })
     {
       return (existing, true);
     }
@@ -218,6 +219,7 @@ public static class OpcUaLiveReader
     }
     catch
     {
+      // ignored
     }
   }
 
@@ -225,14 +227,14 @@ public static class OpcUaLiveReader
   {
     var readRequest = new ReadRequest
     {
-      NodesToRead = nodeIds.Select(id => new ReadValueId
-      {
-        NodeId = NodeId.Parse(id), AttributeId = AttributeIds.Value,
-      }).ToArray(),
+      NodesToRead =
+      [
+        .. nodeIds.Select(id => new ReadValueId { NodeId = NodeId.Parse(id), AttributeId = AttributeIds.Value, }),
+      ],
     };
 
     var response = await channel.ReadAsync(readRequest);
-    var results = response.Results ?? Array.Empty<DataValue>();
+    var results = response.Results ?? [];
     result.Items.Clear();
     for (var i = 0; i < nodeIds.Count; i++)
     {
@@ -240,14 +242,17 @@ public static class OpcUaLiveReader
       if (i < results.Length && results[i] != null)
       {
         var dv = results[i];
-        item.StatusCode = dv.StatusCode.ToString();
-        if (StatusCode.IsGood(dv.StatusCode))
+        item.StatusCode = dv?.StatusCode.ToString();
+        if (dv != null && StatusCode.IsGood(dv.StatusCode))
         {
           item.Value = dv.Value;
         }
         else
         {
-          item.Error = "Bad status: " + dv.StatusCode;
+          if (dv != null)
+          {
+            item.Error = "Bad status: " + dv.StatusCode;
+          }
         }
       }
       else

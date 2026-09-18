@@ -45,7 +45,7 @@ public static class ReleaseReadinessGateBuilder
         "先保证不连接 TIA、不修改工程的离线套件 OK=true，作为外发包最小自检入口。"),
       ReleaseReadinessGateBuilder.Gate("no-failed-items",
         "诊断报告不能存在失败项",
-        (diagnostics["failedItems"] as JsonArray ?? new JsonArray()).Count == 0,
+        (diagnostics["failedItems"] as JsonArray ?? []).Count == 0,
         "任何 failedItems 都必须先修复或明确降级说明，禁止带失败项宣传为完整商用品。"),
       ReleaseReadinessGateBuilder.Gate("online-monitoring-read-only",
         "在线能力只允许只读监视",
@@ -74,14 +74,15 @@ public static class ReleaseReadinessGateBuilder
         "代码侧可以继续优化，但同步到交付文件夹必须有明确许可并重新跑验收。"),
     };
 
-    var gaps = new JsonArray(gates.OfType<JsonObject>().Where(x => x["passed"]?.GetValue<bool>() != true).Select(x =>
-      new JsonObject
+    var gaps = new JsonArray([
+      .. gates.OfType<JsonObject>().Where(x => x["passed"]?.GetValue<bool>() != true).Select(x => new JsonObject
       {
         ["id"] = x["id"]?.ToString() ?? "",
         ["title"] = x["title"]?.ToString() ?? "",
         ["requiredEvidence"] = x["requiredEvidence"]?.ToString() ?? "",
         ["nextAction"] = ReleaseReadinessGateBuilder.BuildNextAction(x["id"]?.ToString() ?? ""),
-      }).ToArray());
+      }),
+    ]);
 
     return new JsonObject
     {
@@ -104,32 +105,32 @@ public static class ReleaseReadinessGateBuilder
     var md = new StringBuilder();
     md.AppendLine("# TIA MCP Release Readiness Gate");
     md.AppendLine();
-    md.AppendLine("Generated: " + gateReport["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {gateReport["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- Release ready: " + gateReport["releaseReady"]);
-    md.AppendLine("- Gates: " + gateReport["gateCount"]);
-    md.AppendLine("- Passed: " + gateReport["passedGateCount"]);
-    md.AppendLine("- Failed: " + gateReport["failedGateCount"]);
+    md.AppendLine($"- Release ready: {gateReport["releaseReady"]}");
+    md.AppendLine($"- Gates: {gateReport["gateCount"]}");
+    md.AppendLine($"- Passed: {gateReport["passedGateCount"]}");
+    md.AppendLine($"- Failed: {gateReport["failedGateCount"]}");
     md.AppendLine();
     md.AppendLine("## Gates");
-    foreach (var node in gateReport["gates"] as JsonArray ?? new JsonArray())
+    foreach (var node in gateReport["gates"] as JsonArray ?? [])
     {
       if (node is not JsonObject gate)
       {
         continue;
       }
 
-      md.AppendLine("- " + gate["id"] + ": " + (gate["passed"]?.GetValue<bool>() == true
+      md.AppendLine($"- {gate["id"]}: {(gate["passed"]?.GetValue<bool>() == true
         ? "PASS"
-        : "BLOCKED") + " - " + gate["title"]);
-      md.AppendLine("  - evidence: " + gate["requiredEvidence"]);
+        : "BLOCKED")} - {gate["title"]}");
+      md.AppendLine($"  - evidence: {gate["requiredEvidence"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Gaps");
-    var gaps = gateReport["gaps"] as JsonArray ?? new JsonArray();
+    var gaps = gateReport["gaps"] as JsonArray ?? [];
     if (gaps.Count == 0)
     {
       md.AppendLine("- None.");
@@ -142,14 +143,14 @@ public static class ReleaseReadinessGateBuilder
         continue;
       }
 
-      md.AppendLine("- " + gap["id"] + ": " + gap["nextAction"]);
+      md.AppendLine($"- {gap["id"]}: {gap["nextAction"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Safety Redlines");
-    foreach (var redline in gateReport["safetyRedlines"] as JsonArray ?? new JsonArray())
+    foreach (var redline in gateReport["safetyRedlines"] as JsonArray ?? [])
     {
-      md.AppendLine("- " + redline);
+      md.AppendLine($"- {redline}");
     }
 
     return md.ToString();
@@ -163,25 +164,25 @@ public static class ReleaseReadinessGateBuilder
 
   private static bool HasObservation(JsonObject diagnostics, string id, string status)
   {
-    return (diagnostics["observations"]?["items"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+    return (diagnostics["observations"]?["items"] as JsonArray ?? []).OfType<JsonObject>()
       .Any(x => x["id"]?.ToString() == id && x["status"]?.ToString() == status);
   }
 
   private static bool HasBlockingObservation(JsonObject diagnostics, string id)
   {
-    return (diagnostics["observations"]?["items"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+    return (diagnostics["observations"]?["items"] as JsonArray ?? []).OfType<JsonObject>()
       .Any(x => x["id"]?.ToString() == id && x["blocking"]?.GetValue<bool>() == true);
   }
 
   private static bool SafetyRedlinesContain(JsonObject diagnostics, string text)
   {
-    return (diagnostics["safetyRedlines"] as JsonArray ?? new JsonArray()).Any(x =>
+    return (diagnostics["safetyRedlines"] as JsonArray ?? []).Any(x =>
       (x?.ToString() ?? "").IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0);
   }
 
   private static bool HasTemporaryProjectProof(JsonObject suiteRoot, JsonObject diagnostics, JsonObject runbook)
   {
-    var reportIndex = diagnostics["reportIndex"] as JsonArray ?? new JsonArray();
+    var reportIndex = diagnostics["reportIndex"] as JsonArray ?? [];
     var classicPreflightOk = reportIndex.OfType<JsonObject>().Any(x =>
       x["id"]?.ToString() == "classic-hmi-temporary-import-preflight" && x["ok"]?.GetValue<bool>() == true);
     var suiteJson = suiteRoot.ToJsonString();

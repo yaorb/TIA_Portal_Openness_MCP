@@ -57,7 +57,7 @@ public static class ClassicHmiTagTableXmlBuilder
       throw new ArgumentException("Classic HMI tag table name is required.");
     }
 
-    var tags = (root["Tags"] as JsonArray ?? root["tags"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+    var tags = (root["Tags"] as JsonArray ?? root["tags"] as JsonArray ?? []).OfType<JsonObject>()
       .ToArray();
     ClassicHmiTagTableXmlBuilder.ValidateTags(tags);
 
@@ -118,7 +118,7 @@ public static class ClassicHmiTagTableXmlBuilder
         }
         else if (!names.Add(name))
         {
-          errors.Add("duplicate-tag-name: " + name);
+          errors.Add($"duplicate-tag-name: {name}");
         }
 
         var controllerTag = tag.Element("LinkList")?.Element("ControllerTag")?.Element("Name")?.Value ?? "";
@@ -128,12 +128,12 @@ public static class ClassicHmiTagTableXmlBuilder
           symbolic++;
           if (string.IsNullOrWhiteSpace(controllerTag))
           {
-            errors.Add("symbolic-binding-missing-controller-tag: " + name);
+            errors.Add($"symbolic-binding-missing-controller-tag: {name}");
           }
 
           if (string.IsNullOrWhiteSpace(connection))
           {
-            errors.Add("symbolic-binding-missing-connection: " + name);
+            errors.Add($"symbolic-binding-missing-connection: {name}");
           }
         }
       }
@@ -144,7 +144,7 @@ public static class ClassicHmiTagTableXmlBuilder
     }
     catch (Exception ex)
     {
-      errors.Add("xml-parse-error: " + ex.Message);
+      errors.Add($"xml-parse-error: {ex.Message}");
       return result;
     }
   }
@@ -197,7 +197,7 @@ public static class ClassicHmiTagTableXmlBuilder
       new XElement("LinkList", links));
   }
 
-  private static XElement OpenLink(string elementName, string name) =>
+  private static XElement OpenLink(string elementName, string? name) =>
     new(elementName, new XAttribute("TargetID", "@OpenLink"), new XElement("Name", SecurityElement.Escape(name ?? "")));
 
   private static void ValidateTags(JsonObject[] tags)
@@ -218,7 +218,7 @@ public static class ClassicHmiTagTableXmlBuilder
 
       if (!names.Add(name))
       {
-        throw new ArgumentException("Duplicate Classic HMI tag name: " + name);
+        throw new ArgumentException($"Duplicate Classic HMI tag name: {name}");
       }
 
       var connection = ClassicHmiTagTableXmlBuilder.GetString(tag, "Connection", "connection", "");
@@ -228,8 +228,8 @@ public static class ClassicHmiTagTableXmlBuilder
         ClassicHmiTagTableXmlBuilder.GetString(tag, "PlcTag", "plcTag", ""));
       if (!string.IsNullOrWhiteSpace(connection) ^ !string.IsNullOrWhiteSpace(controllerTag))
       {
-        throw new ArgumentException("Classic HMI symbolic tag requires both Connection and ControllerTag/PlcTag: " +
-          name);
+        throw new ArgumentException(
+          $"Classic HMI symbolic tag requires both Connection and ControllerTag/PlcTag: {name}");
       }
     }
   }

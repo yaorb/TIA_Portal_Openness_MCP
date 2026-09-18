@@ -22,9 +22,6 @@ public static partial class McpServer
   {
     var resp = new ResponseScaffold { Ok = true, };
 
-    void Step(string name, string status, string? detail = null) =>
-      resp.Steps.Add(new ScaffoldStep { Step = name, Status = status, Detail = detail, });
-
     JsonNode root;
     try
     {
@@ -33,58 +30,6 @@ public static partial class McpServer
     catch (Exception ex)
     {
       throw new McpProtocolException($"PatchProject: invalid spec JSON: {ex.Message}", McpErrorCode.InvalidParams);
-    }
-
-    string S(string key, string def = "")
-    {
-      try
-      {
-        return root[key]?.GetValue<string>() ?? def;
-      }
-      catch
-      {
-        return def;
-      }
-    }
-
-    bool B(string key, bool def)
-    {
-      try
-      {
-        return root[key] is JsonNode n
-          ? n.GetValue<bool>()
-          : def;
-      }
-      catch
-      {
-        return def;
-      }
-    }
-
-    JsonArray Arr(string key) => root[key] as JsonArray ?? new JsonArray();
-
-    string IS(JsonNode? n, string key, string def = "")
-    {
-      try
-      {
-        return n?[key]?.GetValue<string>() ?? def;
-      }
-      catch
-      {
-        return def;
-      }
-    }
-
-    uint IU(JsonNode? n, string key)
-    {
-      try
-      {
-        return (uint)(n?[key]?.GetValue<int>() ?? 0);
-      }
-      catch
-      {
-        return 0;
-      }
     }
 
     var projectPath = S("projectPath");
@@ -167,10 +112,10 @@ public static partial class McpServer
 
       foreach (var item in Arr("ladDocs"))
       {
-        var importPath = IS(item, "importPath");
-        var name = IS(item, "name");
+        var importPath = Is(item, "importPath");
+        var name = Is(item, "name");
         var ex = !string.IsNullOrWhiteSpace(importPath) && !string.IsNullOrWhiteSpace(name) &&
-          File.Exists(Path.Combine(importPath, name + ".s7dcl"));
+          File.Exists(Path.Combine(importPath, $"{name}.s7dcl"));
         Step("lad",
           ex
             ? "ok"
@@ -186,7 +131,7 @@ public static partial class McpServer
 
       foreach (var item in Arr("hmiScreens"))
       {
-        var screenName = IS(item, "screenName");
+        var screenName = Is(item, "screenName");
         var ok = !string.IsNullOrWhiteSpace(screenName) && item?["designJson"] != null;
         Step("hmiScreen",
           ok
@@ -245,24 +190,6 @@ public static partial class McpServer
         McpErrorCode.InternalError);
     }
 
-    // ---- PLC elements (per-item collect; re-import = upsert) ----
-    void BuildList(string key, string kind)
-    {
-      foreach (var item in Arr(key))
-      {
-        try
-        {
-          McpServer.PlcBuildAndImport(plcName, kind, item!.ToJsonString(), "", "", "", false, false);
-          Step(kind, "ok");
-        }
-        catch (Exception ex)
-        {
-          Step(kind, "failed", ex.Message);
-          resp.Ok = false;
-        }
-      }
-    }
-
     BuildList("udt", "udt");
     BuildList("globalDb", "globaldb");
     BuildList("tagTable", "tagtable");
@@ -300,8 +227,8 @@ public static partial class McpServer
 
     foreach (var item in Arr("ladDocs"))
     {
-      var importPath = IS(item, "importPath");
-      var name = IS(item, "name");
+      var importPath = Is(item, "importPath");
+      var name = Is(item, "name");
       if (string.IsNullOrWhiteSpace(importPath) || string.IsNullOrWhiteSpace(name))
       {
         Step("lad", "skipped", "missing importPath/name");
@@ -362,8 +289,8 @@ public static partial class McpServer
       {
         hmiSoftwarePathSpec,
         "HMI_RT_1",
-        hmiName + ".HMI_RT_1",
-        hmiName + "_RT_1",
+        $"{hmiName}.HMI_RT_1",
+        $"{hmiName}_RT_1",
         hmiName,
       };
       foreach (var c in candidates)
@@ -381,6 +308,7 @@ public static partial class McpServer
         }
         catch
         {
+          // ignored
         }
       }
 
@@ -407,7 +335,7 @@ public static partial class McpServer
 
         foreach (var item in Arr("hmiScreens"))
         {
-          var screenName = IS(item, "screenName");
+          var screenName = Is(item, "screenName");
           if (string.IsNullOrWhiteSpace(screenName))
           {
             continue;
@@ -415,7 +343,7 @@ public static partial class McpServer
 
           try
           {
-            McpServer.EnsureUnifiedHmiScreen(hmiPath, screenName, IU(item, "width"), IU(item, "height"));
+            McpServer.EnsureUnifiedHmiScreen(hmiPath, screenName, Iu(item, "width"), Iu(item, "height"));
             var design = item?["designJson"];
             if (design != null)
             {
@@ -433,16 +361,16 @@ public static partial class McpServer
 
         foreach (var item in Arr("hmiTags"))
         {
-          var tagName = IS(item, "tagName");
+          var tagName = Is(item, "tagName");
           if (string.IsNullOrWhiteSpace(tagName))
           {
             continue;
           }
 
-          var tagTable = IS(item, "tagTableName", "Default tag table");
-          var dt = IS(item, "hmiDataType", "Bool");
-          var plcTag = IS(item, "plcTag");
-          var address = IS(item, "address");
+          var tagTable = Is(item, "tagTableName", "Default tag table");
+          var dt = Is(item, "hmiDataType", "Bool");
+          var plcTag = Is(item, "plcTag");
+          var address = Is(item, "address");
           try
           {
             McpServer.EnsureUnifiedHmiTag(hmiPath, tagTable, tagName, dt, plcName, plcTag, connectionName, address);
@@ -478,5 +406,78 @@ public static partial class McpServer
       $"PatchProject '{resp.ProjectName}': {okCount} ok, {failCount} failed; compile state={resp.CompileState ?? "(skipped)"} errors={resp.CompileErrorCount}.";
     resp.Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = resp.Ok, };
     return resp;
+
+    // ---- PLC elements (per-item collect; re-import = upsert) ----
+    void BuildList(string key, string kind)
+    {
+      foreach (var item in Arr(key))
+      {
+        try
+        {
+          McpServer.PlcBuildAndImport(plcName, kind, item!.ToJsonString(), "", "", "", false, false);
+          Step(kind, "ok");
+        }
+        catch (Exception ex)
+        {
+          Step(kind, "failed", ex.Message);
+          resp.Ok = false;
+        }
+      }
+    }
+
+    JsonArray Arr(string key) => root[key] as JsonArray ?? [];
+
+    uint Iu(JsonNode? n, string key)
+    {
+      try
+      {
+        return (uint)(n?[key]?.GetValue<int>() ?? 0);
+      }
+      catch
+      {
+        return 0;
+      }
+    }
+
+    string Is(JsonNode? n, string key, string def = "")
+    {
+      try
+      {
+        return n?[key]?.GetValue<string>() ?? def;
+      }
+      catch
+      {
+        return def;
+      }
+    }
+
+    bool B(string key, bool def)
+    {
+      try
+      {
+        return root[key] is { } n
+          ? n.GetValue<bool>()
+          : def;
+      }
+      catch
+      {
+        return def;
+      }
+    }
+
+    string S(string key, string def = "")
+    {
+      try
+      {
+        return root[key]?.GetValue<string>() ?? def;
+      }
+      catch
+      {
+        return def;
+      }
+    }
+
+    void Step(string name, string status, string? detail = null) =>
+      resp.Steps.Add(new ScaffoldStep { Step = name, Status = status, Detail = detail, });
   }
 }

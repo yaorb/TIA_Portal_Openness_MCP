@@ -85,12 +85,15 @@ internal static class Capability
   /// <summary>Snapshot of every feature's availability against the connected version, for Bootstrap to advertise.</summary>
   public static List<CapabilityInfo> Snapshot()
   {
-    return Capability.MinVersion.Keys.Select(f => new CapabilityInfo
-    {
-      Feature = f.ToString(),
-      Supported = Capability.IsSupported(f),
-      MinVersion = Capability.MinVersion[f],
-      Note = Capability.Describe(f),
-    }).ToList();
+    return
+    [
+      .. Capability.MinVersion.Keys.Select(f => new CapabilityInfo
+      {
+        Feature = f.ToString(),
+        Supported = Capability.IsSupported(f),
+        MinVersion = Capability.MinVersion[f],
+        Note = Capability.Describe(f),
+      }),
+    ];
   }
 }

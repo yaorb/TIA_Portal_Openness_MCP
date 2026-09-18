@@ -43,7 +43,7 @@ public static class CausalTraceParser
       ["tag"] = tag,
       ["writeSites"] = writeSites,
       ["readSites"] = readSites,
-      ["gatingConditions"] = new JsonArray(conditions.OrderBy(x => x).Select(x => JsonValue.Create(x)).ToArray()),
+      ["gatingConditions"] = new JsonArray([.. conditions.OrderBy(x => x).Select(x => JsonValue.Create(x)),]),
     };
   }
 
@@ -106,8 +106,7 @@ public static class CausalTraceParser
       switch (child.Name.LocalName)
       {
         case "Access":
-          bool lit;
-          var op = CausalTraceParser.ResolveOperand(child, out lit) ?? "";
+          var op = CausalTraceParser.ResolveOperand(child, out var lit) ?? "";
           tokens.Add(("OPERAND", op, lit));
           break;
 
@@ -117,14 +116,14 @@ public static class CausalTraceParser
       }
     }
 
-    var allOperandsInNet = tokens.Where(t => t.kind == "OPERAND" && !t.isLiteral).Select(t => t.text)
+    var allOperandsInNet = tokens.Where(t => t is { kind: "OPERAND", isLiteral: false, }).Select(t => t.text)
       .Where(s => s.Length > 0).ToList();
     var netReferencesTag = allOperandsInNet.Any(o => CausalTraceParser.OperandMatches(o, normTag));
 
     var statement = new List<(string kind, string text, bool isLiteral)>();
     foreach (var t in tokens)
     {
-      if (t.kind == "OP" && t.text == ";")
+      if (t is { kind: "OP", text: ";", })
       {
         CausalTraceParser.HandleStatement(statement,
           blockName,
@@ -166,7 +165,7 @@ public static class CausalTraceParser
     string blockPath, int netIndex, string title, string normTag, List<string> allOperandsInNet, JsonArray writeSites,
     HashSet<string> allConditions)
   {
-    var assignIdx = stmt.FindIndex(t => t.kind == "OP" && t.text == ":=");
+    var assignIdx = stmt.FindIndex(t => t is { kind: "OP", text: ":=", });
     if (assignIdx <= 0)
     {
       return;
@@ -183,7 +182,7 @@ public static class CausalTraceParser
       return;
     }
 
-    var rhs = stmt.Skip(assignIdx + 1).Where(t => t.kind == "OPERAND" && !t.isLiteral).Select(t => t.text).Distinct()
+    var rhs = stmt.Skip(assignIdx + 1).Where(t => t is { kind: "OPERAND", isLiteral: false, }).Select(t => t.text).Distinct()
       .ToList();
     var stmtText = CausalTraceParser.ReconstructStatement(stmt);
 
@@ -209,7 +208,7 @@ public static class CausalTraceParser
       ["writeKind"] = ":=",
       ["target"] = lhs.text,
       ["statement"] = stmtText,
-      ["directRhsOperands"] = new JsonArray(rhs.Select(x => JsonValue.Create(x)).ToArray()),
+      ["directRhsOperands"] = new JsonArray([.. rhs.Select(x => JsonValue.Create(x)),]),
       ["networkConditions"] = conds,
     });
   }
@@ -247,8 +246,7 @@ public static class CausalTraceParser
     foreach (var acc in parts.Elements().Where(e => e.Name.LocalName == "Access"))
     {
       var uid = acc.Attribute("UId")?.Value ?? "";
-      bool lit;
-      var op = CausalTraceParser.ResolveOperand(acc, out lit) ?? "";
+      var op = CausalTraceParser.ResolveOperand(acc, out var lit) ?? "";
       if (uid.Length > 0)
       {
         accessByUid[uid] = op;
@@ -281,11 +279,12 @@ public static class CausalTraceParser
       }
 
       wroteTagHere = true;
-      var writeKind = coilType == "SCoil"
-        ? "S (set)"
-        : coilType == "RCoil"
-          ? "R (reset)"
-          : "= (assign)";
+      var writeKind = coilType switch
+      {
+        "SCoil" => "S (set)",
+        "RCoil" => "R (reset)",
+        _       => "= (assign)",
+      };
 
       var conds = new JsonArray();
       foreach (var op in allOperands.Distinct())
@@ -351,7 +350,7 @@ public static class CausalTraceParser
   {
     isLiteral = false;
     var scope = access.Attribute("Scope")?.Value ?? "";
-    if (scope == "LiteralConstant" || scope == "TypedConstant")
+    if (scope is "LiteralConstant" or "TypedConstant")
     {
       isLiteral = true;
       return access.Descendants().FirstOrDefault(e => e.Name.LocalName == "ConstantValue")?.Value ?? "";
@@ -373,13 +372,11 @@ public static class CausalTraceParser
 
       sb.Append(comp.Attribute("Name")?.Value ?? "");
       var idx = comp.Elements().FirstOrDefault(e => e.Name.LocalName == "Access");
-      if (idx != null)
+
+      var iv = idx?.Descendants().FirstOrDefault(e => e.Name.LocalName == "ConstantValue")?.Value;
+      if (iv != null)
       {
-        var iv = idx.Descendants().FirstOrDefault(e => e.Name.LocalName == "ConstantValue")?.Value;
-        if (iv != null)
-        {
-          sb.Append('[').Append(iv).Append(']');
-        }
+        sb.Append('[').Append(iv).Append(']');
       }
     }
 
@@ -448,7 +445,7 @@ public static class CausalTraceParser
   {
     var i = s.IndexOf('[');
     return i >= 0
-      ? s.Substring(0, i)
+      ? s[..i]
       : s;
   }
 

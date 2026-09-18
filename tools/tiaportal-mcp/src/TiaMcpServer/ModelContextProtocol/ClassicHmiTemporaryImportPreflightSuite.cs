@@ -26,7 +26,7 @@ public static class ClassicHmiTemporaryImportPreflightSuite
       : workspaceRoot);
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var suiteDir = Path.Combine(reportDirectory, "preflight_" + stamp);
+    var suiteDir = Path.Combine(reportDirectory, $"preflight_{stamp}");
     var packageDir = Path.Combine(suiteDir, "classic_hmi_package");
     var plcDir = Path.Combine(suiteDir, "plc_xml");
     Directory.CreateDirectory(packageDir);
@@ -95,12 +95,14 @@ public static class ClassicHmiTemporaryImportPreflightSuite
       ["fileValidation"] = fileValidation,
       ["syncValidation"] = syncValidation,
       ["importPlan"] = importPlan,
-      ["blockedReasons"] = new JsonArray(gates.OfType<JsonObject>().Where(x => x["ok"]?.GetValue<bool>() != true)
-        .Select(x => JsonValue.Create(x["title"]?.ToString() ?? x["id"]?.ToString() ?? "unknown")).ToArray()),
+      ["blockedReasons"] = new JsonArray([
+        .. gates.OfType<JsonObject>().Where(x => x["ok"]?.GetValue<bool>() != true).Select(x =>
+          JsonValue.Create(x["title"]?.ToString() ?? x["id"]?.ToString() ?? "unknown")),
+      ]),
     };
 
-    var jsonPath = Path.Combine(reportDirectory, "classic_hmi_temporary_import_preflight_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "classic_hmi_temporary_import_preflight_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"classic_hmi_temporary_import_preflight_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"classic_hmi_temporary_import_preflight_{stamp}.md");
     File.WriteAllText(jsonPath,
       root.ToJsonString(new JsonSerializerOptions
       {
@@ -115,10 +117,10 @@ public static class ClassicHmiTemporaryImportPreflightSuite
 
   private static JsonObject BuildEnvironmentPreflight()
   {
-    var publicApi = @"D:\app\TIA21\Portal V21\PublicAPI\V21\net48";
-    var portalExe = @"D:\app\TIA21\Portal V21\Bin\Siemens.Automation.Portal.exe";
+    const string publicApi = @"D:\app\TIA21\Portal V21\PublicAPI\V21\net48";
+    const string portalExe = @"D:\app\TIA21\Portal V21\Bin\Siemens.Automation.Portal.exe";
     var currentUser = "";
-    var groupNames = Array.Empty<string>();
+    string[] groupNames;
     try
     {
       var identity = WindowsIdentity.GetCurrent();
@@ -133,11 +135,11 @@ public static class ClassicHmiTemporaryImportPreflightSuite
         {
           return g.Value;
         }
-      }).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray() ?? Array.Empty<string>();
+      }).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray() ?? [];
     }
     catch
     {
-      groupNames = Array.Empty<string>();
+      groupNames = [];
     }
 
     var publicApiExists = Directory.Exists(publicApi);
@@ -155,9 +157,11 @@ public static class ClassicHmiTemporaryImportPreflightSuite
         groupNames.Any(x => x.IndexOf("Siemens TIA Openness", StringComparison.OrdinalIgnoreCase) >= 0),
       ["tiaEngineerGroupDetected"] =
         groupNames.Any(x => x.IndexOf("Siemens TIA Engineer", StringComparison.OrdinalIgnoreCase) >= 0),
-      ["matchedGroups"] = new JsonArray(groupNames
-        .Where(x => x.IndexOf("Siemens", StringComparison.OrdinalIgnoreCase) >= 0 ||
-          x.IndexOf("TIA", StringComparison.OrdinalIgnoreCase) >= 0).Select(x => JsonValue.Create(x)).ToArray()),
+      ["matchedGroups"] = new JsonArray([
+        .. groupNames
+          .Where(x => x.IndexOf("Siemens", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            x.IndexOf("TIA", StringComparison.OrdinalIgnoreCase) >= 0).Select(x => JsonValue.Create(x)),
+      ]),
     };
   }
 
@@ -218,83 +222,89 @@ public static class ClassicHmiTemporaryImportPreflightSuite
     };
 
   private static string BuildClassicHmiPackageJson() =>
-    @"{
-  ""Name"": ""Classic_Motor_TemporaryImportPreflight"",
-  ""TagTable"": {
-    ""Name"": ""Motor_HMI_Tags"",
-    ""Tags"": [
-      {""Name"":""Motor_Start"",""DataType"":""Bool"",""Length"":""1"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.Motor.Start""},
-      {""Name"":""Motor_Run"",""DataType"":""Bool"",""Length"":""1"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.Motor.Run""},
-      {""Name"":""Speed_Set"",""DataType"":""Int"",""Length"":""2"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.SpeedSet""}
-    ]
-  },
-  ""ScreenDesign"": {
-    ""Screen"": {""Name"":""Motor_Main"",""Width"":640,""Height"":480},
-    ""Items"": [
-      {""Type"":""Text"",""Name"":""Title"",""Left"":20,""Top"":20,""Width"":260,""Height"":36,""Text"":{""zh-CN"":""电机控制""}},
-      {""Type"":""Button"",""Name"":""Btn_Start"",""Left"":20,""Top"":82,""Width"":130,""Height"":46,""Text"":{""zh-CN"":""启动""},""Actions"":[
-        {""Event"":""Press"",""ActionKind"":""SetBit"",""TargetTag"":""Motor_Start""},
-        {""Event"":""Release"",""ActionKind"":""ResetBit"",""TargetTag"":""Motor_Start""}
-      ]},
-      {""Type"":""Lamp"",""Name"":""Lamp_Run"",""Left"":180,""Top"":86,""Width"":42,""Height"":42,""Tag"":""Motor_Run""},
-      {""Type"":""IOField"",""Name"":""IO_Speed"",""Left"":20,""Top"":154,""Width"":140,""Height"":38,""ProcessValueTag"":""Speed_Set""}
-    ]
-  }
-}";
+    """
+    {
+      "Name": "Classic_Motor_TemporaryImportPreflight",
+      "TagTable": {
+        "Name": "Motor_HMI_Tags",
+        "Tags": [
+          {"Name":"Motor_Start","DataType":"Bool","Length":"1","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.Motor.Start"},
+          {"Name":"Motor_Run","DataType":"Bool","Length":"1","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.Motor.Run"},
+          {"Name":"Speed_Set","DataType":"Int","Length":"2","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.SpeedSet"}
+        ]
+      },
+      "ScreenDesign": {
+        "Screen": {"Name":"Motor_Main","Width":640,"Height":480},
+        "Items": [
+          {"Type":"Text","Name":"Title","Left":20,"Top":20,"Width":260,"Height":36,"Text":{"zh-CN":"电机控制"}},
+          {"Type":"Button","Name":"Btn_Start","Left":20,"Top":82,"Width":130,"Height":46,"Text":{"zh-CN":"启动"},"Actions":[
+            {"Event":"Press","ActionKind":"SetBit","TargetTag":"Motor_Start"},
+            {"Event":"Release","ActionKind":"ResetBit","TargetTag":"Motor_Start"}
+          ]},
+          {"Type":"Lamp","Name":"Lamp_Run","Left":180,"Top":86,"Width":42,"Height":42,"Tag":"Motor_Run"},
+          {"Type":"IOField","Name":"IO_Speed","Left":20,"Top":154,"Width":140,"Height":38,"ProcessValueTag":"Speed_Set"}
+        ]
+      }
+    }
+    """;
 
   private static string BuildPlcTagTableXml() =>
-    @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document><SW.Tags.PlcTagTable ID=""0""><AttributeList><Name>MotorTags</Name></AttributeList><ObjectList>
-<SW.Tags.PlcTag ID=""1"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
-<SW.Tags.PlcTag ID=""2"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
-</ObjectList></SW.Tags.PlcTagTable></Document>";
+    """
+    <?xml version="1.0" encoding="utf-8"?>
+    <Document><SW.Tags.PlcTagTable ID="0"><AttributeList><Name>MotorTags</Name></AttributeList><ObjectList>
+    <SW.Tags.PlcTag ID="1" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
+    <SW.Tags.PlcTag ID="2" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
+    </ObjectList></SW.Tags.PlcTagTable></Document>
+    """;
 
   private static string BuildMotorDbXml() =>
-    @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document><SW.Blocks.GlobalDB ID=""0""><AttributeList><Interface><Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5""><Section Name=""Static"">
-<Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;""><Member Name=""Start"" Datatype=""Bool"" /><Member Name=""Run"" Datatype=""Bool"" /></Member>
-<Member Name=""SpeedSet"" Datatype=""Int"" />
-</Section></Sections></Interface><Name>DB1_MotorData</Name><Number>1</Number><ProgrammingLanguage>DB</ProgrammingLanguage></AttributeList></SW.Blocks.GlobalDB></Document>";
+    """
+    <?xml version="1.0" encoding="utf-8"?>
+    <Document><SW.Blocks.GlobalDB ID="0"><AttributeList><Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5"><Section Name="Static">
+    <Member Name="Motor" Datatype="&quot;UDT_Motor&quot;"><Member Name="Start" Datatype="Bool" /><Member Name="Run" Datatype="Bool" /></Member>
+    <Member Name="SpeedSet" Datatype="Int" />
+    </Section></Sections></Interface><Name>DB1_MotorData</Name><Number>1</Number><ProgrammingLanguage>DB</ProgrammingLanguage></AttributeList></SW.Blocks.GlobalDB></Document>
+    """;
 
   private static string BuildMarkdown(JsonObject root, string jsonPath)
   {
     var md = new StringBuilder();
     md.AppendLine("# Classic HMI Temporary Import Preflight");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 预检不连接 TIA Portal，不创建项目，不导入 HMI/PLC 对象。");
     md.AppendLine("- 只写 reports 目录下的预检文件和报告，不修改工程、reference 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Suite directory: " + root["suiteDirectory"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Suite directory: {root["suiteDirectory"]}");
     md.AppendLine();
     md.AppendLine("## Gates");
-    foreach (var node in root["gates"] as JsonArray ?? new JsonArray())
+    foreach (var node in root["gates"] as JsonArray ?? [])
     {
       if (node is not JsonObject gate)
       {
         continue;
       }
 
-      md.AppendLine("- " + gate["title"] + ": " + (gate["ok"]?.GetValue<bool>() == true
+      md.AppendLine($"- {gate["title"]}: {(gate["ok"]?.GetValue<bool>() == true
         ? "PASS"
-        : "FAIL"));
+        : "FAIL")}");
     }
 
     md.AppendLine();
     md.AppendLine("## Import Plan");
-    foreach (var node in root["importPlan"]?["steps"] as JsonArray ?? new JsonArray())
+    foreach (var node in root["importPlan"]?["steps"] as JsonArray ?? [])
     {
       if (node is not JsonObject step)
       {
         continue;
       }
 
-      md.AppendLine("- " + step["order"] + ". " + step["title"] + " -> `" + step["tool"] + "`");
+      md.AppendLine($"- {step["order"]}. {step["title"]} -> `{step["tool"]}`");
     }
 
     return md.ToString();

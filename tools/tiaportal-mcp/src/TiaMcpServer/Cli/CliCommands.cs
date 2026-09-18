@@ -21,67 +21,71 @@ namespace TiaMcpServer.Cli;
 /// </summary>
 public static class CliCommands
 {
-  private const string UsageText = @"tia — drive TIA Portal from a single spec. (Same engine as the MCP server.)
+  private const string UsageText = """
+                                   tia — drive TIA Portal from a single spec. (Same engine as the MCP server.)
 
-USAGE
-  tia gen      <spec.yaml|json> [--dry-run] [--json]      Build a project from a spec
-  tia patch    <spec.yaml|json> [--dry-run] [--json] [--no-overwrite]
-                                                          Upsert spec into an EXISTING project (spec.projectPath)
-  tia compile  <project.apXX> [--plc NAME] [--json]       Compile + diagnose a PLC
-  tia describe <project.apXX> [--plc NAME] [--json]       Print project tree (and PLC blocks)
-  tia export   <project.apXX> --plc NAME --out DIR --block PATH [--scl]
-  tia import   <project.apXX> --plc NAME --from DIR [--no-overwrite]
-  tia prewarm  [--stop]                                   Hold a headless instance open (~1s attach after)
-  tia config   [--host claude|claude-code|cursor|vscode|codex|gemini|windsurf|cline] [--print] [--full]
-                                                          One-click: register this MCP into all detected AI hosts
-                                                          (Claude Desktop / Claude Code / Cursor / VS Code); auto-picks
-                                                          the exe matching your installed TIA version.
-                                                          Default lists ~48 core tools; the rest stay reachable
-                                                          on demand via FindTools + CallTool.
-                                                          --full = list every tool instead (rejected by VS Code/
-                                                          Copilot above 128 and Windsurf above 100)
-  tia doctor   [--fix]                                    Environment check: TIA install, exe/version match, Openness
-                                                          group, AI host configs. --fix auto-adds the Openness group
-  tia schema                                              Print the spec field reference
-  tia version
+                                   USAGE
+                                     tia gen      <spec.yaml|json> [--dry-run] [--json]      Build a project from a spec
+                                     tia patch    <spec.yaml|json> [--dry-run] [--json] [--no-overwrite]
+                                                                                             Upsert spec into an EXISTING project (spec.projectPath)
+                                     tia compile  <project.apXX> [--plc NAME] [--json]       Compile + diagnose a PLC
+                                     tia describe <project.apXX> [--plc NAME] [--json]       Print project tree (and PLC blocks)
+                                     tia export   <project.apXX> --plc NAME --out DIR --block PATH [--scl]
+                                     tia import   <project.apXX> --plc NAME --from DIR [--no-overwrite]
+                                     tia prewarm  [--stop]                                   Hold a headless instance open (~1s attach after)
+                                     tia config   [--host claude|claude-code|cursor|vscode|codex|gemini|windsurf|cline] [--print] [--full]
+                                                                                             One-click: register this MCP into all detected AI hosts
+                                                                                             (Claude Desktop / Claude Code / Cursor / VS Code); auto-picks
+                                                                                             the exe matching your installed TIA version.
+                                                                                             Default lists ~48 core tools; the rest stay reachable
+                                                                                             on demand via FindTools + CallTool.
+                                                                                             --full = list every tool instead (rejected by VS Code/
+                                                                                             Copilot above 128 and Windsurf above 100)
+                                     tia doctor   [--fix]                                    Environment check: TIA install, exe/version match, Openness
+                                                                                             group, AI host configs. --fix auto-adds the Openness group
+                                     tia schema                                              Print the spec field reference
+                                     tia version
 
-GLOBAL FLAGS (also accepted): --with-ui, --tia-portal-location PATH, --tia-major-version N
-Exit code: 0 = success, 1 = completed with failed steps, 2 = error.";
+                                   GLOBAL FLAGS (also accepted): --with-ui, --tia-portal-location PATH, --tia-major-version N
+                                   Exit code: 0 = success, 1 = completed with failed steps, 2 = error.
+                                   """;
 
-  private const string SchemaText = @"PROJECT SPEC (YAML or JSON). JSON is canonical; YAML is for humans.
-Used by `tia gen` (build from zero) and `tia patch` (upsert into existing).
+  private const string SchemaText = """
+                                    PROJECT SPEC (YAML or JSON). JSON is canonical; YAML is for humans.
+                                    Used by `tia gen` (build from zero) and `tia patch` (upsert into existing).
 
-  projectName     string  gen: required. Project name.
-  projectPath     string  patch: required. Path to the .apXX to open.
-  directoryPath   string  gen: output folder (default %TEMP%).
-  plcName         string  default PLC_1.
-  plcFamily       string  default S7-1500.
-  plcMlfb         string  exact order number (optional).
-  hmiName         string  omit to skip all HMI.
-  hmiFamily       string  default WinCCUnifiedPC.
-  hmiSoftwarePath string  blank = auto-probe.
-  connectionName  string  default HMI_Connection_1.
-  udt[]           objects same shape as BuildPlcUdt / PlcBuildAndImport.
-  globalDb[]      objects same shape as BuildPlcGlobalDb.
-  tagTable[]      objects same shape as BuildPlcTagTable.
-  sclSourceFiles[] strings .scl external-source file paths.
-  ladDocs[]       {importPath, name}  S7DCL document import.
-  hmiScreens[]    {screenName, width, height, designJson(object)}.
-  hmiTags[]       {tagTableName?, tagName, hmiDataType?, plcTag?, address?}.
-  compile         bool   default true.
-  save            bool   default true.
+                                      projectName     string  gen: required. Project name.
+                                      projectPath     string  patch: required. Path to the .apXX to open.
+                                      directoryPath   string  gen: output folder (default %TEMP%).
+                                      plcName         string  default PLC_1.
+                                      plcFamily       string  default S7-1500.
+                                      plcMlfb         string  exact order number (optional).
+                                      hmiName         string  omit to skip all HMI.
+                                      hmiFamily       string  default WinCCUnifiedPC.
+                                      hmiSoftwarePath string  blank = auto-probe.
+                                      connectionName  string  default HMI_Connection_1.
+                                      udt[]           objects same shape as BuildPlcUdt / PlcBuildAndImport.
+                                      globalDb[]      objects same shape as BuildPlcGlobalDb.
+                                      tagTable[]      objects same shape as BuildPlcTagTable.
+                                      sclSourceFiles[] strings .scl external-source file paths.
+                                      ladDocs[]       {importPath, name}  S7DCL document import.
+                                      hmiScreens[]    {screenName, width, height, designJson(object)}.
+                                      hmiTags[]       {tagTableName?, tagName, hmiDataType?, plcTag?, address?}.
+                                      compile         bool   default true.
+                                      save            bool   default true.
 
-NOTES
-  * Set width/height to the panel's native resolution or the screen is clipped.
-  * Use absolute addresses (%M..) for hmiTags to pass read-back verification.
-  * patch --no-overwrite protects hand-edited LAD code blocks (imported as None);
-    UDT/DB/tag tables always re-sync to the spec.";
+                                    NOTES
+                                      * Set width/height to the panel's native resolution or the screen is clipped.
+                                      * Use absolute addresses (%M..) for hmiTags to pass read-back verification.
+                                      * patch --no-overwrite protects hand-edited LAD code blocks (imported as None);
+                                        UDT/DB/tag tables always re-sync to the spec.
+                                    """;
 
   private static readonly string[] Verbs =
-  {
+  [
     "gen", "patch", "compile", "export", "import", "describe", "prewarm", "config", "doctor", "schema", "version",
     "help", "--help", "-h",
-  };
+  ];
 
   public static bool IsVerb(string s) => Array.IndexOf(CliCommands.Verbs, s.ToLowerInvariant()) >= 0;
 
@@ -321,16 +325,20 @@ NOTES
     while (!stop.IsSet)
     {
       stop.Wait(60000);
-      if (!stop.IsSet)
+      if (stop.IsSet)
       {
-        try
-        {
-          _ = McpServer.GetState();
-        }
-        catch
-        {
-        }
-      } // heartbeat
+        continue;
+      }
+
+      try
+      {
+        _ = McpServer.GetState();
+      }
+      catch
+      {
+        // ignored
+      }
+      // heartbeat
     }
 
     try
@@ -339,6 +347,7 @@ NOTES
     }
     catch
     {
+      // ignored
     }
 
     Console.WriteLine("prewarm: stopped.");
@@ -541,8 +550,8 @@ NOTES
 
   private static bool MatchesHost(string hostName, string query)
   {
-    string norm(string s) => s.Replace(" ", "").Replace("-", "").ToLowerInvariant();
-    return norm(hostName).Contains(norm(query));
+    return Norm(hostName).Contains(Norm(query));
+    string Norm(string s) => s.Replace(" ", "").Replace("-", "").ToLowerInvariant();
   }
 
   // ---- helpers ----

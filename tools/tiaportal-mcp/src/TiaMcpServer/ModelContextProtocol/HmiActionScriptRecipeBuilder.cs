@@ -20,12 +20,12 @@ namespace TiaMcpServer.ModelContextProtocol;
 /// </summary>
 public static class HmiActionScriptRecipeBuilder
 {
-  public static JsonObject Build(string recipeKind, string eventName, IEnumerable<string> targetTags,
+  public static JsonObject Build(string recipeKind, string eventName, IEnumerable<string>? targetTags,
     string targetScreen = "", string targetPopup = "")
   {
     var kind = HmiActionScriptRecipeBuilder.NormalizeRecipeKind(recipeKind);
     var tags = targetTags?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
-      .Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? Array.Empty<string>();
+      .Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? [];
 
     var errors = new JsonArray();
     var warnings = new JsonArray();
@@ -106,7 +106,7 @@ public static class HmiActionScriptRecipeBuilder
         break;
 
       default:
-        errors.Add("Unsupported recipe kind: " + recipeKind);
+        errors.Add($"Unsupported recipe kind: {recipeKind}");
         break;
     }
 
@@ -125,11 +125,11 @@ public static class HmiActionScriptRecipeBuilder
     {
       ["recipeKind"] = kind,
       ["event"] = eventName,
-      ["targetTags"] = new JsonArray(tags.Select(x => JsonValue.Create(x)).ToArray()),
-      ["targetScreen"] = targetScreen ?? "",
-      ["targetPopup"] = targetPopup ?? "",
+      ["targetTags"] = new JsonArray([.. tags.Select(x => JsonValue.Create(x)),]),
+      ["targetScreen"] = targetScreen,
+      ["targetPopup"] = targetPopup,
       ["script"] = script,
-      ["safetyLevel"] = kind == "confirm-write" || kind == "set-value"
+      ["safetyLevel"] = kind is "confirm-write" or "set-value"
         ? "high"
         : tags.Length > 0
           ? "command"
@@ -141,16 +141,17 @@ public static class HmiActionScriptRecipeBuilder
       ["requiresSyntaxCheckInTia"] = !string.IsNullOrWhiteSpace(script),
       ["requiresReadback"] = kind != "project-binding-placeholder",
       ["preApplySafetyGates"] =
-        new JsonArray(HmiActionScriptRecipeBuilder.BuildPreApplySafetyGates(kind, tags).Select(x => JsonValue.Create(x))
-          .ToArray()),
+        new JsonArray([
+          .. HmiActionScriptRecipeBuilder.BuildPreApplySafetyGates(kind, tags).Select(x => JsonValue.Create(x)),
+        ]),
       ["ok"] = errors.Count == 0,
       ["warnings"] = warnings,
       ["errors"] = errors,
       ["discoveryRequired"] =
-        new JsonArray(HmiActionScriptRecipeBuilder.BuildDiscoverySteps(kind).Select(x => JsonValue.Create(x))
-          .ToArray()),
-      ["verificationRequired"] = new JsonArray(HmiActionScriptRecipeBuilder.BuildVerificationSteps(kind, tags)
-        .Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. HmiActionScriptRecipeBuilder.BuildDiscoverySteps(kind).Select(x => JsonValue.Create(x)),]),
+      ["verificationRequired"] = new JsonArray([
+        .. HmiActionScriptRecipeBuilder.BuildVerificationSteps(kind, tags).Select(x => JsonValue.Create(x)),
+      ]),
     };
   }
 
@@ -158,12 +159,12 @@ public static class HmiActionScriptRecipeBuilder
   {
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var jsonPath = Path.Combine(reportDirectory, "hmi_action_script_recipe_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "hmi_action_script_recipe_probe_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"hmi_action_script_recipe_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"hmi_action_script_recipe_probe_{stamp}.md");
 
     var analysis = HmiTemplateReferenceAnalyzer.Analyze(templateDirectory, "", "");
     var generated = new JsonArray();
-    foreach (var template in analysis["templates"] as JsonArray ?? new JsonArray())
+    foreach (var template in analysis["templates"] as JsonArray ?? [])
     {
       if (template is not JsonObject templateObj)
       {
@@ -171,14 +172,14 @@ public static class HmiActionScriptRecipeBuilder
       }
 
       var templateName = templateObj["templateName"]?.ToString() ?? "";
-      foreach (var recipe in templateObj["actionRecipeSummary"]?["effectiveRecipes"] as JsonArray ?? new JsonArray())
+      foreach (var recipe in templateObj["actionRecipeSummary"]?["effectiveRecipes"] as JsonArray ?? [])
       {
         if (recipe is not JsonObject row)
         {
           continue;
         }
 
-        var targetTags = (row["targetTags"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString() ?? "");
+        var targetTags = (row["targetTags"] as JsonArray ?? []).Select(x => x?.ToString() ?? "");
         var built = HmiActionScriptRecipeBuilder.Build(row["recipeKind"]?.ToString() ?? "",
           row["event"]?.ToString() ?? "",
           targetTags,
@@ -233,12 +234,11 @@ public static class HmiActionScriptRecipeBuilder
   {
     if (tags.Length != 1)
     {
-      errors.Add(functionName + " requires exactly one target tag.");
+      errors.Add($"{functionName} requires exactly one target tag.");
       return "";
     }
 
-    return "HMIRuntime.Tags.SysFct." + functionName + "(\"" + HmiActionScriptRecipeBuilder.EscapeJs(tags[0]) +
-      "\", 0);";
+    return $"HMIRuntime.Tags.SysFct.{functionName}(\"{HmiActionScriptRecipeBuilder.EscapeJs(tags[0])}\", 0);";
   }
 
   private static string BuildConfirmWriteScript(string[] tags, JsonArray errors)
@@ -253,7 +253,7 @@ public static class HmiActionScriptRecipeBuilder
     sb.AppendLine("// 高风险写入：实际应用前必须增加范围校验和操作员确认。");
     foreach (var tag in tags)
     {
-      sb.AppendLine("// TODO: validate and write " + tag);
+      sb.AppendLine($"// TODO: validate and write {tag}");
     }
 
     return sb.ToString().TrimEnd();
@@ -269,7 +269,7 @@ public static class HmiActionScriptRecipeBuilder
 
     var sb = new StringBuilder();
     sb.AppendLine("// 高风险写入：实际应用前必须增加范围校验、权限校验和操作员确认。");
-    sb.AppendLine("// TODO: validate value and write " + tags[0]);
+    sb.AppendLine($"// TODO: validate value and write {tags[0]}");
     return sb.ToString().TrimEnd();
   }
 
@@ -281,8 +281,8 @@ public static class HmiActionScriptRecipeBuilder
       return "";
     }
 
-    return "// 打开弹窗：" + targetPopup + Environment.NewLine +
-      "// TODO: bind to the verified WinCC Unified popup-open API for this project version.";
+    return
+      $"// 打开弹窗：{targetPopup}{Environment.NewLine}// TODO: bind to the verified WinCC Unified popup-open API for this project version.";
   }
 
   private static string BuildGotoScreenScript(string targetScreen, JsonArray errors)
@@ -293,8 +293,8 @@ public static class HmiActionScriptRecipeBuilder
       return "";
     }
 
-    return "// 切换画面：" + targetScreen + Environment.NewLine +
-      "// TODO: bind to the verified WinCC Unified screen-navigation API for this project version.";
+    return
+      $"// 切换画面：{targetScreen}{Environment.NewLine}// TODO: bind to the verified WinCC Unified screen-navigation API for this project version.";
   }
 
   private static (string[] Warnings, string[] Errors) AnalyzeGeneratedScript(string script)
@@ -303,7 +303,7 @@ public static class HmiActionScriptRecipeBuilder
     var errors = new List<string>();
     if (string.IsNullOrWhiteSpace(script))
     {
-      return (warnings.ToArray(), errors.ToArray());
+      return ([.. warnings,], [.. errors,]);
     }
 
     if (Regex.IsMatch(script, @"Force", RegexOptions.IgnoreCase))
@@ -332,7 +332,7 @@ public static class HmiActionScriptRecipeBuilder
         "Generated script contains TODO placeholder and must not be applied without project-specific implementation.");
     }
 
-    return (warnings.ToArray(), errors.ToArray());
+    return ([.. warnings,], [.. errors,]);
   }
 
   private static IEnumerable<string> BuildVerificationSteps(string kind, string[] tags)
@@ -346,14 +346,15 @@ public static class HmiActionScriptRecipeBuilder
 
     yield return "Apply ScriptCode only through SetUnifiedHmiButtonEventScriptCode.";
     yield return "Run TIA SyntaxCheck and read back ScriptCode.";
-    if (kind == "confirm-write")
+    switch (kind)
     {
-      yield return "Require range validation and operator confirmation before write.";
-    }
+      case "confirm-write":
+        yield return "Require range validation and operator confirmation before write.";
+        break;
 
-    if (kind == "set-value")
-    {
-      yield return "Require explicit value source, range validation, operator confirmation, and readback before write.";
+      case "set-value":
+        yield return "Require explicit value source, range validation, operator confirmation, and readback before write.";
+        break;
     }
   }
 
@@ -362,20 +363,22 @@ public static class HmiActionScriptRecipeBuilder
     yield return "Verify HMI item and event path by readback.";
     foreach (var tag in tags)
     {
-      yield return "Verify HMI tag exists: " + tag;
-      yield return "Verify mapped PLC tag or DB member exists: " + tag;
+      yield return $"Verify HMI tag exists: {tag}";
+      yield return $"Verify mapped PLC tag or DB member exists: {tag}";
     }
 
-    if (kind == "confirm-write" || kind == "set-value")
+    if (kind != "confirm-write" && kind != "set-value")
     {
-      yield return "Define min/max/type validation for every target tag.";
-      yield return "Require explicit operator confirmation UI before write.";
-      yield return "Require permission/role check before write.";
-      yield return "Read current value before write.";
-      yield return "Write only through the verified WinCC Unified V21 API.";
-      yield return "Run TIA SyntaxCheck and read back ScriptCode.";
-      yield return "Read back the final tag value after write in a temporary project first.";
+      yield break;
     }
+
+    yield return "Define min/max/type validation for every target tag.";
+    yield return "Require explicit operator confirmation UI before write.";
+    yield return "Require permission/role check before write.";
+    yield return "Read current value before write.";
+    yield return "Write only through the verified WinCC Unified V21 API.";
+    yield return "Run TIA SyntaxCheck and read back ScriptCode.";
+    yield return "Read back the final tag value after write in a temporary project first.";
   }
 
   private static IEnumerable<string> BuildDiscoverySteps(string kind)
@@ -392,9 +395,9 @@ public static class HmiActionScriptRecipeBuilder
     yield return "Run SyntaxCheck and read back ScriptCode before marking this recipe deterministic.";
   }
 
-  private static string NormalizeRecipeKind(string recipeKind) => (recipeKind ?? "").Trim().ToLowerInvariant();
+  private static string NormalizeRecipeKind(string? recipeKind) => (recipeKind ?? "").Trim().ToLowerInvariant();
 
-  private static string EscapeJs(string value) => (value ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"");
+  private static string EscapeJs(string? value) => (value ?? "").Replace("\\", @"\\").Replace("\"", "\\\"");
 
   private static bool Balanced(string text, char open, char close)
   {
@@ -439,6 +442,56 @@ public static class HmiActionScriptRecipeBuilder
   {
     var cases = new JsonArray();
 
+    AddCase("set-bit-safe",
+      HmiActionScriptRecipeBuilder.Build("set-bit", "Tapped", ["Cmd_Start",]),
+      true,
+      false,
+      true);
+    AddCase("reset-bit-safe",
+      HmiActionScriptRecipeBuilder.Build("reset-bit", "Released", ["Cmd_Start",]),
+      true,
+      false,
+      true);
+    AddCase("toggle-bit-safe",
+      HmiActionScriptRecipeBuilder.Build("toggle-bit", "Tapped", ["Cmd_Auto",]),
+      true,
+      false,
+      true);
+    AddCase("set-bit-missing-tag",
+      HmiActionScriptRecipeBuilder.Build("set-bit", "Tapped", []),
+      false,
+      false,
+      false);
+    AddCase("confirm-write-blocked",
+      HmiActionScriptRecipeBuilder.Build("confirm-write", "Tapped", ["Set_Speed",]),
+      true,
+      true,
+      false);
+    AddCase("set-value-blocked",
+      HmiActionScriptRecipeBuilder.Build("set-value", "Tapped", ["Set_Speed",]),
+      true,
+      true,
+      false);
+    AddCase("goto-screen-api-discovery-blocked",
+      HmiActionScriptRecipeBuilder.Build("goto-screen", "Tapped", [], "Alarm_Overview"),
+      true,
+      true,
+      false);
+    AddCase("open-popup-api-discovery-blocked",
+      HmiActionScriptRecipeBuilder.Build("open-popup", "Tapped", [], "", "Popup_Parameter"),
+      true,
+      true,
+      false);
+
+    return new JsonObject
+    {
+      ["format"] = "hmi-action-script-recipe-safety-self-test-v1",
+      ["timestamp"] = DateTime.Now.ToString("O"),
+      ["ok"] = cases.OfType<JsonObject>().All(x => x["pass"]?.GetValue<bool>() == true),
+      ["caseCount"] = cases.Count,
+      ["cases"] = cases,
+    };
+
     void AddCase(string id, JsonObject recipe, bool expectedOk, bool expectedApplyBlocked, bool expectedSafeApply)
     {
       var actualOk = recipe["ok"]?.GetValue<bool>() == true;
@@ -460,56 +513,6 @@ public static class HmiActionScriptRecipeBuilder
         ["warnings"] = recipe["warnings"]?.DeepClone() ?? new JsonArray(),
       });
     }
-
-    AddCase("set-bit-safe",
-      HmiActionScriptRecipeBuilder.Build("set-bit", "Tapped", new[] { "Cmd_Start", }),
-      true,
-      false,
-      true);
-    AddCase("reset-bit-safe",
-      HmiActionScriptRecipeBuilder.Build("reset-bit", "Released", new[] { "Cmd_Start", }),
-      true,
-      false,
-      true);
-    AddCase("toggle-bit-safe",
-      HmiActionScriptRecipeBuilder.Build("toggle-bit", "Tapped", new[] { "Cmd_Auto", }),
-      true,
-      false,
-      true);
-    AddCase("set-bit-missing-tag",
-      HmiActionScriptRecipeBuilder.Build("set-bit", "Tapped", Array.Empty<string>()),
-      false,
-      false,
-      false);
-    AddCase("confirm-write-blocked",
-      HmiActionScriptRecipeBuilder.Build("confirm-write", "Tapped", new[] { "Set_Speed", }),
-      true,
-      true,
-      false);
-    AddCase("set-value-blocked",
-      HmiActionScriptRecipeBuilder.Build("set-value", "Tapped", new[] { "Set_Speed", }),
-      true,
-      true,
-      false);
-    AddCase("goto-screen-api-discovery-blocked",
-      HmiActionScriptRecipeBuilder.Build("goto-screen", "Tapped", Array.Empty<string>(), "Alarm_Overview"),
-      true,
-      true,
-      false);
-    AddCase("open-popup-api-discovery-blocked",
-      HmiActionScriptRecipeBuilder.Build("open-popup", "Tapped", Array.Empty<string>(), "", "Popup_Parameter"),
-      true,
-      true,
-      false);
-
-    return new JsonObject
-    {
-      ["format"] = "hmi-action-script-recipe-safety-self-test-v1",
-      ["timestamp"] = DateTime.Now.ToString("O"),
-      ["ok"] = cases.OfType<JsonObject>().All(x => x["pass"]?.GetValue<bool>() == true),
-      ["caseCount"] = cases.Count,
-      ["cases"] = cases,
-    };
   }
 
   private static string BuildMarkdown(JsonObject root, string jsonPath)
@@ -517,8 +520,8 @@ public static class HmiActionScriptRecipeBuilder
     var md = new StringBuilder();
     md.AppendLine("# HMI Action Script Recipe Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- Offline script generation only; no TIA connection and no HMI project write.");
@@ -526,25 +529,24 @@ public static class HmiActionScriptRecipeBuilder
     md.AppendLine("- Delivery package is not modified.");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Template count: " + root["templateCount"]);
-    md.AppendLine("- Generated actions: " + root["generatedActionCount"]);
-    md.AppendLine("- API discovery blocked actions: " + root["apiDiscoveryRequiredCount"]);
-    md.AppendLine("- Apply blocked actions: " + root["applyBlockedCount"]);
-    md.AppendLine("- Safe deterministic apply candidates: " + root["safeDeterministicApplyCandidateCount"]);
-    md.AppendLine("- Safety self-test: " + root["safetySelfTest"]?["ok"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Template count: {root["templateCount"]}");
+    md.AppendLine($"- Generated actions: {root["generatedActionCount"]}");
+    md.AppendLine($"- API discovery blocked actions: {root["apiDiscoveryRequiredCount"]}");
+    md.AppendLine($"- Apply blocked actions: {root["applyBlockedCount"]}");
+    md.AppendLine($"- Safe deterministic apply candidates: {root["safeDeterministicApplyCandidateCount"]}");
+    md.AppendLine($"- Safety self-test: {root["safetySelfTest"]?["ok"]}");
     md.AppendLine();
     md.AppendLine("## Generated Recipes");
-    foreach (var node in root["generated"] as JsonArray ?? new JsonArray())
+    foreach (var node in root["generated"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
         continue;
       }
 
-      md.AppendLine("- " + item["templateName"] + "." + item["item"] + "." + item["event"] + ": " + item["recipeKind"] +
-        ", ok=" + item["ok"] + ", safety=" + item["safetyLevel"] + ", requiresApiDiscovery=" +
-        item["requiresApiDiscovery"]);
+      md.AppendLine(
+        $"- {item["templateName"]}.{item["item"]}.{item["event"]}: {item["recipeKind"]}, ok={item["ok"]}, safety={item["safetyLevel"]}, requiresApiDiscovery={item["requiresApiDiscovery"]}");
     }
 
     return md.ToString();

@@ -38,7 +38,7 @@ public static class PlcSymbolManifestBuilder
     var warnings = new JsonArray();
     if (files.Length == 0)
     {
-      errors.Add("xml-file-not-found: " + path);
+      errors.Add($"xml-file-not-found: {path}");
     }
 
     var symbolMap = new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
@@ -49,11 +49,11 @@ public static class PlcSymbolManifestBuilder
       fileResults.Add(fileResult);
       if (fileResult["ok"]?.GetValue<bool>() != true)
       {
-        warnings.Add("xml-skipped: " + file);
+        warnings.Add($"xml-skipped: {file}");
         continue;
       }
 
-      foreach (var symbol in fileResult["symbols"] as JsonArray ?? new JsonArray())
+      foreach (var symbol in fileResult["symbols"] as JsonArray ?? [])
       {
         if (symbol is not JsonObject obj)
         {
@@ -100,7 +100,7 @@ public static class PlcSymbolManifestBuilder
       ["symbolCount"] = symbols.Length,
       ["symbols"] = new JsonArray(symbols),
       ["symbolNames"] =
-        new JsonArray(symbols.Select(x => JsonValue.Create(x?["symbol"]?.ToString() ?? "")).ToArray()),
+        new JsonArray([.. symbols.Select(x => JsonValue.Create(x?["symbol"]?.ToString() ?? "")),]),
       ["files"] = fileResults,
       ["errors"] = errors,
       ["warnings"] = warnings,
@@ -111,7 +111,7 @@ public static class PlcSymbolManifestBuilder
   {
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var fixtureDir = Path.Combine(reportDirectory, "plc_symbol_fixture_" + stamp);
+    var fixtureDir = Path.Combine(reportDirectory, $"plc_symbol_fixture_{stamp}");
     Directory.CreateDirectory(fixtureDir);
 
     File.WriteAllText(Path.Combine(fixtureDir, "MotorTags.xml"),
@@ -127,18 +127,18 @@ public static class PlcSymbolManifestBuilder
       "Counter", "DB1_MotorData.Counter", "DB1_MotorData.ManualEnable", "DB1_MotorData.Motor",
       "DB1_MotorData.SpeedSet", "Motor_Run", "Motor_Start",
     };
-    var actual = (root["symbolNames"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString() ?? "")
+    var actual = (root["symbolNames"] as JsonArray ?? []).Select(x => x?.ToString() ?? "")
       .Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
     var missingExpected = expected.Where(x => !actual.Contains(x)).OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
       .ToArray();
     root["mode"] = "plc-symbol-manifest-offline-probe";
     root["fixtureDirectory"] = fixtureDir;
     root["expectedSymbolCount"] = expected.Length;
-    root["missingExpectedSymbols"] = new JsonArray(missingExpected.Select(x => JsonValue.Create(x)).ToArray());
+    root["missingExpectedSymbols"] = new JsonArray([.. missingExpected.Select(x => JsonValue.Create(x)),]);
     root["ok"] = root["ok"]?.GetValue<bool>() == true && missingExpected.Length == 0;
 
-    var jsonPath = Path.Combine(reportDirectory, "plc_symbol_manifest_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "plc_symbol_manifest_probe_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"plc_symbol_manifest_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"plc_symbol_manifest_probe_{stamp}.md");
     File.WriteAllText(jsonPath,
       root.ToJsonString(new JsonSerializerOptions
       {
@@ -197,7 +197,7 @@ public static class PlcSymbolManifestBuilder
       {
         result["kind"] = result["kind"]?.ToString() == "unknown"
           ? "global-db"
-          : result["kind"] + "+global-db";
+          : $"{result["kind"]}+global-db";
         var dbName = globalDb.Element("AttributeList")?.Element("Name")?.Value ?? "";
         foreach (var section in globalDb.Descendants()
           .Where(x => x.Name.LocalName == "Section" && (x.Attribute("Name")?.Value ?? "") == "Static"))
@@ -220,7 +220,7 @@ public static class PlcSymbolManifestBuilder
     }
     catch (Exception ex)
     {
-      errors.Add("xml-parse-error: " + ex.Message);
+      errors.Add($"xml-parse-error: {ex.Message}");
       return result;
     }
   }
@@ -235,10 +235,10 @@ public static class PlcSymbolManifestBuilder
 
     var path = string.IsNullOrWhiteSpace(prefix)
       ? name
-      : prefix + "." + name;
+      : $"{prefix}.{name}";
     symbols.Add(new JsonObject
     {
-      ["symbol"] = dbName + "." + path,
+      ["symbol"] = $"{dbName}.{path}",
       ["sourceKind"] = "GlobalDBMember",
       ["dbName"] = dbName,
       ["memberPath"] = path,
@@ -252,7 +252,7 @@ public static class PlcSymbolManifestBuilder
     }
   }
 
-  private static string CleanSymbol(string value)
+  private static string CleanSymbol(string? value)
   {
     value = (value ?? "").Trim();
     if (value.Length >= 2 && value.StartsWith("\"", StringComparison.Ordinal) &&
@@ -265,66 +265,70 @@ public static class PlcSymbolManifestBuilder
   }
 
   private static string BuildProbeTagTableXml() =>
-    @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <SW.Tags.PlcTagTable ID=""0"">
-    <AttributeList><Name>MotorTags</Name></AttributeList>
-    <ObjectList>
-      <SW.Tags.PlcTag ID=""1"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""2"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""3"" CompositionName=""Tags""><AttributeList><DataTypeName>Int</DataTypeName><LogicalAddress>%MW2</LogicalAddress><Name>Counter</Name></AttributeList></SW.Tags.PlcTag>
-    </ObjectList>
-  </SW.Tags.PlcTagTable>
-</Document>";
+    """
+    <?xml version="1.0" encoding="utf-8"?>
+    <Document>
+      <Engineering version="V21" />
+      <SW.Tags.PlcTagTable ID="0">
+        <AttributeList><Name>MotorTags</Name></AttributeList>
+        <ObjectList>
+          <SW.Tags.PlcTag ID="1" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
+          <SW.Tags.PlcTag ID="2" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
+          <SW.Tags.PlcTag ID="3" CompositionName="Tags"><AttributeList><DataTypeName>Int</DataTypeName><LogicalAddress>%MW2</LogicalAddress><Name>Counter</Name></AttributeList></SW.Tags.PlcTag>
+        </ObjectList>
+      </SW.Tags.PlcTagTable>
+    </Document>
+    """;
 
   private static string BuildProbeDbXml() =>
-    @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <SW.Blocks.GlobalDB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Static"">
-            <Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"">
-              <Member Name=""Start"" Datatype=""Bool"" />
-              <Member Name=""Run"" Datatype=""Bool"" />
-            </Member>
-            <Member Name=""Counter"" Datatype=""Int"" />
-            <Member Name=""ManualEnable"" Datatype=""Bool"" />
-            <Member Name=""SpeedSet"" Datatype=""Int"" />
-          </Section>
-        </Sections>
-      </Interface>
-      <Name>DB1_MotorData</Name>
-      <Number>1</Number>
-      <ProgrammingLanguage>DB</ProgrammingLanguage>
-    </AttributeList>
-  </SW.Blocks.GlobalDB>
-</Document>";
+    """
+    <?xml version="1.0" encoding="utf-8"?>
+    <Document>
+      <Engineering version="V21" />
+      <SW.Blocks.GlobalDB ID="0">
+        <AttributeList>
+          <Interface>
+            <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+              <Section Name="Static">
+                <Member Name="Motor" Datatype="&quot;UDT_Motor&quot;">
+                  <Member Name="Start" Datatype="Bool" />
+                  <Member Name="Run" Datatype="Bool" />
+                </Member>
+                <Member Name="Counter" Datatype="Int" />
+                <Member Name="ManualEnable" Datatype="Bool" />
+                <Member Name="SpeedSet" Datatype="Int" />
+              </Section>
+            </Sections>
+          </Interface>
+          <Name>DB1_MotorData</Name>
+          <Number>1</Number>
+          <ProgrammingLanguage>DB</ProgrammingLanguage>
+        </AttributeList>
+      </SW.Blocks.GlobalDB>
+    </Document>
+    """;
 
   private static string BuildProbeMarkdown(JsonObject root, string jsonPath)
   {
     var md = new StringBuilder();
     md.AppendLine("# PLC Symbol Manifest Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线 PLC 符号提取，不连接 TIA Portal，不打开工程，不导入对象。");
     md.AppendLine("- 只写 reports 目录下的探针文件，不修改工程、reference 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Symbol count: " + root["symbolCount"]);
-    md.AppendLine("- Missing expected symbols: " + (root["missingExpectedSymbols"]?.ToJsonString() ?? "[]"));
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Symbol count: {root["symbolCount"]}");
+    md.AppendLine($"- Missing expected symbols: {(root["missingExpectedSymbols"]?.ToJsonString() ?? "[]")}");
     md.AppendLine();
     md.AppendLine("## Symbols");
-    foreach (var item in root["symbolNames"] as JsonArray ?? new JsonArray())
+    foreach (var item in root["symbolNames"] as JsonArray ?? [])
     {
-      md.AppendLine("- " + item);
+      md.AppendLine($"- {item}");
     }
 
     return md.ToString();

@@ -41,8 +41,7 @@ public static partial class McpServer
       {
         // 「没连上」和「路径不存在」都会是 null，对调用方是两件事，一次说清楚。
         throw new McpProtocolException(
-          $"读不到 '{deviceItemPath}' 的槽位：要么没有连接项目（先 Connect，再 AttachToOpenProject），" +
-          "要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
+          $"读不到 '{deviceItemPath}' 的槽位：要么没有连接项目（先 Connect，再 AttachToOpenProject），要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
           McpErrorCode.InvalidParams);
       }
 
@@ -137,7 +136,7 @@ public static partial class McpServer
         // 否则它随 Meta 一起消失，调用方只剩一句"插不上"。
         var attemptText = r.Attempts.Count == 0
           ? ""
-          : " | attempts: " + string.Join("; ", r.Attempts.Take(20));
+          : $" | attempts: {string.Join("; ", r.Attempts.Take(20))}";
         throw new McpProtocolException($"PlugDeviceItem failed [{r.Reason}]: {r.Message}{attemptText}",
           McpErrorCode.InvalidParams);
       }
@@ -213,8 +212,7 @@ public static partial class McpServer
       return new ResponseMessage
       {
         Message = unverified
-          ? $"⚠ 未验证：{r.Message} —— PlugNew 已经调用过，模块**可能已经插进去了**，" +
-          "但读回确认失败，所以无法判定结果。请用 GetDevicePlugLocations 或 TIA 界面核对后再继续，" + "不要直接重试（会重复插入）。"
+          ? $"⚠ 未验证：{r.Message} —— PlugNew 已经调用过，模块**可能已经插进去了**，但读回确认失败，所以无法判定结果。请用 GetDevicePlugLocations 或 TIA 界面核对后再继续，不要直接重试（会重复插入）。"
           : r.Message,
         Meta = meta,
       };

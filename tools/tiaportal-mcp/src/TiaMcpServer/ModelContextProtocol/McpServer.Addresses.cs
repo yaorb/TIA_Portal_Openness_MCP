@@ -1,7 +1,6 @@
 ﻿#region
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -40,8 +39,7 @@ public static partial class McpServer
       {
         // 「没连上」和「设备项不存在」都会返回 null，但对调用方是两件事，分开问一句更有用。
         throw new McpProtocolException(
-          $"读不到 '{deviceItemPath}' 的地址：要么没有连接项目（先 Connect / AttachToOpenProject），" +
-          "要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
+          $"读不到 '{deviceItemPath}' 的地址：要么没有连接项目（先 Connect / AttachToOpenProject），要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
           McpErrorCode.InvalidParams);
       }
 
@@ -58,15 +56,13 @@ public static partial class McpServer
       // 会让人以为是工具读不到，转头去查一个没问题的组态。
       var childHints = addresses.Count == 0
         ? McpServer.Portal.DescribeChildItemsWithAddresses(deviceItemPath)
-        : new List<string>();
+        : [];
 
       var msg = addresses.Count > 0
         ? $"设备项 '{deviceItemPath}' 上有 {addresses.Count} 条 I/O 地址。"
         : childHints.Count > 0
-          ? $"设备项 '{deviceItemPath}' **本级**没有 I/O 地址，但它的子项有 —— " +
-          $"地址挂在子项上（分布式 IO 常见）。改用这些路径：{string.Join("；", childHints)}"
-          : $"设备项 '{deviceItemPath}' 上没有任何 I/O 地址，它的直接子项也没有。" + "常见于它是机架/电源/接口这类本来就不占 I/O 的对象；" +
-          "若你确信它应该有（例如分布式 IO 模块），用 GetDeviceItemTree 看一眼层级，" + "地址可能挂在更深的一层。";
+          ? $"设备项 '{deviceItemPath}' **本级**没有 I/O 地址，但它的子项有 —— 地址挂在子项上（分布式 IO 常见）。改用这些路径：{string.Join("；", childHints)}"
+          : $"设备项 '{deviceItemPath}' 上没有任何 I/O 地址，它的直接子项也没有。常见于它是机架/电源/接口这类本来就不占 I/O 的对象；若你确信它应该有（例如分布式 IO 模块），用 GetDeviceItemTree 看一眼层级，地址可能挂在更深的一层。";
 
       return new ResponseMessage
       {
@@ -78,7 +74,7 @@ public static partial class McpServer
           ["addressCount"] = addresses.Count,
           ["addresses"] = arr,
           ["childItemsWithAddresses"] =
-            new JsonArray(childHints.Select(h => (JsonNode)JsonValue.Create(h)!).ToArray()),
+            new JsonArray(childHints.Select(JsonNode (h) => JsonValue.Create(h)).ToArray()),
           ["note"] = "startAddress/length 是引擎原值，未做任何换算。startAddress 为字节偏移。",
         },
       };
@@ -112,7 +108,7 @@ public static partial class McpServer
       if (startAddress < 0)
       {
         throw new McpProtocolException(
-          $"startAddress 不能为负数（收到 {startAddress}）。它是引擎原值字节偏移，" + "%I2.0 对应 startAddress=2，不要写成 \"2.0\"。",
+          $"startAddress 不能为负数（收到 {startAddress}）。它是引擎原值字节偏移，%I2.0 对应 startAddress=2，不要写成 \"2.0\"。",
           McpErrorCode.InvalidParams);
       }
 
@@ -123,8 +119,7 @@ public static partial class McpServer
         if (current == null)
         {
           throw new McpProtocolException(
-            $"读不到 '{deviceItemPath}' 的地址：要么没有连接项目（先 Connect / AttachToOpenProject），" +
-            "要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
+            $"读不到 '{deviceItemPath}' 的地址：要么没有连接项目（先 Connect / AttachToOpenProject），要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
             McpErrorCode.InvalidParams);
         }
 
@@ -143,9 +138,7 @@ public static partial class McpServer
 
         var preview = match.StartAddress == startAddress
           ? $"[dryRun] 无需修改：{ioType} 起始地址本来就是 {startAddress}。"
-          : $"[dryRun] 将把 '{deviceItemPath}' 的 {ioType} 起始地址从 " +
-          $"{match.StartAddress} 改为 {startAddress}（length={match.Length} 不变）。" + "确认无误后用 dryRun=false 实际写入。" +
-          "注意：地址是否与其它模块重叠，只有真正写入时 TIA 才会判定。";
+          : $"[dryRun] 将把 '{deviceItemPath}' 的 {ioType} 起始地址从 {match.StartAddress} 改为 {startAddress}（length={match.Length} 不变）。确认无误后用 dryRun=false 实际写入。注意：地址是否与其它模块重叠，只有真正写入时 TIA 才会判定。";
 
         return new ResponseMessage
         {
@@ -206,8 +199,7 @@ public static partial class McpServer
       {
         Message = after != null
           ? message
-          : $"⚠ 未验证：{message} —— 写入调用没有报错，但读不回修改后的地址，" +
-          "所以**无法确认**地址是否真的变了。请用 GetDeviceItemIoAddresses 或 TIA 界面自行核对，" + "在核对之前不要把它当成已完成。",
+          : $"⚠ 未验证：{message} —— 写入调用没有报错，但读不回修改后的地址，所以**无法确认**地址是否真的变了。请用 GetDeviceItemIoAddresses 或 TIA 界面自行核对，在核对之前不要把它当成已完成。",
         Meta = meta,
       };
     }

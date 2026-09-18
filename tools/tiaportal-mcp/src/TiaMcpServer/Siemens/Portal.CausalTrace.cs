@@ -66,10 +66,10 @@ public partial class Portal
       };
     }
 
-    var codeBlocks = blocks.Where(b => !(b is DataBlock)).ToList();
+    var codeBlocks = blocks.Where(b => b is not DataBlock).ToList();
     data["scannedBlockCount"] = codeBlocks.Count;
 
-    var tmpDir = Path.Combine(Path.GetTempPath(), "tia_trace_" + Guid.NewGuid().ToString("N").Substring(0, 8));
+    var tmpDir = Path.Combine(Path.GetTempPath(), "tia_trace_" + Guid.NewGuid().ToString("N")[..8]);
     Directory.CreateDirectory(tmpDir);
 
     var writeSites = new JsonArray();
@@ -123,12 +123,13 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
     }
 
     data["writeSites"] = writeSites;
     data["readSites"] = readSites;
-    data["gatingConditions"] = new JsonArray(allConditions.OrderBy(x => x).Select(x => JsonValue.Create(x)).ToArray());
+    data["gatingConditions"] = new JsonArray([.. allConditions.OrderBy(x => x).Select(x => JsonValue.Create(x)),]);
     data["analyzedBlockCount"] = analyzedOk;
     if (warnings.Count > 0)
     {
@@ -161,7 +162,7 @@ public partial class Portal
       Message = summary,
       Data = data,
       Warnings = warnings.Count > 0
-        ? warnings.Select(w => w!.ToString()).ToArray()
+        ? [.. warnings.Select(w => w!.ToString()),]
         : null,
       Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
     };
@@ -302,7 +303,7 @@ public partial class Portal
     this.CollectTagsFromTables(tables, map);
     this.CollectTagGroups(Portal.TryGetPropertyValue(plc, "TagTableGroup", "TagTableFolder"),
       map,
-      new HashSet<object>());
+      []);
     return map;
   }
 
@@ -316,14 +317,16 @@ public partial class Portal
 
     this.CollectTagsFromTables(Portal.TryGetPropertyValue(group, "TagTables"), map);
     var subs = Portal.TryGetPropertyValue(group, "Groups");
-    if (subs is IEnumerable en && !(subs is string))
+    if (subs is not (IEnumerable en and not string))
     {
-      foreach (var g in en)
+      return;
+    }
+
+    foreach (var g in en)
+    {
+      if (g != null)
       {
-        if (g != null)
-        {
-          this.CollectTagGroups(g, map, visited);
-        }
+        this.CollectTagGroups(g, map, visited);
       }
     }
   }
@@ -331,7 +334,7 @@ public partial class Portal
   private void CollectTagsFromTables(object? tables,
     Dictionary<string, (string name, string address, string dataType)> map)
   {
-    if (!(tables is IEnumerable ten) || tables is string)
+    if (tables is not IEnumerable ten || tables is string)
     {
       return;
     }
@@ -344,7 +347,7 @@ public partial class Portal
       }
 
       var tags = Portal.TryGetPropertyValue(table, "Tags");
-      if (!(tags is IEnumerable gen) || tags is string)
+      if (tags is not IEnumerable gen || tags is string)
       {
         continue;
       }

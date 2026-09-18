@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -93,15 +93,16 @@ public static class ExportStore
   // 后者会把模型引到 ListExports 去找一个注定不在那儿的东西。
   private const int MaxTombstones = 512;
 
-  private static readonly object _lock = new();
+  private static readonly object Lock = new();
 
-  private static readonly Dictionary<string, ExportEntry> _entries = new(StringComparer.Ordinal);
+  private static readonly Dictionary<string, ExportEntry> Entries = new(StringComparer.Ordinal);
 
   private static int _counter;
-  private static readonly HashSet<string> _tombstones = new(StringComparer.Ordinal);
-  private static readonly Queue<string> _tombstoneOrder = new();
+  private static readonly HashSet<string> Tombstones = new(StringComparer.Ordinal);
+  private static readonly Queue<string> TombstoneOrder = new();
 
   /// <summary>可注入的时钟，只为单测能造过期。生产恒为 UtcNow。</summary>
+  // 不能收窄成 private readonly：离线单测工程直接链接本文件，靠给这个字段赋值来造过期条目。
   internal static Func<DateTime> NowUtc = () => DateTime.UtcNow;
 
   // ── 写入 ────────────────────────────────────────────────────────────
@@ -109,19 +110,19 @@ public static class ExportStore
   /// <summary>寄存一份内容，返回句柄 id。content 为 null 按空串处理。</summary>
   public static string Put(string tool, string target, string? content)
   {
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
       return ExportStore.PutLocked(tool, target, content);
     }
   }
 
-  private static string PutLocked(string tool, string target, string? content)
+  private static string PutLocked(string? tool, string? target, string? content)
   {
     var now = ExportStore.NowUtc();
     ExportStore.PurgeExpiredLocked(now);
-    var id = "ex_" + now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture) + "_" +
-      (++ExportStore._counter).ToString("D4", CultureInfo.InvariantCulture);
-    ExportStore._entries[id] = new ExportEntry
+    var id =
+      $"ex_{now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture)}_{(++ExportStore._counter).ToString("D4", CultureInfo.InvariantCulture)}";
+    ExportStore.Entries[id] = new ExportEntry
     {
       Id = id,
       Tool = tool ?? "",
@@ -146,7 +147,7 @@ public static class ExportStore
   /// </summary>
   public static (string id, ExportSlice head) PutAndSlice(string tool, string target, string? content, int headLength)
   {
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
       var id = ExportStore.PutLocked(tool, target, content);
       return (id, ExportStore.SliceLocked(id, 0, headLength, ExportStore.NowUtc()));
@@ -161,7 +162,7 @@ public static class ExportStore
   /// </summary>
   public static ExportSlice Slice(string? id, int offset, int length)
   {
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
       return ExportStore.SliceLocked(id, offset, length, ExportStore.NowUtc());
     }
@@ -170,7 +171,7 @@ public static class ExportStore
   private static ExportSlice SliceLocked(string? id, int offset, int length, DateTime now)
   {
     ExportStore.PurgeExpiredLocked(now);
-    ExportStore._entries.TryGetValue(id ?? "", out var entry);
+    ExportStore.Entries.TryGetValue(id ?? "", out var entry);
 
     if (entry == null)
     {
@@ -180,7 +181,7 @@ public static class ExportStore
       //   unknown 本引擎没发过这个 id                  → 是你把 id 记错了
       // 早先只有后两种，被淘汰的一律落进 unknown，等于告诉模型「你记错了」，
       // 于是它去 ListExports 找一个注定不在那儿的东西，白烧两三个来回。
-      var err = ExportStore._tombstones.Contains(id ?? "")
+      var err = ExportStore.Tombstones.Contains(id ?? "")
         ? "evicted"
         : ExportStore.LooksLikeIssuedId(id, now)
           ? "expired"
@@ -190,10 +191,10 @@ public static class ExportStore
         Id = id ?? "",
         Error = err,
         Message = err == "evicted"
-          ? $"句柄 {id} 已被淘汰：寄存区放满了，最久没被读到的先出局。内容没过期但已丢弃，" + "请重跑产生它的那个工具；要整份就直接 SaveExport 落盘，别一页页翻。"
+          ? $"句柄 {id} 已被淘汰：寄存区放满了，最久没被读到的先出局。内容没过期但已丢弃，请重跑产生它的那个工具；要整份就直接 SaveExport 落盘，别一页页翻。"
           : err == "expired"
-            ? $"句柄 {id} 已过期（寄存只保留 {ExportStore.DefaultTtlHours} 小时）。内容已经丢弃，" + "要拿全量请重跑产生它的那个工具。"
-            : $"没有句柄 {id}。用 ListExports 看当前还有哪些，" + "或者重跑产生它的工具拿一个新的。",
+            ? $"句柄 {id} 已过期（寄存只保留 {ExportStore.DefaultTtlHours} 小时）。内容已经丢弃，要拿全量请重跑产生它的那个工具。"
+            : $"没有句柄 {id}。用 ListExports 看当前还有哪些，或者重跑产生它的工具拿一个新的。",
       };
     }
 
@@ -269,10 +270,10 @@ public static class ExportStore
   public static ExportEntry? Get(string? id)
   {
     var now = ExportStore.NowUtc();
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
       ExportStore.PurgeExpiredLocked(now);
-      ExportStore._entries.TryGetValue(id ?? "", out var e);
+      ExportStore.Entries.TryGetValue(id ?? "", out var e);
       if (e != null)
       {
         e.LastTouchUtc = now; // LRU：SaveExport 读过也算用过
@@ -291,16 +292,16 @@ public static class ExportStore
       limit = 20;
     }
 
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
       ExportStore.PurgeExpiredLocked(now);
-      IEnumerable<ExportEntry> q = ExportStore._entries.Values;
+      IEnumerable<ExportEntry> q = ExportStore.Entries.Values;
       if (!string.IsNullOrWhiteSpace(toolFilter))
       {
         q = q.Where(e => e.Tool.IndexOf(toolFilter!.Trim(), StringComparison.OrdinalIgnoreCase) >= 0);
       }
 
-      return q.OrderByDescending(e => e.CreatedUtc).ThenByDescending(e => e.Id).Take(limit).ToList();
+      return [.. q.OrderByDescending(e => e.CreatedUtc).ThenByDescending(e => e.Id).Take(limit),];
     }
   }
 
@@ -309,9 +310,9 @@ public static class ExportStore
   /// <summary>删一个，返回是否真的删掉了。</summary>
   public static bool Delete(string? id)
   {
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
-      if (!ExportStore._entries.Remove(id ?? ""))
+      if (!ExportStore.Entries.Remove(id ?? ""))
       {
         return false;
       }
@@ -325,15 +326,15 @@ public static class ExportStore
   public static int Clear(int olderThanHours)
   {
     var now = ExportStore.NowUtc();
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
       var doomed = olderThanHours <= 0
-        ? ExportStore._entries.Keys.ToList()
-        : ExportStore._entries.Where(kv => (now - kv.Value.CreatedUtc).TotalHours >= olderThanHours)
-          .Select(kv => kv.Key).ToList();
+        ? ExportStore.Entries.Keys.ToList()
+        : ExportStore.Entries.Where(kv => (now - kv.Value.CreatedUtc).TotalHours >= olderThanHours).Select(kv => kv.Key)
+          .ToList();
       foreach (var k in doomed)
       {
-        ExportStore._entries.Remove(k);
+        ExportStore.Entries.Remove(k);
         ExportStore.TombstoneLocked(k);
       }
 
@@ -344,21 +345,21 @@ public static class ExportStore
   /// <summary>当前句柄数和总字符数，给 admin 类工具报状态。</summary>
   public static (int count, long chars) Stats()
   {
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
       ExportStore.PurgeExpiredLocked(ExportStore.NowUtc());
-      return (ExportStore._entries.Count, ExportStore._entries.Values.Sum(e => (long)e.Length));
+      return (ExportStore.Entries.Count, ExportStore.Entries.Values.Sum(e => (long)e.Length));
     }
   }
 
   /// <summary>只给单测用：清空并复位计数。</summary>
   internal static void ResetForTests()
   {
-    lock (ExportStore._lock)
+    lock (ExportStore.Lock)
     {
-      ExportStore._entries.Clear();
-      ExportStore._tombstones.Clear();
-      ExportStore._tombstoneOrder.Clear();
+      ExportStore.Entries.Clear();
+      ExportStore.Tombstones.Clear();
+      ExportStore.TombstoneOrder.Clear();
       ExportStore._counter = 0;
     }
   }
@@ -367,11 +368,11 @@ public static class ExportStore
 
   private static void PurgeExpiredLocked(DateTime now)
   {
-    var doomed = ExportStore._entries.Where(kv => (now - kv.Value.CreatedUtc).TotalHours >= ExportStore.DefaultTtlHours)
+    var doomed = ExportStore.Entries.Where(kv => (now - kv.Value.CreatedUtc).TotalHours >= ExportStore.DefaultTtlHours)
       .Select(kv => kv.Key).ToList();
     foreach (var k in doomed)
     {
-      ExportStore._entries.Remove(k); // 过期不留墓碑：LooksLikeIssuedId 按时间就能判出 expired
+      ExportStore.Entries.Remove(k); // 过期不留墓碑：LooksLikeIssuedId 按时间就能判出 expired
     }
   }
 
@@ -381,33 +382,33 @@ public static class ExportStore
   /// </summary>
   private static void TombstoneLocked(string id)
   {
-    if (string.IsNullOrEmpty(id) || !ExportStore._tombstones.Add(id))
+    if (string.IsNullOrEmpty(id) || !ExportStore.Tombstones.Add(id))
     {
       return;
     }
 
-    ExportStore._tombstoneOrder.Enqueue(id);
-    while (ExportStore._tombstoneOrder.Count > ExportStore.MaxTombstones)
+    ExportStore.TombstoneOrder.Enqueue(id);
+    while (ExportStore.TombstoneOrder.Count > ExportStore.MaxTombstones)
     {
-      ExportStore._tombstones.Remove(ExportStore._tombstoneOrder.Dequeue());
+      ExportStore.Tombstones.Remove(ExportStore.TombstoneOrder.Dequeue());
     }
   }
 
   private static void EvictLocked(string keepId)
   {
-    while (ExportStore._entries.Count > ExportStore.MaxEntries || (ExportStore._entries.Count > 1 &&
-      ExportStore._entries.Values.Sum(e => (long)e.Length) > ExportStore.MaxTotalChars))
+    while (ExportStore.Entries.Count > ExportStore.MaxEntries || (ExportStore.Entries.Count > 1 &&
+      ExportStore.Entries.Values.Sum(e => (long)e.Length) > ExportStore.MaxTotalChars))
     {
       // 按**最后一次被读到**排，不是按创建时间：正在被分页翻的那份必然创建最早，
       // 按创建时间淘汰等于优先干掉正在用的那个（模型翻到一半句柄就没了）。
-      var oldest = ExportStore._entries.Values.Where(e => e.Id != keepId).OrderBy(e => e.LastTouchUtc).ThenBy(e => e.Id)
+      var oldest = ExportStore.Entries.Values.Where(e => e.Id != keepId).OrderBy(e => e.LastTouchUtc).ThenBy(e => e.Id)
         .FirstOrDefault();
       if (oldest == null)
       {
         break;
       }
 
-      ExportStore._entries.Remove(oldest.Id);
+      ExportStore.Entries.Remove(oldest.Id);
       ExportStore.TombstoneLocked(oldest.Id);
     }
   }

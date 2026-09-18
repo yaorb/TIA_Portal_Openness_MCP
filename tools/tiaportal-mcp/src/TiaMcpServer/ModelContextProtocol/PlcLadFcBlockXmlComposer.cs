@@ -19,8 +19,8 @@ public static class PlcLadFcBlockXmlComposer
 {
   private static readonly XNamespace InterfaceNs = "http://www.siemens.com/automation/Openness/SW/Interface/v5";
 
-  public static XDocument Compose(string blockName, int blockNumber, IEnumerable<PlcBlockMemberDefinition> inputMembers,
-    IEnumerable<PlcBlockMemberDefinition> outputMembers, IEnumerable<LadNetwork> networks, string blockCommentZhCn = "",
+  public static XDocument Compose(string blockName, int blockNumber, IEnumerable<PlcBlockMemberDefinition>? inputMembers,
+    IEnumerable<PlcBlockMemberDefinition>? outputMembers, IEnumerable<LadNetwork>? networks, string blockCommentZhCn = "",
     string blockTitleZhCn = "")
   {
     if (string.IsNullOrWhiteSpace(blockName))
@@ -33,8 +33,8 @@ public static class PlcLadFcBlockXmlComposer
       throw new ArgumentException("LAD FC 块编号必须大于 0。", nameof(blockNumber));
     }
 
-    var inputs = inputMembers?.ToArray() ?? Array.Empty<PlcBlockMemberDefinition>();
-    var outputs = outputMembers?.ToArray() ?? Array.Empty<PlcBlockMemberDefinition>();
+    var inputs = inputMembers?.ToArray() ?? [];
+    var outputs = outputMembers?.ToArray() ?? [];
     var nets = networks?.ToArray() ?? throw new ArgumentNullException(nameof(networks));
     if (nets.Length == 0)
     {
@@ -89,11 +89,10 @@ public static class PlcLadFcBlockXmlComposer
               new XElement(PlcLadFcBlockXmlComposer.InterfaceNs + "Sections",
                 PlcLadFcBlockXmlComposer.BuildSection("Input", inputs),
                 PlcLadFcBlockXmlComposer.BuildSection("Output", outputs),
-                PlcLadFcBlockXmlComposer.BuildSection("InOut", Array.Empty<PlcBlockMemberDefinition>()),
-                PlcLadFcBlockXmlComposer.BuildSection("Temp", Array.Empty<PlcBlockMemberDefinition>()),
-                PlcLadFcBlockXmlComposer.BuildSection("Constant", Array.Empty<PlcBlockMemberDefinition>()),
-                PlcLadFcBlockXmlComposer.BuildSection("Return",
-                  new[] { new PlcBlockMemberDefinition("Ret_Val", "Void"), }))),
+                PlcLadFcBlockXmlComposer.BuildSection("InOut", []),
+                PlcLadFcBlockXmlComposer.BuildSection("Temp", []),
+                PlcLadFcBlockXmlComposer.BuildSection("Constant", []),
+                PlcLadFcBlockXmlComposer.BuildSection("Return", [new PlcBlockMemberDefinition("Ret_Val", "Void"),]))),
             new XElement("MemoryLayout", "Optimized"),
             new XElement("Name", blockName),
             new XElement("Namespace"),
@@ -137,7 +136,7 @@ public static class PlcLadFcBlockXmlComposer
   /// <summary>每个网络的描述：FlgNet 元素 + 可选中文标题/注释。</summary>
   public sealed class LadNetwork
   {
-    public LadNetwork(XElement flgNet, string titleZhCn = "", string commentZhCn = "")
+    public LadNetwork(XElement flgNet, string? titleZhCn = "", string? commentZhCn = "")
     {
       this.FlgNet = flgNet ?? throw new ArgumentNullException(nameof(flgNet));
       this.TitleZhCn = titleZhCn ?? "";

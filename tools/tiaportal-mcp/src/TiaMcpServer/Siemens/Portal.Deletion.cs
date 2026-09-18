@@ -45,7 +45,7 @@ public partial class Portal
     }
 
     var leaf = blockPath.Contains("/")
-      ? blockPath.Substring(blockPath.LastIndexOf("/") + 1)
+      ? blockPath[(blockPath.LastIndexOf("/", StringComparison.Ordinal) + 1)..]
       : blockPath;
     if (leaf.IndexOfAny(this._regexChars) >= 0)
     {
@@ -65,7 +65,7 @@ public partial class Portal
       // 打错名字和「块确实不存在」对调用方是两件事，把可选项列出来才好改。
       var known = this.GetBlocks(softwarePath);
       var names = known?.Select(this.GetBlockPath).OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-        .Take(50).ToList() ?? new List<string>();
+        .Take(50).ToList() ?? [];
       throw new PortalException(PortalErrorCode.NotFound,
         $"DeletePlcBlock: block '{blockPath}' not found in '{softwarePath}'" + (names.Count > 0
           ? ". Available (first 50): " + string.Join(", ", names)
@@ -165,7 +165,7 @@ public partial class Portal
     // 变量表名允许带 '/' 做组分隔，所以只校验叶子名里的元字符。
     var tableLeaf = tagTableName.Replace('\\', '/').Trim('/');
     tableLeaf = tableLeaf.Contains("/")
-      ? tableLeaf.Substring(tableLeaf.LastIndexOf("/") + 1)
+      ? tableLeaf.Substring(tableLeaf.LastIndexOf("/", StringComparison.Ordinal) + 1)
       : tableLeaf;
     if (tableLeaf.IndexOfAny(this._regexChars) >= 0)
     {
@@ -205,7 +205,7 @@ public partial class Portal
     if (table == null)
     {
       // 打错名字和「表确实不存在」对调用方是两件事，把可选项列出来才好改。
-      var known = this.GetPlcTagTables(softwarePath) ?? new List<string>();
+      var known = this.GetPlcTagTables(softwarePath) ?? [];
       throw new PortalException(PortalErrorCode.NotFound,
         $"DeletePlcTagTable: no tag table named '{tagTableName}' in '{softwarePath}'" + (known.Count > 0
           ? ". Available: " + string.Join(", ", known)
@@ -214,7 +214,7 @@ public partial class Portal
     }
 
     var name = Portal.TryGetPropertyValue(table, "Name")?.ToString() ?? wanted;
-    var isDefault = Portal.TryGetPropertyValue(table, "IsDefault") is bool b && b;
+    var isDefault = Portal.TryGetPropertyValue(table, "IsDefault") is true;
     if (isDefault)
     {
       // PLC 必须留一张默认变量表，删掉它 TIA 侧行为未定义。宁可挡住也不试。
@@ -316,7 +316,7 @@ public partial class Portal
     }
 
     var leaf = typePath.Contains("/")
-      ? typePath.Substring(typePath.LastIndexOf("/") + 1)
+      ? typePath[(typePath.LastIndexOf("/", StringComparison.Ordinal) + 1)..]
       : typePath;
     if (leaf.IndexOfAny(this._regexChars) >= 0)
     {
@@ -563,7 +563,7 @@ public partial class Portal
       return false;
     }
 
-    method.Invoke(target, Array.Empty<object>());
+    method.Invoke(target, []);
     return true;
   }
 

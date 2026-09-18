@@ -22,7 +22,7 @@ public static class PlcGlobalDbXmlBuilder
 {
   private static readonly XNamespace InterfaceNs = "http://www.siemens.com/automation/Openness/SW/Interface/v5";
 
-  public static XDocument BuildDocument(string dbName, int dbNumber, IEnumerable<PlcDbMemberDefinition> staticMembers)
+  public static XDocument BuildDocument(string dbName, int dbNumber, IEnumerable<PlcDbMemberDefinition>? staticMembers)
   {
     if (string.IsNullOrWhiteSpace(dbName))
     {
@@ -76,9 +76,9 @@ public static class PlcGlobalDbXmlBuilder
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
     var goldenPath = Path.Combine(fixtureDirectory, "Sim_Data_roundtrip.xml", "Sim_Data.xml");
-    var generatedPath = Path.Combine(reportDirectory, "Sim_Data.minimal.generated_" + stamp + ".xml");
-    var jsonPath = Path.Combine(reportDirectory, "plc_global_db_builder_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "plc_global_db_builder_probe_" + stamp + ".md");
+    var generatedPath = Path.Combine(reportDirectory, $"Sim_Data.minimal.generated_{stamp}.xml");
+    var jsonPath = Path.Combine(reportDirectory, $"plc_global_db_builder_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"plc_global_db_builder_probe_{stamp}.md");
 
     var golden = PlcGlobalDbXmlBuilder.AnalyzeGlobalDb(goldenPath, 25);
     var probeMembers = PlcGlobalDbXmlBuilder.ReadMembers(goldenPath).Take(25).Select(x =>
@@ -190,14 +190,17 @@ public static class PlcGlobalDbXmlBuilder
   private static PlcDbMemberFact[] ReadMembers(string path)
   {
     var doc = XDocument.Load(path, LoadOptions.PreserveWhitespace);
-    return doc.Descendants().Where(x => x.Name.LocalName == "Section" && (x.Attribute("Name")?.Value ?? "") == "Static")
-      .SelectMany(x => x.Elements().Where(y => y.Name.LocalName == "Member")).Select(x =>
-        new PlcDbMemberFact(x.Attribute("Name")?.Value ?? "",
-          x.Attribute("Datatype")?.Value ?? "",
-          PlcGlobalDbXmlBuilder.ReadExternalWritable(x),
-          x.Descendants().FirstOrDefault(y => y.Name.LocalName == "MultiLanguageText" &&
-            (y.Attribute("Lang")?.Value ?? "") == "zh-CN")?.Value ?? "",
-          x.Elements().FirstOrDefault(y => y.Name.LocalName == "StartValue")?.Value ?? "")).ToArray();
+    return
+    [
+      .. doc.Descendants().Where(x => x.Name.LocalName == "Section" && (x.Attribute("Name")?.Value ?? "") == "Static")
+        .SelectMany(x => x.Elements().Where(y => y.Name.LocalName == "Member")).Select(x =>
+          new PlcDbMemberFact(x.Attribute("Name")?.Value ?? "",
+            x.Attribute("Datatype")?.Value ?? "",
+            PlcGlobalDbXmlBuilder.ReadExternalWritable(x),
+            x.Descendants().FirstOrDefault(y => y.Name.LocalName == "MultiLanguageText" &&
+              (y.Attribute("Lang")?.Value ?? "") == "zh-CN")?.Value ?? "",
+            x.Elements().FirstOrDefault(y => y.Name.LocalName == "StartValue")?.Value ?? "")),
+    ];
   }
 
   private static bool? ReadExternalWritable(XElement member)
@@ -234,9 +237,11 @@ public static class PlcGlobalDbXmlBuilder
 
   private static string[] NormalizeMembers(JsonObject root)
   {
-    return (root["members"] as JsonArray ?? new JsonArray()).OfType<JsonObject>().Select(x =>
-      x["name"] + "|" + x["datatype"] + "|" + (x["externalWritable"]?.ToString() ?? "") + "|" + x["commentZhCn"] + "|" +
-      x["startValue"]).ToArray();
+    return
+    [
+      .. (root["members"] as JsonArray ?? []).OfType<JsonObject>().Select(x =>
+        $"{x["name"]}|{x["datatype"]}|{(x["externalWritable"]?.ToString() ?? "")}|{x["commentZhCn"]}|{x["startValue"]}"),
+    ];
   }
 
   private static string BuildProbeMarkdown(JsonObject root, string jsonPath)
@@ -244,30 +249,30 @@ public static class PlcGlobalDbXmlBuilder
     var md = new StringBuilder();
     md.AppendLine("# PLC Global DB Builder Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线生成和解析 GlobalDB XML，不连接 TIA Portal，不导入 PLC DB。");
     md.AppendLine("- 只写 reports 目录下的生成样本和探针报告，不修改 TMP_EXPORT 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Semantic equal to golden first members: " + root["semanticEqual"]);
-    md.AppendLine("- Golden: " + root["goldenPath"]);
-    md.AppendLine("- Generated: " + root["generatedPath"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Semantic equal to golden first members: {root["semanticEqual"]}");
+    md.AppendLine($"- Golden: {root["goldenPath"]}");
+    md.AppendLine($"- Generated: {root["generatedPath"]}");
     md.AppendLine();
     if (root["generated"] is JsonObject generated && generated["members"] is JsonArray members)
     {
       md.AppendLine("## Generated Members");
       foreach (var member in members.OfType<JsonObject>().Take(30))
       {
-        md.AppendLine("- " + member["name"] + ": " + member["datatype"] + ", StartValue=" +
-          (string.IsNullOrWhiteSpace(member["startValue"]?.ToString())
+        md.AppendLine(
+          $"- {member["name"]}: {member["datatype"]}, StartValue={(string.IsNullOrWhiteSpace(member["startValue"]?.ToString())
             ? "<none>"
-            : member["startValue"]) + ", 注释=" + (string.IsNullOrWhiteSpace(member["commentZhCn"]?.ToString())
+            : member["startValue"])}, 注释={(string.IsNullOrWhiteSpace(member["commentZhCn"]?.ToString())
             ? "<none>"
-            : member["commentZhCn"]));
+            : member["commentZhCn"])}");
       }
     }
 
@@ -280,7 +285,7 @@ public static class PlcGlobalDbXmlBuilder
       .Select(x => x.Key).ToArray();
     if (duplicates.Length > 0)
     {
-      throw new ArgumentException("DB 成员名重复: " + string.Join(", ", duplicates));
+      throw new ArgumentException($"DB 成员名重复: {string.Join(", ", duplicates)}");
     }
 
     foreach (var member in members)
@@ -292,7 +297,7 @@ public static class PlcGlobalDbXmlBuilder
 
       if (string.IsNullOrWhiteSpace(member.Datatype))
       {
-        throw new ArgumentException("DB 成员数据类型不能为空: " + member.Name);
+        throw new ArgumentException($"DB 成员数据类型不能为空: {member.Name}");
       }
     }
   }

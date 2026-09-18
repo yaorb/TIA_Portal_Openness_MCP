@@ -107,7 +107,7 @@ public static class McpHints
     return "";
   }
 
-  private static string Tip(string s) => "  ▶ RECOVERY: " + s;
+  private static string Tip(string s) => $"  ▶ RECOVERY: {s}";
 
   private static bool Has(string haystack, string needle) =>
     haystack.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;

@@ -22,7 +22,7 @@ public static class PlcBuilderOfflineValidationSuite
   {
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var suiteDir = Path.Combine(reportDirectory, "suite_" + stamp);
+    var suiteDir = Path.Combine(reportDirectory, $"suite_{stamp}");
     Directory.CreateDirectory(suiteDir);
 
     var fixtureReportDir = Path.Combine(suiteDir, "fixture_readiness");
@@ -66,8 +66,8 @@ public static class PlcBuilderOfflineValidationSuite
       ["ok"] = items.OfType<JsonObject>().All(x => x["ok"]?.GetValue<bool>() == true),
     };
 
-    var jsonPath = Path.Combine(reportDirectory, "plc_builder_offline_suite_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "plc_builder_offline_suite_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"plc_builder_offline_suite_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"plc_builder_offline_suite_{stamp}.md");
     File.WriteAllText(jsonPath,
       root.ToJsonString(new JsonSerializerOptions
       {
@@ -114,39 +114,39 @@ public static class PlcBuilderOfflineValidationSuite
     var md = new StringBuilder();
     md.AppendLine("# PLC Builder Offline Validation Suite");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线总验证，不连接 TIA Portal，不打开项目，不导入 PLC 对象。");
     md.AppendLine("- 只写 reports 目录下的 suite 报告和生成样本，不修改 TMP_EXPORT、reference 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Fixture directory: " + root["fixtureDirectory"]);
-    md.AppendLine("- Suite directory: " + root["suiteDirectory"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Fixture directory: {root["fixtureDirectory"]}");
+    md.AppendLine($"- Suite directory: {root["suiteDirectory"]}");
     md.AppendLine();
     md.AppendLine("## Items");
     if (root["items"] is JsonArray items)
     {
       foreach (var item in items.OfType<JsonObject>())
       {
-        md.AppendLine("- " + item["title"] + ": " + (item["ok"]?.GetValue<bool>() == true
+        md.AppendLine($"- {item["title"]}: {(item["ok"]?.GetValue<bool>() == true
           ? "PASS"
-          : "FAIL"));
+          : "FAIL")}");
         if (!string.IsNullOrWhiteSpace(item["markdownPath"]?.ToString()))
         {
-          md.AppendLine("  - report: " + item["markdownPath"]);
+          md.AppendLine($"  - report: {item["markdownPath"]}");
         }
 
         if (!string.IsNullOrWhiteSpace(item["generatedPath"]?.ToString()))
         {
-          md.AppendLine("  - generated: " + item["generatedPath"]);
+          md.AppendLine($"  - generated: {item["generatedPath"]}");
         }
 
         if (item["semanticEqual"] != null)
         {
-          md.AppendLine("  - semanticEqual: " + item["semanticEqual"]);
+          md.AppendLine($"  - semanticEqual: {item["semanticEqual"]}");
         }
       }
     }

@@ -23,11 +23,11 @@ public static class HmiTemplateDesignJsonBuilder
   public static JsonObject BuildApplyDesign(string templateFile, int fallbackWidth, int fallbackHeight)
   {
     var root = JsonNode.Parse(File.ReadAllText(templateFile, Encoding.UTF8)) as JsonObject ??
-      throw new InvalidOperationException("HMI template JSON root must be an object: " + templateFile);
+      throw new InvalidOperationException($"HMI template JSON root must be an object: {templateFile}");
     return HmiTemplateDesignJsonBuilder.BuildApplyDesign(root, fallbackWidth, fallbackHeight);
   }
 
-  public static JsonObject BuildApplyDesign(JsonObject root, int fallbackWidth, int fallbackHeight)
+  private static JsonObject BuildApplyDesign(JsonObject root, int fallbackWidth, int fallbackHeight)
   {
     var screen = root["Screen"] as JsonObject ?? root["screen"] as JsonObject ?? new JsonObject();
     var screenOut = new JsonObject();
@@ -40,7 +40,7 @@ public static class HmiTemplateDesignJsonBuilder
     }
 
     var itemsOut = new JsonArray();
-    var items = root["Items"] as JsonArray ?? root["items"] as JsonArray ?? new JsonArray();
+    var items = root["Items"] as JsonArray ?? root["items"] as JsonArray ?? [];
     foreach (var node in items.OfType<JsonObject>())
     {
       var item = new JsonObject
@@ -89,7 +89,7 @@ public static class HmiTemplateDesignJsonBuilder
         }
 
         // 中文说明：执行 JSON 只写当前 Openness 验证过的样式路径，完整设计意图仍保留在模板文件中。
-        if (source["FontSize"] is JsonNode fontSize)
+        if (source["FontSize"] is { } fontSize)
         {
           item["font"] = new JsonObject { ["Size"] = fontSize.DeepClone(), };
         }
@@ -117,33 +117,30 @@ public static class HmiTemplateDesignJsonBuilder
       return "Rectangle";
     }
 
-    if (type.StartsWith("Hmi", StringComparison.OrdinalIgnoreCase))
-    {
-      return type.Substring(3);
-    }
-
-    return type;
+    return type.StartsWith("Hmi", StringComparison.OrdinalIgnoreCase)
+      ? type[3..]
+      : type;
   }
 
   private static string ExtractTemplateText(JsonNode? node)
   {
-    if (node == null)
+    switch (node)
     {
-      return "";
-    }
+      case null:
+        return "";
 
-    if (node is JsonValue value)
-    {
-      return HmiTemplateDesignJsonBuilder.StripHtmlText(value.ToString());
-    }
+      case JsonValue value:
+        return HmiTemplateDesignJsonBuilder.StripHtmlText(value.ToString());
 
-    if (node is JsonObject obj)
-    {
-      var zh = obj["zh-CN"]?.ToString() ?? obj["zh"]?.ToString() ?? obj.FirstOrDefault().Value?.ToString() ?? "";
-      return HmiTemplateDesignJsonBuilder.StripHtmlText(zh);
-    }
+      case JsonObject obj:
+      {
+        var zh = obj["zh-CN"]?.ToString() ?? obj["zh"]?.ToString() ?? obj.FirstOrDefault().Value?.ToString() ?? "";
+        return HmiTemplateDesignJsonBuilder.StripHtmlText(zh);
+      }
 
-    return HmiTemplateDesignJsonBuilder.StripHtmlText(node.ToString());
+      default:
+        return HmiTemplateDesignJsonBuilder.StripHtmlText(node.ToString());
+    }
   }
 
   private static string StripHtmlText(string text)

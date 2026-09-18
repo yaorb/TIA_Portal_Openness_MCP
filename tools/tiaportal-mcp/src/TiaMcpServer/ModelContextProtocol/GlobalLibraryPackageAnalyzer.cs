@@ -41,7 +41,7 @@ public static class GlobalLibraryPackageAnalyzer
     var xrefDb = Path.Combine(xrefDir, "XRef.db");
 
     info["libraryFiles"] =
-      new JsonArray(alFiles.Select(f => GlobalLibraryPackageAnalyzer.FileInfoToJson(rootDir, f, true)).ToArray());
+      new JsonArray([.. alFiles.Select(f => GlobalLibraryPackageAnalyzer.FileInfoToJson(rootDir, f, true)),]);
     info["topLevel"] = GlobalLibraryPackageAnalyzer.AnalyzeDirectorySummary(rootDir, 40);
     info["sections"] = new JsonObject
     {
@@ -80,8 +80,8 @@ public static class GlobalLibraryPackageAnalyzer
     var md = new StringBuilder();
     md.AppendLine("# Global Library Package Analysis");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- Offline file-system analysis only.");
@@ -89,22 +89,22 @@ public static class GlobalLibraryPackageAnalyzer
     md.AppendLine("- No global library content is imported, modified, or written.");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- Input: " + root["inputPath"]);
-    md.AppendLine("- Root: " + root["rootDir"]);
-    md.AppendLine("- Exists: " + root["exists"]);
-    md.AppendLine("- OK: " + root["ok"]);
+    md.AppendLine($"- Input: {root["inputPath"]}");
+    md.AppendLine($"- Root: {root["rootDir"]}");
+    md.AppendLine($"- Exists: {root["exists"]}");
+    md.AppendLine($"- OK: {root["ok"]}");
     md.AppendLine();
 
     md.AppendLine("## Library Files");
-    if (root["libraryFiles"] is JsonArray libraryFiles && libraryFiles.Count > 0)
+    if (root["libraryFiles"] is JsonArray { Count: > 0, } libraryFiles)
     {
       foreach (var item in libraryFiles)
       {
         var obj = item as JsonObject;
         var hashText = obj?["sha256Status"]?.ToString() == "ok"
-          ? "sha256=" + obj?["sha256"]
-          : "sha256 unavailable: " + obj?["sha256Error"];
-        md.AppendLine("- " + obj?["relativePath"] + " (" + obj?["bytes"] + " bytes, " + hashText + ")");
+          ? $"sha256={obj["sha256"]}"
+          : $"sha256 unavailable: {obj?["sha256Error"]}";
+        md.AppendLine($"- {obj?["relativePath"]} ({obj?["bytes"]} bytes, {hashText})");
       }
     }
     else
@@ -120,8 +120,7 @@ public static class GlobalLibraryPackageAnalyzer
       foreach (var kv in requiredFiles)
       {
         var obj = kv.Value as JsonObject;
-        md.AppendLine("- " + kv.Key + ": exists=" + obj?["exists"] + ", bytes=" + obj?["bytes"] + ", path=" +
-          obj?["relativePath"]);
+        md.AppendLine($"- {kv.Key}: exists={obj?["exists"]}, bytes={obj?["bytes"]}, path={obj?["relativePath"]}");
       }
     }
 
@@ -137,9 +136,9 @@ public static class GlobalLibraryPackageAnalyzer
 
     md.AppendLine("## XRef");
     var xref = root["xref"] as JsonObject;
-    md.AppendLine("- Exists: " + xref?["exists"]);
-    md.AppendLine("- SQLite: " + xref?["isSqlite"]);
-    md.AppendLine("- Header: `" + xref?["header"] + "`");
+    md.AppendLine($"- Exists: {xref?["exists"]}");
+    md.AppendLine($"- SQLite: {xref?["isSqlite"]}");
+    md.AppendLine($"- Header: `{xref?["header"]}`");
     md.AppendLine();
 
     md.AppendLine("## Recommendations");
@@ -147,7 +146,7 @@ public static class GlobalLibraryPackageAnalyzer
     {
       foreach (var rec in recs)
       {
-        md.AppendLine("- " + rec);
+        md.AppendLine($"- {rec}");
       }
     }
 
@@ -213,12 +212,14 @@ public static class GlobalLibraryPackageAnalyzer
 
     obj["fileCount"] = files.Count;
     obj["totalBytes"] = files.Sum(f => f.Length);
-    obj["samples"] = new JsonArray(files.Take(sampleLimit).Select(f => new JsonObject
-    {
-      ["name"] = f.Name,
-      ["relativePath"] = GlobalLibraryPackageAnalyzer.MakeRelativePath(dir, f.FullName),
-      ["bytes"] = f.Length,
-    }).ToArray());
+    obj["samples"] = new JsonArray([
+      .. files.Take(sampleLimit).Select(f => new JsonObject
+      {
+        ["name"] = f.Name,
+        ["relativePath"] = GlobalLibraryPackageAnalyzer.MakeRelativePath(dir, f.FullName),
+        ["bytes"] = f.Length,
+      }),
+    ]);
     return obj;
   }
 
@@ -245,12 +246,14 @@ public static class GlobalLibraryPackageAnalyzer
 
       var bytes = GlobalLibraryPackageAnalyzer.ReadAllBytesShared(dbPath);
       var text = GlobalLibraryPackageAnalyzer.ExtractPrintableAscii(bytes, 4, 80);
-      info["stringSamples"] = new JsonArray(text.Take(80).Select(x => JsonValue.Create(x)).ToArray());
-      info["tableNameHints"] = new JsonArray(text
-        .Where(x => x.IndexOf("sqlite_", StringComparison.OrdinalIgnoreCase) >= 0 ||
-          x.IndexOf("xref", StringComparison.OrdinalIgnoreCase) >= 0 ||
-          x.IndexOf("object", StringComparison.OrdinalIgnoreCase) >= 0).Distinct(StringComparer.OrdinalIgnoreCase)
-        .Take(40).Select(x => JsonValue.Create(x)).ToArray());
+      info["stringSamples"] = new JsonArray([.. text.Take(80).Select(x => JsonValue.Create(x)),]);
+      info["tableNameHints"] = new JsonArray([
+        .. text.Where(x =>
+            x.IndexOf("sqlite_", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            x.IndexOf("xref", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            x.IndexOf("object", StringComparison.OrdinalIgnoreCase) >= 0).Distinct(StringComparer.OrdinalIgnoreCase)
+          .Take(40).Select(x => JsonValue.Create(x)),
+      ]);
     }
     catch (Exception ex)
     {
@@ -385,25 +388,26 @@ public static class GlobalLibraryPackageAnalyzer
   private static void AppendSectionSummary(StringBuilder md, JsonObject? parent, string key, string title)
   {
     var sections = parent?["sections"] as JsonObject;
-    var section = sections?[key] as JsonObject;
-    if (section == null)
+    if (sections?[key] is not JsonObject section)
     {
       return;
     }
 
     md.AppendLine();
-    md.AppendLine("### " + title);
-    md.AppendLine("- Exists: " + section["exists"]);
-    md.AppendLine("- File count: " + section["fileCount"]);
-    md.AppendLine("- Total bytes: " + section["totalBytes"]);
-    if (section["samples"] is JsonArray samples && samples.Count > 0)
+    md.AppendLine($"### {title}");
+    md.AppendLine($"- Exists: {section["exists"]}");
+    md.AppendLine($"- File count: {section["fileCount"]}");
+    md.AppendLine($"- Total bytes: {section["totalBytes"]}");
+    if (section["samples"] is not JsonArray { Count: > 0, } samples)
     {
-      md.AppendLine("- Largest samples:");
-      foreach (var item in samples.Take(5))
-      {
-        var obj = item as JsonObject;
-        md.AppendLine("  - " + obj?["relativePath"] + " (" + obj?["bytes"] + " bytes)");
-      }
+      return;
+    }
+
+    md.AppendLine("- Largest samples:");
+    foreach (var item in samples.Take(5))
+    {
+      var obj = item as JsonObject;
+      md.AppendLine($"  - {obj?["relativePath"]} ({obj?["bytes"]} bytes)");
     }
   }
 

@@ -20,7 +20,7 @@ namespace TiaMcpServer.ModelContextProtocol;
 public static class HmiTemplatePlcSyncPrecheckSuite
 {
   public static JsonObject Run(string templateDirectory, string plcXmlPath, string reportDirectory,
-    string mappingFilePath = "")
+    string? mappingFilePath = "")
   {
     if (string.IsNullOrWhiteSpace(templateDirectory))
     {
@@ -46,7 +46,7 @@ public static class HmiTemplatePlcSyncPrecheckSuite
     var manifest = PlcSymbolManifestBuilder.BuildFromXmlPath(plcXmlPath);
     var mapping = HmiTemplatePlcSyncPrecheckSuite.LoadMapping(mappingFilePath);
     var precheck =
-      HmiTemplatePlcSyncPrecheckSuite.BuildPrecheck(templateAnalysis["templates"] as JsonArray ?? new JsonArray(),
+      HmiTemplatePlcSyncPrecheckSuite.BuildPrecheck(templateAnalysis["templates"] as JsonArray ?? [],
         manifest,
         mapping);
     var selfTest = HmiTemplatePlcSyncPrecheckSuite.RunEmbeddedSelfTest(reportDirectory, stamp);
@@ -82,8 +82,8 @@ public static class HmiTemplatePlcSyncPrecheckSuite
       ["selfTest"] = selfTest,
     };
 
-    var jsonPath = Path.Combine(reportDirectory, "hmi_template_plc_sync_precheck_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "hmi_template_plc_sync_precheck_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"hmi_template_plc_sync_precheck_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"hmi_template_plc_sync_precheck_{stamp}.md");
     File.WriteAllText(jsonPath,
       root.ToJsonString(new JsonSerializerOptions
       {
@@ -96,10 +96,10 @@ public static class HmiTemplatePlcSyncPrecheckSuite
     return root;
   }
 
-  public static JsonArray BuildPrecheck(JsonArray templates, JsonObject plcManifest, JsonObject? mapping = null)
+  private static JsonArray BuildPrecheck(JsonArray templates, JsonObject plcManifest, JsonObject? mapping = null)
   {
     var symbolMap = new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
-    foreach (var node in plcManifest["symbols"] as JsonArray ?? new JsonArray())
+    foreach (var node in plcManifest["symbols"] as JsonArray ?? [])
     {
       if (node is not JsonObject symbol)
       {
@@ -127,7 +127,7 @@ public static class HmiTemplatePlcSyncPrecheckSuite
       var missing = new JsonArray();
       var typeMismatches = new JsonArray();
 
-      foreach (var tagNode in template["requiredTags"] as JsonArray ?? new JsonArray())
+      foreach (var tagNode in template["requiredTags"] as JsonArray ?? [])
       {
         if (tagNode is not JsonObject tag)
         {
@@ -178,7 +178,7 @@ public static class HmiTemplatePlcSyncPrecheckSuite
         }
       }
 
-      var actionMissing = template["missingRequiredTagsForActions"] as JsonArray ?? new JsonArray();
+      var actionMissing = template["missingRequiredTagsForActions"] as JsonArray ?? [];
       var blocked = missing.Count > 0 || typeMismatches.Count > 0 || actionMissing.Count > 0;
       result.Add(new JsonObject
       {
@@ -205,47 +205,50 @@ public static class HmiTemplatePlcSyncPrecheckSuite
 
   private static JsonObject RunEmbeddedSelfTest(string reportDirectory, string stamp)
   {
-    var fixtureDir = Path.Combine(reportDirectory, "sync_precheck_fixture_" + stamp);
+    var fixtureDir = Path.Combine(reportDirectory, $"sync_precheck_fixture_{stamp}");
     Directory.CreateDirectory(fixtureDir);
     File.WriteAllText(Path.Combine(fixtureDir, "template.json"),
-      @"{
-  ""Format"": ""tia-unified-screen-v1"",
-  ""TemplateName"": ""sync-fixture"",
-  ""RequiredTags"": [
-    { ""Name"": ""Motor_Run"", ""DataType"": ""Bool"", ""PlcTag"": ""DB1_MotorData.Motor.Run"" },
-    { ""Name"": ""Speed_Set"", ""DataType"": ""Int"", ""PlcTag"": ""DB1_MotorData.SpeedSet"" }
-  ],
-  ""Items"": []
-}",
+      """
+      {
+        "Format": "tia-unified-screen-v1",
+        "TemplateName": "sync-fixture",
+        "RequiredTags": [
+          { "Name": "Motor_Run", "DataType": "Bool", "PlcTag": "DB1_MotorData.Motor.Run" },
+          { "Name": "Speed_Set", "DataType": "Int", "PlcTag": "DB1_MotorData.SpeedSet" }
+        ],
+        "Items": []
+      }
+      """,
       Encoding.UTF8);
     File.WriteAllText(Path.Combine(fixtureDir, "DB1_MotorData.xml"),
-      @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <SW.Blocks.GlobalDB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Static"">
-            <Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"">
-              <Member Name=""Run"" Datatype=""Bool"" />
-            </Member>
-            <Member Name=""SpeedSet"" Datatype=""Int"" />
-          </Section>
-        </Sections>
-      </Interface>
-      <Name>DB1_MotorData</Name>
-    </AttributeList>
-  </SW.Blocks.GlobalDB>
-</Document>",
+      """
+      <?xml version="1.0" encoding="utf-8"?>
+      <Document>
+        <SW.Blocks.GlobalDB ID="0">
+          <AttributeList>
+            <Interface>
+              <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                <Section Name="Static">
+                  <Member Name="Motor" Datatype="&quot;UDT_Motor&quot;">
+                    <Member Name="Run" Datatype="Bool" />
+                  </Member>
+                  <Member Name="SpeedSet" Datatype="Int" />
+                </Section>
+              </Sections>
+            </Interface>
+            <Name>DB1_MotorData</Name>
+          </AttributeList>
+        </SW.Blocks.GlobalDB>
+      </Document>
+      """,
       Encoding.UTF8);
 
-    var templates = HmiTemplateReferenceAnalyzer.Analyze(fixtureDir, "", "")["templates"] as JsonArray ??
-      new JsonArray();
+    var templates = HmiTemplateReferenceAnalyzer.Analyze(fixtureDir, "", "")["templates"] as JsonArray ?? [];
     var manifest = PlcSymbolManifestBuilder.BuildFromXmlPath(fixtureDir);
     var positive = HmiTemplatePlcSyncPrecheckSuite.BuildPrecheck(templates, manifest);
 
     var badManifest = PlcSymbolManifestBuilder.BuildFromXmlPath(Path.Combine(fixtureDir, "DB1_MotorData.xml"));
-    var symbols = badManifest["symbols"] as JsonArray ?? new JsonArray();
+    var symbols = badManifest["symbols"] as JsonArray ?? [];
     for (var i = symbols.Count - 1; i >= 0; i--)
     {
       if (symbols[i]?["symbol"]?.ToString() == "DB1_MotorData.SpeedSet")
@@ -255,8 +258,9 @@ public static class HmiTemplatePlcSyncPrecheckSuite
     }
 
     badManifest["symbolCount"] = symbols.Count;
-    badManifest["symbolNames"] = new JsonArray(symbols.OfType<JsonObject>()
-      .Select(x => JsonValue.Create(x["symbol"]?.ToString() ?? "")).ToArray());
+    badManifest["symbolNames"] = new JsonArray([
+      .. symbols.OfType<JsonObject>().Select(x => JsonValue.Create(x["symbol"]?.ToString() ?? "")),
+    ]);
     var negative = HmiTemplatePlcSyncPrecheckSuite.BuildPrecheck(templates, badManifest);
 
     var positiveReady = positive.OfType<JsonObject>().All(x => x["status"]?.ToString() == "ready");
@@ -272,7 +276,7 @@ public static class HmiTemplatePlcSyncPrecheckSuite
     };
   }
 
-  private static JsonObject LoadMapping(string mappingFilePath)
+  private static JsonObject LoadMapping(string? mappingFilePath)
   {
     var root = new JsonObject
     {
@@ -296,8 +300,8 @@ public static class HmiTemplatePlcSyncPrecheckSuite
     {
       var json = JsonNode.Parse(File.ReadAllText(mappingFilePath, Encoding.UTF8)) as JsonObject ??
         throw new InvalidOperationException("Mapping root must be a JSON object.");
-      var entries = root["entries"] as JsonArray ?? new JsonArray();
-      foreach (var templateNode in json["Templates"] as JsonArray ?? new JsonArray())
+      var entries = root["entries"] as JsonArray ?? [];
+      foreach (var templateNode in json["Templates"] as JsonArray ?? [])
       {
         if (templateNode is not JsonObject template)
         {
@@ -305,7 +309,7 @@ public static class HmiTemplatePlcSyncPrecheckSuite
         }
 
         var templateName = template["TemplateName"]?.ToString() ?? "";
-        foreach (var mappingNode in template["Mappings"] as JsonArray ?? new JsonArray())
+        foreach (var mappingNode in template["Mappings"] as JsonArray ?? [])
         {
           if (mappingNode is not JsonObject mapping)
           {
@@ -326,7 +330,7 @@ public static class HmiTemplatePlcSyncPrecheckSuite
     }
     catch (Exception ex)
     {
-      (root["warnings"] as JsonArray)?.Add("mapping-parse-error: " + ex.Message);
+      (root["warnings"] as JsonArray)?.Add($"mapping-parse-error: {ex.Message}");
     }
 
     return root;
@@ -335,14 +339,14 @@ public static class HmiTemplatePlcSyncPrecheckSuite
   private static Dictionary<string, string> BuildMappingMap(JsonObject? mapping)
   {
     var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    foreach (var node in mapping?["entries"] as JsonArray ?? new JsonArray())
+    foreach (var node in mapping?["entries"] as JsonArray ?? [])
     {
       if (node is not JsonObject entry)
       {
         continue;
       }
 
-      var key = (entry["templateName"]?.ToString() ?? "") + "\u001f" + (entry["hmiTag"]?.ToString() ?? "");
+      var key = $"{(entry["templateName"]?.ToString() ?? "")}\u001f{(entry["hmiTag"]?.ToString() ?? "")}";
       var mapped = HmiTemplatePlcSyncPrecheckSuite.NormalizeSymbol(entry["mappedPlcTag"]?.ToString() ?? "");
       if (!string.IsNullOrWhiteSpace(mapped))
       {
@@ -354,7 +358,7 @@ public static class HmiTemplatePlcSyncPrecheckSuite
   }
 
   private static string ResolveMappedPlcTag(Dictionary<string, string> map, string templateName, string hmiTag) =>
-    map.TryGetValue(templateName + "\u001f" + hmiTag, out var mapped)
+    map.TryGetValue($"{templateName}\u001f{hmiTag}", out var mapped)
       ? mapped
       : "";
 
@@ -372,25 +376,25 @@ public static class HmiTemplatePlcSyncPrecheckSuite
       return true;
     }
 
-    var ints = new HashSet<string>(
-      new[] { "SInt", "USInt", "Byte", "Int", "UInt", "Word", "DInt", "UDInt", "DWord", "LInt", "ULInt", "LWord", },
+    var ints = new HashSet<string>(["SInt", "USInt", "Byte", "Int", "UInt", "Word", "DInt", "UDInt", "DWord", "LInt", "ULInt", "LWord",
+      ],
       StringComparer.OrdinalIgnoreCase);
-    var reals = new HashSet<string>(new[] { "Real", "LReal", }, StringComparer.OrdinalIgnoreCase);
+    var reals = new HashSet<string>(["Real", "LReal",], StringComparer.OrdinalIgnoreCase);
     return (ints.Contains(hmiType) && ints.Contains(plcType)) || (reals.Contains(hmiType) && reals.Contains(plcType));
   }
 
-  private static string NormalizeDataType(string value) =>
+  private static string NormalizeDataType(string? value) =>
     (value ?? "").Trim().Trim('"').Replace("&quot;", "").Replace("&QUOT;", "");
 
-  private static string NormalizeSymbol(string value) => (value ?? "").Trim().Trim('"');
+  private static string NormalizeSymbol(string? value) => (value ?? "").Trim().Trim('"');
 
   private static string BuildMarkdown(JsonObject root, string jsonPath)
   {
     var md = new StringBuilder();
     md.AppendLine("# HMI Template PLC Sync Precheck");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线预检，不连接 TIA Portal，不打开或修改工程。");
@@ -398,25 +402,23 @@ public static class HmiTemplatePlcSyncPrecheckSuite
     md.AppendLine("- PLC 完整符号不存在或类型不兼容时，HMI 绑定必须阻断。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Templates: " + root["templateCount"]);
-    md.AppendLine("- Ready: " + root["readyTemplateCount"]);
-    md.AppendLine("- Blocked: " + root["blockedTemplateCount"]);
-    md.AppendLine("- PLC symbols: " + root["plcSymbolCount"]);
-    md.AppendLine("- Embedded self-test: " + root["selfTest"]?["ok"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Templates: {root["templateCount"]}");
+    md.AppendLine($"- Ready: {root["readyTemplateCount"]}");
+    md.AppendLine($"- Blocked: {root["blockedTemplateCount"]}");
+    md.AppendLine($"- PLC symbols: {root["plcSymbolCount"]}");
+    md.AppendLine($"- Embedded self-test: {root["selfTest"]?["ok"]}");
     md.AppendLine();
     md.AppendLine("## Templates");
-    foreach (var node in root["templates"] as JsonArray ?? new JsonArray())
+    foreach (var node in root["templates"] as JsonArray ?? [])
     {
       if (node is not JsonObject template)
       {
         continue;
       }
 
-      md.AppendLine("- " + template["templateName"] + ": " + template["status"] + ", gate=" + template["gate"] +
-        ", requiredTags=" + template["requiredTagCount"] + ", missing=" +
-        ((template["missingPlcSymbols"] as JsonArray)?.Count ?? 0) + ", typeMismatch=" +
-        ((template["dataTypeMismatches"] as JsonArray)?.Count ?? 0));
+      md.AppendLine(
+        $"- {template["templateName"]}: {template["status"]}, gate={template["gate"]}, requiredTags={template["requiredTagCount"]}, missing={((template["missingPlcSymbols"] as JsonArray)?.Count ?? 0)}, typeMismatch={((template["dataTypeMismatches"] as JsonArray)?.Count ?? 0)}");
     }
 
     return md.ToString();

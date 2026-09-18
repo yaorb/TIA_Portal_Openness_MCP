@@ -54,7 +54,7 @@ public static class ClassicHmiScreenXmlBuilder
       throw new ArgumentException("Classic HMI screen size must be at least 320x240.");
     }
 
-    var items = (design["Items"] as JsonArray ?? design["items"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+    var items = (design["Items"] as JsonArray ?? design["items"] as JsonArray ?? []).OfType<JsonObject>()
       .ToArray();
     ClassicHmiScreenXmlBuilder.ValidateItems(items, width, height);
 
@@ -140,11 +140,11 @@ public static class ClassicHmiScreenXmlBuilder
         var name = item.Element("AttributeList")?.Element("ObjectName")?.Value ?? "";
         if (string.IsNullOrWhiteSpace(name))
         {
-          warnings.Add("unnamed-item: " + item.Name.LocalName);
+          warnings.Add($"unnamed-item: {item.Name.LocalName}");
         }
         else if (!names.Add(name))
         {
-          errors.Add("duplicate-item-name: " + name);
+          errors.Add($"duplicate-item-name: {name}");
         }
       }
 
@@ -153,7 +153,7 @@ public static class ClassicHmiScreenXmlBuilder
     }
     catch (Exception ex)
     {
-      errors.Add("xml-parse-error: " + ex.Message);
+      errors.Add($"xml-parse-error: {ex.Message}");
       return root;
     }
   }
@@ -162,7 +162,7 @@ public static class ClassicHmiScreenXmlBuilder
   {
     if (!File.Exists(path))
     {
-      return new JsonObject { ["ok"] = false, ["path"] = path, ["errors"] = new JsonArray("file-not-found: " + path), };
+      return new JsonObject { ["ok"] = false, ["path"] = path, ["errors"] = new JsonArray($"file-not-found: {path}"), };
     }
 
     var result = ClassicHmiScreenXmlBuilder.AnalyzeXml(File.ReadAllText(path, Encoding.UTF8));
@@ -186,7 +186,7 @@ public static class ClassicHmiScreenXmlBuilder
     var name = ClassicHmiScreenXmlBuilder.GetString(item,
       "Name",
       "name",
-      elementName.Split('.').Last() + "_" + id.Peek());
+      $"{elementName.Split('.').Last()}_{id.Peek()}");
     var text = ClassicHmiScreenXmlBuilder.ExtractText(item["Text"] ?? item["text"]);
     // V21 Classic HMI 各控件接受的属性子集严格不同。这里采用最小公共子集 + 类型扩展原则：
     //   通用：BackColor / BorderColor / BorderWidth / Width / Height / Left / Top / ObjectName
@@ -264,10 +264,7 @@ public static class ClassicHmiScreenXmlBuilder
     }
 
     var ea = ClassicHmiScreenXmlBuilder.BuildEventActions(id, item);
-    if (ea != null)
-    {
-      objList.Add(ea);
-    }
+    objList.Add(ea);
 
     return new XElement(elementName,
       new XAttribute("ID", id.Next()),
@@ -301,7 +298,7 @@ public static class ClassicHmiScreenXmlBuilder
 
   private static IEnumerable<XElement> BuildEventActions(ClassicIdAllocator id, JsonObject item)
   {
-    foreach (var action in item["Actions"] as JsonArray ?? item["actions"] as JsonArray ?? new JsonArray())
+    foreach (var action in item["Actions"] as JsonArray ?? item["actions"] as JsonArray ?? [])
     {
       if (action is not JsonObject obj)
       {
@@ -375,19 +372,13 @@ public static class ClassicHmiScreenXmlBuilder
   private static XElement BuildMultilingualText(ClassicIdAllocator id, string text) =>
     ClassicHmiScreenXmlBuilder.BuildMultilingualText(id, "Text", text);
 
-  private static XElement BuildMultilingualTextItems(ClassicIdAllocator id, string text)
+  private static XElement BuildMultilingualTextItems(ClassicIdAllocator id, string? text)
   {
     // V21 Classic HMI 期望非空文字内容用 <body><p>...</p></body> HTML 包装；空字符串则保持空 Text。
     var safe = text ?? "";
-    XElement textElement;
-    if (string.IsNullOrEmpty(safe))
-    {
-      textElement = new XElement("Text");
-    }
-    else
-    {
-      textElement = new XElement("Text", new XElement("body", new XElement("p", safe)));
-    }
+    var textElement = string.IsNullOrEmpty(safe)
+      ? new XElement("Text")
+      : new XElement("Text", new XElement("body", new XElement("p", safe)));
 
     return new XElement("ObjectList",
       new XElement("MultilingualTextItem",
@@ -409,7 +400,7 @@ public static class ClassicHmiScreenXmlBuilder
 
       if (!names.Add(name))
       {
-        throw new ArgumentException("Duplicate Classic HMI item name: " + name);
+        throw new ArgumentException($"Duplicate Classic HMI item name: {name}");
       }
 
       var width = ClassicHmiScreenXmlBuilder.GetInt(item, "Width", "width", 120);
@@ -418,12 +409,12 @@ public static class ClassicHmiScreenXmlBuilder
       var top = ClassicHmiScreenXmlBuilder.GetInt(item, "Top", "top", 0);
       if (width <= 0 || height <= 0)
       {
-        throw new ArgumentException("Classic HMI item size must be positive: " + name);
+        throw new ArgumentException($"Classic HMI item size must be positive: {name}");
       }
 
       if (left < 0 || top < 0 || left + width > screenWidth || top + height > screenHeight)
       {
-        throw new ArgumentException("Classic HMI item is outside the screen: " + name);
+        throw new ArgumentException($"Classic HMI item is outside the screen: {name}");
       }
     }
   }
@@ -469,7 +460,7 @@ public static class ClassicHmiScreenXmlBuilder
     var r = Convert.ToInt32(hex.Substring(0, 2), 16);
     var g = Convert.ToInt32(hex.Substring(2, 2), 16);
     var b = Convert.ToInt32(hex.Substring(4, 2), 16);
-    return r + ", " + g + ", " + b;
+    return $"{r}, {g}, {b}";
   }
 
   private static string ExtractText(JsonNode? node)
@@ -501,7 +492,7 @@ public static class ClassicHmiScreenXmlBuilder
       props?["hmiTag"]?.ToString() ?? props?["Tag"]?.ToString() ?? props?["tag"]?.ToString() ?? "";
   }
 
-  private static string NormalizeClassicEvent(string eventName)
+  private static string NormalizeClassicEvent(string? eventName)
   {
     return (eventName ?? "").Trim().ToLowerInvariant() switch
     {
@@ -516,7 +507,7 @@ public static class ClassicHmiScreenXmlBuilder
     };
   }
 
-  private static string NormalizeClassicFunction(string actionKind)
+  private static string NormalizeClassicFunction(string? actionKind)
   {
     var kind = (actionKind ?? "").Trim().ToLowerInvariant();
     return kind switch
@@ -531,7 +522,7 @@ public static class ClassicHmiScreenXmlBuilder
     };
   }
 
-  private static string QuoteClassicTag(string tag)
+  private static string QuoteClassicTag(string? tag)
   {
     tag = (tag ?? "").Trim();
     if (tag.StartsWith("\"", StringComparison.Ordinal) && tag.EndsWith("\"", StringComparison.Ordinal))
@@ -539,7 +530,7 @@ public static class ClassicHmiScreenXmlBuilder
       return tag;
     }
 
-    return "\"" + tag.Replace("\"", "") + "\"";
+    return $"\"{tag.Replace("\"", "")}\"";
   }
 
   private static string GetString(JsonObject obj, string pascal, string camel, string fallback) =>

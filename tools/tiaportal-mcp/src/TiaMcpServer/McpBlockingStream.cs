@@ -17,7 +17,7 @@ internal sealed class McpBlockingStream : Stream
 {
   private readonly BlockingCollection<byte[]> _chunks = new();
   private bool _completed;
-  private byte[] _current = Array.Empty<byte>();
+  private byte[] _current = [];
   private int _currentOffset;
 
   public override bool CanRead => true;

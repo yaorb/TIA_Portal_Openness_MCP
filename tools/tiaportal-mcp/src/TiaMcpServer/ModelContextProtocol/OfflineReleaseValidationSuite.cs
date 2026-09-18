@@ -33,7 +33,7 @@ public static class OfflineReleaseValidationSuite
     workspaceRoot = Path.GetFullPath(workspaceRoot);
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var suiteDir = Path.Combine(reportDirectory, "suite_" + stamp);
+    var suiteDir = Path.Combine(reportDirectory, $"suite_{stamp}");
     Directory.CreateDirectory(suiteDir);
 
     var plcFixtureDir = Path.Combine(workspaceRoot, "TMP_EXPORT", "_verify");
@@ -52,8 +52,8 @@ public static class OfflineReleaseValidationSuite
     var hmiLayout =
       HmiTemplateLayoutAnalyzer.AnalyzeDirectory(hmiTemplateDir, HmiTemplateLayoutAnalyzer.ExecutionJsonBuilds);
     OfflineReleaseValidationSuite.WriteJsonAndMarkdown(hmiLayout,
-      Path.Combine(suiteDir, "hmi_template_layout", "hmi_template_layout_release_" + stamp + ".json"),
-      Path.Combine(suiteDir, "hmi_template_layout", "hmi_template_layout_release_" + stamp + ".md"),
+      Path.Combine(suiteDir, "hmi_template_layout", $"hmi_template_layout_release_{stamp}.json"),
+      Path.Combine(suiteDir, "hmi_template_layout", $"hmi_template_layout_release_{stamp}.md"),
       OfflineReleaseValidationSuite.BuildHmiLayoutMarkdown);
     var hmiAction =
       HmiActionScriptRecipeBuilder.RunProbe(hmiTemplateDir, Path.Combine(suiteDir, "hmi_action_script_recipe"));
@@ -107,16 +107,16 @@ public static class OfflineReleaseValidationSuite
     var diagnostics = ReleaseDiagnosticReportBuilder.Build(root);
     root["diagnostics"] = diagnostics;
 
-    var jsonPath = Path.Combine(reportDirectory, "offline_release_validation_suite_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "offline_release_validation_suite_" + stamp + ".md");
-    var diagJsonPath = Path.Combine(reportDirectory, "offline_release_diagnostics_" + stamp + ".json");
-    var diagMdPath = Path.Combine(reportDirectory, "offline_release_diagnostics_" + stamp + ".md");
-    var runbookJsonPath = Path.Combine(reportDirectory, "offline_release_runbook_" + stamp + ".json");
-    var runbookMdPath = Path.Combine(reportDirectory, "offline_release_runbook_" + stamp + ".md");
-    var manifestJsonPath = Path.Combine(reportDirectory, "offline_release_manifest_" + stamp + ".json");
-    var manifestMdPath = Path.Combine(reportDirectory, "offline_release_manifest_" + stamp + ".md");
-    var readinessGateJsonPath = Path.Combine(reportDirectory, "offline_release_readiness_gate_" + stamp + ".json");
-    var readinessGateMdPath = Path.Combine(reportDirectory, "offline_release_readiness_gate_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"offline_release_validation_suite_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"offline_release_validation_suite_{stamp}.md");
+    var diagJsonPath = Path.Combine(reportDirectory, $"offline_release_diagnostics_{stamp}.json");
+    var diagMdPath = Path.Combine(reportDirectory, $"offline_release_diagnostics_{stamp}.md");
+    var runbookJsonPath = Path.Combine(reportDirectory, $"offline_release_runbook_{stamp}.json");
+    var runbookMdPath = Path.Combine(reportDirectory, $"offline_release_runbook_{stamp}.md");
+    var manifestJsonPath = Path.Combine(reportDirectory, $"offline_release_manifest_{stamp}.json");
+    var manifestMdPath = Path.Combine(reportDirectory, $"offline_release_manifest_{stamp}.md");
+    var readinessGateJsonPath = Path.Combine(reportDirectory, $"offline_release_readiness_gate_{stamp}.json");
+    var readinessGateMdPath = Path.Combine(reportDirectory, $"offline_release_readiness_gate_{stamp}.md");
     root["jsonPath"] = jsonPath;
     root["markdownPath"] = mdPath;
     File.WriteAllText(diagJsonPath,
@@ -203,30 +203,30 @@ public static class OfflineReleaseValidationSuite
   {
     if (result["items"] is JsonArray items)
     {
-      return "items=" + items.Count;
+      return $"items={items.Count}";
     }
 
     if (result["symbolCount"] != null)
     {
-      return "symbolCount=" + result["symbolCount"];
+      return $"symbolCount={result["symbolCount"]}";
     }
 
     if (result["templateCount"] != null)
     {
-      return "templateCount=" + result["templateCount"] + ", failed=" + (result["failed"]?.ToString() ?? "0");
+      return $"templateCount={result["templateCount"]}, failed={(result["failed"]?.ToString() ?? "0")}";
     }
 
     if (result["generatedActionCount"] != null)
     {
-      return "generatedActionCount=" + result["generatedActionCount"];
+      return $"generatedActionCount={result["generatedActionCount"]}";
     }
 
     if (result["checkedTools"] != null)
     {
-      return "checkedTools=" + result["checkedTools"];
+      return $"checkedTools={result["checkedTools"]}";
     }
 
-    return "ok=" + result["ok"];
+    return $"ok={result["ok"]}";
   }
 
   private static JsonObject BuildSafetyResult()
@@ -240,11 +240,13 @@ public static class OfflineReleaseValidationSuite
       ["message"] = response.Message ?? "",
       ["checkedTools"] = response.Meta?["checkedTools"]?.GetValue<int>() ?? 0,
       ["policy"] =
-        new JsonArray((response.Policy ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
-      ["items"] = new JsonArray((response.Items ?? Array.Empty<CapabilitySelfTestItem>()).Select(x => new JsonObject
-      {
-        ["id"] = x.Id ?? "", ["name"] = x.Name ?? "", ["status"] = x.Status ?? "", ["detail"] = x.Detail ?? "",
-      }).ToArray()),
+        new JsonArray([.. (response.Policy ?? []).Select(x => JsonValue.Create(x)),]),
+      ["items"] = new JsonArray([
+        .. (response.Items ?? []).Select(x => new JsonObject
+        {
+          ["id"] = x.Id ?? "", ["name"] = x.Name ?? "", ["status"] = x.Status ?? "", ["detail"] = x.Detail ?? "",
+        }),
+      ]),
     };
   }
 
@@ -268,14 +270,14 @@ public static class OfflineReleaseValidationSuite
     var md = new StringBuilder();
     md.AppendLine("# Unified HMI Template Layout Release QA");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Template count: " + root["templateCount"]);
-    md.AppendLine("- Failed: " + root["failed"]);
-    md.AppendLine("- Warnings: " + root["warnings"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Template count: {root["templateCount"]}");
+    md.AppendLine($"- Failed: {root["failed"]}");
+    md.AppendLine($"- Warnings: {root["warnings"]}");
     return md.ToString();
   }
 
@@ -284,8 +286,8 @@ public static class OfflineReleaseValidationSuite
     var md = new StringBuilder();
     md.AppendLine("# TIA MCP Offline Release Validation Suite");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 发布级离线验收，不连接 TIA Portal，不打开工程，不导入 PLC/HMI 对象。");
@@ -293,26 +295,26 @@ public static class OfflineReleaseValidationSuite
     md.AppendLine("- 在线监视仅执行静态安全自检，确认无 Force 工具并保留只读红线。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Suite directory: " + root["suiteDirectory"]);
-    md.AppendLine("- Diagnostic report: " + root["diagnosticMarkdownPath"]);
-    md.AppendLine("- Runbook: " + root["runbookMarkdownPath"]);
-    md.AppendLine("- Manifest: " + root["manifestMarkdownPath"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Suite directory: {root["suiteDirectory"]}");
+    md.AppendLine($"- Diagnostic report: {root["diagnosticMarkdownPath"]}");
+    md.AppendLine($"- Runbook: {root["runbookMarkdownPath"]}");
+    md.AppendLine($"- Manifest: {root["manifestMarkdownPath"]}");
     md.AppendLine();
     md.AppendLine("## Items");
-    foreach (var node in root["items"] as JsonArray ?? new JsonArray())
+    foreach (var node in root["items"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
         continue;
       }
 
-      md.AppendLine("- " + item["title"] + ": " + (item["ok"]?.GetValue<bool>() == true
+      md.AppendLine($"- {item["title"]}: {(item["ok"]?.GetValue<bool>() == true
         ? "PASS"
-        : "FAIL") + " (" + item["summary"] + ")");
+        : "FAIL")} ({item["summary"]})");
       if (!string.IsNullOrWhiteSpace(item["markdownPath"]?.ToString()))
       {
-        md.AppendLine("  - report: " + item["markdownPath"]);
+        md.AppendLine($"  - report: {item["markdownPath"]}");
       }
     }
 

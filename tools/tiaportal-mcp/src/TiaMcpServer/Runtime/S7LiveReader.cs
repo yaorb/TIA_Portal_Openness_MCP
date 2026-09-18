@@ -52,7 +52,7 @@ public sealed class S7ReadResult
   public string? Error;
   public S7CpuIdentity Identity = new();
   public bool IdentityConfirmed;
-  public List<S7ReadItem> Items = new();
+  public List<S7ReadItem> Items = [];
   public bool Ok;
 }
 
@@ -69,7 +69,7 @@ public sealed class S7SampleSeries
   public double? Min;
   public string Spec = "";
   public string Type = "";
-  public List<object?> Values = new(); // one entry per sample; null = that sample failed
+  public List<object?> Values = []; // one entry per sample; null = that sample failed
 }
 
 public sealed class S7SampleResult
@@ -81,8 +81,8 @@ public sealed class S7SampleResult
   public bool Ok;
   public int RequestedIntervalMs;
   public int SampleCount;
-  public List<S7SampleSeries> Series = new();
-  public List<long> TimestampsMs = new(); // ms offset from first sample
+  public List<S7SampleSeries> Series = [];
+  public List<long> TimestampsMs = []; // ms offset from first sample
 }
 
 public sealed class S7DiagEntry
@@ -95,7 +95,7 @@ public sealed class S7DiagEntry
 public sealed class S7RunState
 {
   public bool Connected;
-  public List<S7DiagEntry> DiagEntries = new();
+  public List<S7DiagEntry> DiagEntries = [];
   public string? DiagNote; // why the diagnostic buffer was not parsed (best-effort)
   public int DiagRecordCount;
   public long ElapsedMs;
@@ -183,6 +183,7 @@ public static class S7LiveReader
       }
       catch
       {
+        // ignored
       }
     }
   }
@@ -270,6 +271,7 @@ public static class S7LiveReader
       }
       catch
       {
+        // ignored
       }
 
       sw.Stop();
@@ -425,6 +427,7 @@ public static class S7LiveReader
       }
       catch
       {
+        // ignored
       }
 
       sw.Stop();
@@ -553,13 +556,13 @@ public static class S7LiveReader
       }
       catch
       {
+        // ignored
       }
 
       // Best-effort diagnostic buffer (raw). Wrapped: any failure -> clean note.
       try
       {
-        var szl = new S7Client.S7SZL();
-        szl.Data = new byte[4096];
+        var szl = new S7Client.S7SZL { Data = new byte[4096], };
         var size = szl.Data.Length;
         var rcSzl = client.ReadSZL(S7LiveReader.SzlDiagnosticBuffer, 0x0000, ref szl, ref size);
         if (rcSzl == 0)
@@ -599,6 +602,7 @@ public static class S7LiveReader
       }
       catch
       {
+        // ignored
       }
 
       sw.Stop();
@@ -608,7 +612,7 @@ public static class S7LiveReader
 
   // Pure parser for SZL diagnostic records: split Data into fixed-length records,
   // extract the 2-byte event id (big-endian) + the raw bytes of each. Testable.
-  public static List<S7DiagEntry> ParseSzlDiagRecords(byte[] data, int recordLen, int count, int maxEntries)
+  public static List<S7DiagEntry> ParseSzlDiagRecords(byte[]? data, int recordLen, int count, int maxEntries)
   {
     var list = new List<S7DiagEntry>();
     if (data == null || recordLen <= 0 || count <= 0)
@@ -695,72 +699,33 @@ public static class S7LiveReader
 
   private static int TypeSize(string type)
   {
-    switch (type)
+    return type switch
     {
-      case "BOOL":
-        return 1;
-
-      case "BYTE":
-      case "SINT":
-      case "USINT":
-        return 1;
-
-      case "INT":
-      case "UINT":
-      case "WORD":
-        return 2;
-
-      case "DINT":
-      case "UDINT":
-      case "DWORD":
-      case "REAL":
-        return 4;
-
-      default:
-        return 1;
-    }
+      "BOOL"                                 => 1,
+      "BYTE" or "SINT" or "USINT"            => 1,
+      "INT" or "UINT" or "WORD"              => 2,
+      "DINT" or "UDINT" or "DWORD" or "REAL" => 4,
+      _                                      => 1,
+    };
   }
 
   private static object Decode(string type, byte[] b, int bit)
   {
-    switch (type)
+    return type switch
     {
-      case "BOOL":
-        return b.GetBitAt(0, bit);
-
-      case "BYTE":
-        return (int)b[0];
-
-      case "USINT":
-        return (int)b[0];
-
-      case "SINT":
-        return (int)(sbyte)b[0];
-
-      case "INT":
-        return (int)b.GetIntAt(0);
-
-      case "UINT":
-        return (int)b.GetUIntAt(0);
-
-      case "WORD":
-        return (int)b.GetWordAt(0);
-
-      case "DINT":
-        return b.GetDIntAt(0);
-
-      case "UDINT":
-        return (long)b.GetUDIntAt(0);
-
-      case "DWORD":
-        return (long)b.GetDWordAt(0);
-
-      case "REAL":
-        return Math.Round(b.GetRealAt(0), 6);
-
-      default:
-        return (int)b[0];
-    }
+      "BOOL"  => b.GetBitAt(0, bit),
+      "BYTE"  => (int)b[0],
+      "USINT" => (int)b[0],
+      "SINT"  => (int)(sbyte)b[0],
+      "INT"   => (int)b.GetIntAt(0),
+      "UINT"  => (int)b.GetUIntAt(0),
+      "WORD"  => (int)b.GetWordAt(0),
+      "DINT"  => b.GetDIntAt(0),
+      "UDINT" => (long)b.GetUDIntAt(0),
+      "DWORD" => (long)b.GetDWordAt(0),
+      "REAL"  => Math.Round(b.GetRealAt(0), 6),
+      _       => (int)b[0],
+    };
   }
 
   public static S7ReadItem ParseSpec(string raw)
@@ -906,7 +871,7 @@ public static class S7LiveReader
       return null;
     }
 
-    a = a.Substring(1).Trim();
+    a = a[1..].Trim();
 
     var probe = S7LiveReader.ParseSpec(a);
     if (probe.Error != null)
@@ -945,62 +910,32 @@ public static class S7LiveReader
       return null;
     }
 
-    switch (dataType!.Trim().ToUpperInvariant())
+    return dataType!.Trim().ToUpperInvariant() switch
     {
-      case "BOOL":
-        return "BOOL";
-
-      case "BYTE":
-        return "BYTE";
-
-      case "SINT":
-        return "SINT";
-
-      case "USINT":
-        return "USINT";
-
-      case "INT":
-        return "INT";
-
-      case "UINT":
-        return "UINT";
-
-      case "WORD":
-        return "WORD";
-
-      case "DINT":
-        return "DINT";
-
-      case "UDINT":
-        return "UDINT";
-
-      case "DWORD":
-        return "DWORD";
-
-      case "REAL":
-        return "REAL";
-
-      default:
-        return null; // TIME/STRING/struct/etc -> not an S7 scalar read
-    }
+      "BOOL"  => "BOOL",
+      "BYTE"  => "BYTE",
+      "SINT"  => "SINT",
+      "USINT" => "USINT",
+      "INT"   => "INT",
+      "UINT"  => "UINT",
+      "WORD"  => "WORD",
+      "DINT"  => "DINT",
+      "UDINT" => "UDINT",
+      "DWORD" => "DWORD",
+      "REAL"  => "REAL",
+      _       => null,
+    };
   }
 
   private static string DefaultTypeForSize(string sz)
   {
-    switch (sz)
+    return sz switch
     {
-      case "B":
-        return "BYTE";
-
-      case "W":
-        return "WORD";
-
-      case "D":
-        return "DWORD";
-
-      default:
-        return "BYTE";
-    }
+      "B" => "BYTE",
+      "W" => "WORD",
+      "D" => "DWORD",
+      _   => "BYTE",
+    };
   }
 
   private static void ApplyTypeOverride(S7ReadItem item, string? type, string sz)
@@ -1011,13 +946,13 @@ public static class S7LiveReader
     }
 
     var want = S7LiveReader.TypeSize(type!);
-    var have = sz == "B"
-      ? 1
-      : sz == "W"
-        ? 2
-        : sz == "D"
-          ? 4
-          : 1;
+    var have = sz switch
+    {
+      "B" => 1,
+      "W" => 2,
+      "D" => 4,
+      _   => 1,
+    };
     if (type == "BOOL")
     {
       item.Error = $"Type BOOL is only valid for bit addresses (e.g. DB1.DBX2.3), not '{item.Spec}'.";

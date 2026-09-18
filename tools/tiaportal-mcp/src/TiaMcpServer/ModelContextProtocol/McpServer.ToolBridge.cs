@@ -80,34 +80,24 @@ public static partial class McpServer
       // default rather than a bare "?".
       if (!p.HasDefaultValue)
       {
-        parts.Add(p.Name + ": " + t);
+        parts.Add($"{p.Name}: {t}");
         continue;
       }
 
-      string def;
-      if (p.DefaultValue == null)
+      var def = p.DefaultValue switch
       {
-        def = "null";
-      }
-      else if (p.DefaultValue is bool)
-      {
-        def = (bool)p.DefaultValue
+        null => "null",
+        bool value => value
           ? "true"
-          : "false";
-      }
-      else if (p.DefaultValue is string)
-      {
-        def = "\"" + p.DefaultValue + "\"";
-      }
-      else
-      {
-        def = Convert.ToString(p.DefaultValue, CultureInfo.InvariantCulture) ?? "null";
-      }
+          : "false",
+        string => $"\"{p.DefaultValue}\"",
+        _      => Convert.ToString(p.DefaultValue, CultureInfo.InvariantCulture) ?? "null",
+      };
 
-      parts.Add(p.Name + "?: " + t + " = " + def);
+      parts.Add($"{p.Name}?: {t} = {def}");
     }
 
-    return name + "(" + string.Join(", ", parts) + ")";
+    return $"{name}({string.Join(", ", parts)})";
   }
 
   private static string FriendlyTypeName(Type t)
@@ -133,12 +123,9 @@ public static partial class McpServer
       return "number";
     }
 
-    if (u.IsArray)
-    {
-      return McpServer.FriendlyTypeName(u.GetElementType()!) + "[]";
-    }
-
-    return u.Name;
+    return u.IsArray
+      ? $"{McpServer.FriendlyTypeName(u.GetElementType()!)}[]"
+      : u.Name;
   }
 
   [McpServerTool(Name = "FindTools")]
@@ -151,7 +138,7 @@ public static partial class McpServer
   public static ResponseStringList FindTools(
     [Description(
       "query: space-separated words matched against tool names and descriptions, e.g. 'export watch table'. Empty lists the whole roster.")]
-    string query = "",
+    string? query = "",
     [Description("limit: max tools to return (default 12). Raise it for a broad survey.")] int limit = 12)
   {
     try
@@ -162,7 +149,7 @@ public static partial class McpServer
         limit = 12;
       }
 
-      var terms = (query ?? "").Split(new[] { ' ', ',', ';', '\t', '\r', '\n', }, StringSplitOptions.RemoveEmptyEntries)
+      var terms = (query ?? "").Split([' ', ',', ';', '\t', '\r', '\n',], StringSplitOptions.RemoveEmptyEntries)
         .Select(t => t.Trim().ToLowerInvariant()).Where(t => t.Length > 0).ToArray();
 
       var scored = new List<KeyValuePair<int, string>>();
@@ -205,9 +192,8 @@ public static partial class McpServer
       {
         return new ResponseStringList
         {
-          Message = "No tool matches '" + query + "'. Try fewer or more general words " +
-            "(e.g. 'watch table' instead of 'ExportPlcWatchTableToCsv'), " +
-            "or call FindTools with an empty query to list everything.",
+          Message =
+            $"No tool matches '{query}'. Try fewer or more general words (e.g. 'watch table' instead of 'ExportPlcWatchTableToCsv'), or call FindTools with an empty query to list everything.",
           Meta = McpServer.BridgeMeta(true),
         };
       }
@@ -223,14 +209,13 @@ public static partial class McpServer
         lines.Add(McpServer.RenderSignature(h.Value, m) + (listed
           ? "  [already listed - call it directly]"
           : "  [call via CallTool]"));
-        lines.Add("    " + McpServer.ToolDescription(m));
+        lines.Add($"    {McpServer.ToolDescription(m)}");
       }
 
       return new ResponseStringList
       {
-        Message = hits.Count + " of " + scored.Count + " matching tools (roster: " + all.Count + " total). " +
-          "Tools marked [call via CallTool] are not in this session's tool list - " +
-          "invoke them with CallTool(name, argumentsJson).",
+        Message =
+          $"{hits.Count} of {scored.Count} matching tools (roster: {all.Count} total). Tools marked [call via CallTool] are not in this session's tool list - invoke them with CallTool(name, argumentsJson).",
         Items = lines,
         Meta = McpServer.BridgeMeta(true),
       };
@@ -239,7 +224,7 @@ public static partial class McpServer
     {
       return new ResponseStringList
       {
-        Message = "FindTools failed: " + ex.Message, Meta = McpServer.BridgeMeta(false),
+        Message = $"FindTools failed: {ex.Message}", Meta = McpServer.BridgeMeta(false),
       };
     }
   }
@@ -250,7 +235,7 @@ public static partial class McpServer
     "Behaves exactly like calling the tool directly: same work, same result, same safety checks. " +
     "Example: name='ExportPlcWatchTable', argumentsJson='{\"softwarePath\":\"PLC_1\",\"watchTableName\":\"WT1\"}'.")]
   public static ResponseMessage CallTool(
-    [Description("name: exact tool name from FindTools, e.g. 'ExportPlcWatchTable'.")] string name,
+    [Description("name: exact tool name from FindTools, e.g. 'ExportPlcWatchTable'.")] string? name,
     [Description(
       "argumentsJson: JSON object of the tool's arguments, e.g. '{\"softwarePath\":\"PLC_1\"}'. Omit or '{}' for a no-argument tool.")]
     string argumentsJson = "")
@@ -278,8 +263,7 @@ public static partial class McpServer
       }
 
       var all = McpServer.AllToolMethods();
-      MethodInfo? method;
-      if (!all.TryGetValue(target, out method))
+      if (!all.TryGetValue(target, out var method))
       {
         // A wrong name is the likeliest failure, so spend the message on the fix
         // rather than on restating the problem.
@@ -291,16 +275,19 @@ public static partial class McpServer
         // otherwise correct name ("ExportPlcWatchTabel"). Fall back to shared prefix.
         if (near.Count == 0)
         {
-          near = all.Keys.Select(k => new KeyValuePair<int, string>(McpServer.CommonPrefixLength(k, target), k))
-            .Where(x => x.Key >= 6).OrderByDescending(x => x.Key).ThenBy(x => x.Value, StringComparer.Ordinal).Take(5)
-            .Select(x => x.Value).ToList();
+          near =
+          [
+            .. all.Keys.Select(k => new KeyValuePair<int, string>(McpServer.CommonPrefixLength(k, target), k))
+              .Where(x => x.Key >= 6).OrderByDescending(x => x.Key).ThenBy(x => x.Value, StringComparer.Ordinal).Take(5)
+              .Select(x => x.Value),
+          ];
         }
 
         return new ResponseMessage
         {
-          Message = "No tool named '" + target + "'." + (near.Count > 0
-            ? " Did you mean: " + string.Join(", ", near) + "?"
-            : " Call FindTools with a capability keyword to find the right name."),
+          Message = $"No tool named '{target}'.{(near.Count > 0
+            ? $" Did you mean: {string.Join(", ", near)}?"
+            : " Call FindTools with a capability keyword to find the right name.")}",
           Meta = McpServer.BridgeMeta(false),
         };
       }
@@ -321,19 +308,18 @@ public static partial class McpServer
         {
           return new ResponseMessage
           {
-            Message = "argumentsJson is not valid JSON (" + jx.Message + "). It must be a JSON OBJECT of the " +
-              "tool's parameters, e.g. {\"softwarePath\":\"PLC_1\"} - not a bare value, not the tool name.",
+            Message =
+              $"argumentsJson is not valid JSON ({jx.Message}). It must be a JSON OBJECT of the tool's parameters, e.g. {{\"softwarePath\":\"PLC_1\"}} - not a bare value, not the tool name.",
             Meta = McpServer.BridgeMeta(false),
           };
         }
 
-        var obj = parsed as JsonObject;
-        if (obj == null)
+        if (parsed is not JsonObject obj)
         {
           return new ResponseMessage
           {
-            Message = "argumentsJson must be a JSON object, e.g. {\"softwarePath\":\"PLC_1\"}. " +
-              "Expected signature: " + McpServer.RenderSignature(target, method!),
+            Message =
+              $"argumentsJson must be a JSON object, e.g. {{\"softwarePath\":\"PLC_1\"}}. Expected signature: {McpServer.RenderSignature(target, method!)}",
             Meta = McpServer.BridgeMeta(false),
           };
         }
@@ -385,9 +371,8 @@ public static partial class McpServer
         {
           return new ResponseMessage
           {
-            Message = "Argument '" + p.Name + "' of " + target + " could not be read as " +
-              McpServer.FriendlyTypeName(p.ParameterType) + ": " + cx.Message + ". Expected signature: " +
-              McpServer.RenderSignature(target, method!),
+            Message =
+              $"Argument '{p.Name}' of {target} could not be read as {McpServer.FriendlyTypeName(p.ParameterType)}: {cx.Message}. Expected signature: {McpServer.RenderSignature(target, method)}",
             Meta = McpServer.BridgeMeta(false),
           };
         }
@@ -397,13 +382,13 @@ public static partial class McpServer
       {
         return new ResponseMessage
         {
-          Message = target + " is missing required argument(s): " + string.Join(", ", missing) +
-            ". Expected signature: " + McpServer.RenderSignature(target, method!),
+          Message =
+            $"{target} is missing required argument(s): {string.Join(", ", missing)}. Expected signature: {McpServer.RenderSignature(target, method)}",
           Meta = McpServer.BridgeMeta(false),
         };
       }
 
-      var result = method!.Invoke(null, call);
+      var result = method.Invoke(null, call);
       // Tools return their own strongly-typed response objects; hand that JSON through
       // unchanged so the model sees exactly what a direct call would have produced.
       var payload = result == null
@@ -417,14 +402,14 @@ public static partial class McpServer
       var inner = tie.InnerException ?? tie;
       return new ResponseMessage
       {
-        Message = target + " failed: " + inner.Message, Meta = McpServer.BridgeMeta(false),
+        Message = $"{target} failed: {inner.Message}", Meta = McpServer.BridgeMeta(false),
       };
     }
     catch (Exception ex)
     {
       return new ResponseMessage
       {
-        Message = "CallTool('" + target + "') failed: " + ex.Message, Meta = McpServer.BridgeMeta(false),
+        Message = $"CallTool('{target}') failed: {ex.Message}", Meta = McpServer.BridgeMeta(false),
       };
     }
   }

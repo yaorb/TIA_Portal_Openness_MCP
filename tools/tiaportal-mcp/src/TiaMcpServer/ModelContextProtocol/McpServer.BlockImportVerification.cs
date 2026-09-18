@@ -23,16 +23,10 @@ namespace TiaMcpServer.ModelContextProtocol;
 /// </summary>
 internal enum PlcBlockVerificationState { Verified, Mismatch, Unknown, }
 
-internal sealed class PlcBlockVerificationOutcome
+internal sealed class PlcBlockVerificationOutcome(PlcBlockVerificationState state, string detail)
 {
-  public PlcBlockVerificationOutcome(PlcBlockVerificationState state, string detail)
-  {
-    this.State = state;
-    this.Detail = detail;
-  }
-
-  public PlcBlockVerificationState State { get; }
-  public string Detail { get; }
+  public PlcBlockVerificationState State { get; } = state;
+  public string Detail { get; } = detail;
 }
 
 /// <summary>
@@ -68,8 +62,7 @@ public static partial class McpServer
   /// 导入后校验：判据是 XML 里声明的块名 + 块编号，而不是 XML 文件名。
   /// 校验过程本身出错（没连接、代理失效、XML 读不出块名）一律记 Unknown，
   /// 既不冒充导入失败，也不冒充校验通过。
-  /// </summary>
-  internal static PlcBlockVerificationOutcome VerifyImportedBlock(string softwarePath, string xmlPath)
+  private static PlcBlockVerificationOutcome VerifyImportedBlock(string softwarePath, string xmlPath)
   {
     PlcBlockAttributeSnapshot? expected;
     try
@@ -106,7 +99,7 @@ public static partial class McpServer
   ///   导入后按 "XML 里声明的块名 + 块编号" 读回一个块。
   ///   名字找不到就按编号在全量块里兜底 —— OB 的名字可以被工程改掉，编号不会。
   /// </summary>
-  internal static PlcBlockAttributeSnapshot? ReadBackPlcBlockSnapshot(string softwarePath,
+  private static PlcBlockAttributeSnapshot? ReadBackPlcBlockSnapshot(string softwarePath,
     PlcBlockAttributeSnapshot expected)
   {
     var escaped = Regex.Escape(expected.Name);
@@ -118,11 +111,15 @@ public static partial class McpServer
 
     var hit = found?.FirstOrDefault();
 
-    if (hit == null && expected.Number.HasValue)
+    if (hit != null || !expected.Number.HasValue)
     {
-      var all = McpServer.Portal.GetBlocks(softwarePath);
-      hit = all?.FirstOrDefault(b => McpServer.SafeNumber(b) == expected.Number.Value);
+      return hit == null
+        ? null
+        : McpServer.SnapshotOf(hit);
     }
+
+    var all = McpServer.Portal.GetBlocks(softwarePath);
+    hit = all?.FirstOrDefault(b => McpServer.SafeNumber(b) == expected.Number.Value);
 
     return hit == null
       ? null
@@ -133,7 +130,7 @@ public static partial class McpServer
   ///   从 SimaticML 文档里读出 "我打算导入的到底是什么"。
   ///   块名取 AttributeList/Name（不是文件名），编号取 Number，OB 再多带一个 SecondaryType。
   /// </summary>
-  internal static PlcBlockAttributeSnapshot? ReadExpectedBlockFromXml(string xml)
+  private static PlcBlockAttributeSnapshot? ReadExpectedBlockFromXml(string xml)
   {
     if (string.IsNullOrWhiteSpace(xml))
     {
@@ -149,7 +146,7 @@ public static partial class McpServer
       return null;
     }
 
-    var name = attrs.Element("Name")?.Value?.Trim() ?? "";
+    var name = attrs.Element("Name")?.Value.Trim() ?? "";
     if (string.IsNullOrEmpty(name))
     {
       return null;
@@ -171,7 +168,7 @@ public static partial class McpServer
   ///   读不到的属性（比如 Openness 不暴露 PriorityNumber）不算不相等，
   ///   但要在说明里出现，否则调用方会把 "没验" 当成 "验过了"。
   /// </summary>
-  internal static PlcBlockVerificationOutcome CompareBlockSnapshots(PlcBlockAttributeSnapshot expected,
+  private static PlcBlockVerificationOutcome CompareBlockSnapshots(PlcBlockAttributeSnapshot expected,
     PlcBlockAttributeSnapshot? actual, string importFileNameWithoutExtension = "")
   {
     var fileNameHint = McpServer.BuildFileNameHint(expected, importFileNameWithoutExtension);
@@ -179,19 +176,15 @@ public static partial class McpServer
     if (actual == null)
     {
       return new PlcBlockVerificationOutcome(PlcBlockVerificationState.Mismatch,
-        $"block '{expected.Name}'" + (expected.Number.HasValue
+        $"block '{expected.Name}'{(expected.Number.HasValue
           ? $" (number {expected.Number.Value})"
-          : "") + " NOT found after import" + fileNameHint);
+          : "")} NOT found after import{fileNameHint}");
     }
 
     var mismatches = new List<string>();
     var unavailable = new List<string>();
 
-    if (actual.Name == null)
-    {
-      unavailable.Add("Name");
-    }
-    else if (!string.Equals(expected.Name, actual.Name, StringComparison.OrdinalIgnoreCase))
+    if (!string.Equals(expected.Name, actual.Name, StringComparison.OrdinalIgnoreCase))
     {
       mismatches.Add($"Name expected '{expected.Name}' actual '{actual.Name}'");
     }
@@ -239,14 +232,14 @@ public static partial class McpServer
     if (mismatches.Count > 0)
     {
       return new PlcBlockVerificationOutcome(PlcBlockVerificationState.Mismatch,
-        $"block '{actual.Name}' found but attribute mismatch: " + string.Join("; ", mismatches) + fileNameHint);
+        $"block '{actual.Name}' found but attribute mismatch: {string.Join("; ", mismatches)}{fileNameHint}");
     }
 
-    var detail = $"block '{actual.Name}'" + (actual.Number.HasValue
+    var detail = $"block '{actual.Name}'{(actual.Number.HasValue
       ? $" (number {actual.Number.Value})"
-      : "") + " present after import; attributes match" + fileNameHint + (unavailable.Count > 0
+      : "")} present after import; attributes match{fileNameHint}{(unavailable.Count > 0
       ? $"; not verifiable via XML round-trip: {string.Join(", ", unavailable)}"
-      : "");
+      : "")}";
 
     return new PlcBlockVerificationOutcome(PlcBlockVerificationState.Verified, detail);
   }
@@ -258,14 +251,10 @@ public static partial class McpServer
       return "";
     }
 
-    if (string.Equals(fileName, expected.Name, StringComparison.OrdinalIgnoreCase))
-    {
-      return "";
-    }
-
-    // 文件名叫 OB100、块名叫 Startup，两者本来就不该相等 —— 按文件名比会把成功误判成失败。
-    return $" (file name '{fileName}' differs from the block name '{expected.Name}' declared in the XML — " +
-      "normal for OBs, so the block number is the authoritative check)";
+    return string.Equals(fileName, expected.Name, StringComparison.OrdinalIgnoreCase)
+      ? ""
+      // 文件名叫 OB100、块名叫 Startup，两者本来就不该相等 —— 按文件名比会把成功误判成失败。
+      : $" (file name '{fileName}' differs from the block name '{expected.Name}' declared in the XML — normal for OBs, so the block number is the authoritative check)";
   }
 
   private static PlcBlockAttributeSnapshot SnapshotOf(PlcBlock block)

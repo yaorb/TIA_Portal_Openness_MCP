@@ -45,12 +45,12 @@ public partial class Portal
     var ancestorStates = new List<bool>();
     var sections = new List<Action>();
 
-    if (this.CurrentProject?.Devices != null && this.CurrentProject.Devices.Count > 0)
+    if (this.CurrentProject?.Devices is { Count: > 0, })
     {
       sections.Add(() => this.GetProjectTreeDevices(sb, this.CurrentProject.Devices, ancestorStates));
     }
 
-    if (this.CurrentProject?.DeviceGroups != null && this.CurrentProject.DeviceGroups.Count > 0)
+    if (this.CurrentProject?.DeviceGroups is { Count: > 0, })
     {
       sections.Add(() => this.GetProjectTreeGroups(sb, this.CurrentProject.DeviceGroups, ancestorStates));
     }
@@ -64,6 +64,7 @@ public partial class Portal
     for (var i = 0; i < sections.Count; i++)
     {
       var isLastSection = i == sections.Count - 1;
+      // !error: important: ?????????
       if (i == 0)
       {
         sections[i]();
@@ -137,14 +138,13 @@ public partial class Portal
     {
       // Openness CreateWithItem expects a TypeIdentifier, not split order/version.
       // Example: OrderNumber:6ES7 513-1AM03-0AB0/V3.0
-      var project = this.CurrentProject as Project;
-      if (project == null)
+      if (this.CurrentProject is not Project project)
       {
         throw new PortalException(PortalErrorCode.InvalidState, "Current project is not a local Project instance");
       }
 
-      var orderRaw = orderNumber ?? "";
-      var verRaw = version ?? "";
+      var orderRaw = orderNumber;
+      var verRaw = version;
 
       var orderVariants = new List<string>
       {
@@ -156,7 +156,7 @@ public partial class Portal
 
       var v = verRaw.Trim();
       var vNoV = v.StartsWith("V", StringComparison.OrdinalIgnoreCase)
-        ? v.Substring(1)
+        ? v[1..]
         : v;
       var versionVariants = new List<string>
       {
@@ -194,10 +194,14 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
 
-      versionVariants = versionVariants.Where(x => x != null) // keep empty-string variant
-        .Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+      versionVariants =
+      [
+        .. versionVariants.Where(x => x != null) // keep empty-string variant
+          .Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase),
+      ];
 
       var typeIdentifierVariants = new List<string>();
       foreach (var o in orderVariants)
@@ -217,8 +221,10 @@ public partial class Portal
         }
       }
 
-      typeIdentifierVariants = typeIdentifierVariants.Where(x => !string.IsNullOrWhiteSpace(x))
-        .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+      typeIdentifierVariants =
+      [
+        .. typeIdentifierVariants.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase),
+      ];
 
       foreach (var typeIdentifier in typeIdentifierVariants)
       {
@@ -228,9 +234,9 @@ public partial class Portal
           try
           {
             var dev = project.Devices.CreateWithItem(typeIdentifier, itemName, deviceName);
-            if (dev is Device d)
+            if (dev != null)
             {
-              return d;
+              return dev;
             }
           }
           catch (Exception exTry)
@@ -255,7 +261,7 @@ public partial class Portal
   }
 
   public (Device? Device, string? MlfbUsed, string? VersionUsed, List<string> Attempts, string? Error)
-    AddDeviceWithFallback(string preferredMlfb, string preferredVersion, string deviceName, string family)
+    AddDeviceWithFallback(string preferredMlfb, string preferredVersion, string deviceName, string? family)
   {
     var attempts = new List<string>();
     string? lastError = null;
@@ -263,24 +269,20 @@ public partial class Portal
     // Minimal built-in list (keep small; user can pass preferred MLFB first)
     var known = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
     {
-      ["S7-1500"] = new()
-      {
-        "6ES7513-1AM03-0AB0",
-        "6ES7516-3AN03-0AB0",
-        "6ES7515-2AM02-0AB0",
-        "6ES7513-1AL03-0AB0",
-        "6ES7512-1AK02-0AB0",
-      },
-      ["WinCCUnifiedPC"] = new()
-      {
+      ["S7-1500"] =
+      [
+        "6ES7513-1AM03-0AB0", "6ES7516-3AN03-0AB0", "6ES7515-2AM02-0AB0", "6ES7513-1AL03-0AB0", "6ES7512-1AK02-0AB0",
+      ],
+      ["WinCCUnifiedPC"] =
+      [
         // Unified PC Runtime (actual availability depends on installed packages/HSP)
         "6AV2123-3GB32-0AW0", "6AV2154-0BS01-0AA0", "6AV2154-0BP01-0AA0",
-      },
-      ["S7-1200"] = new()
-      {
+      ],
+      ["S7-1200"] =
+      [
         // CPU 1211C AC/DC/Rly
         "6ES7211-1BE40-0XB0",
-      },
+      ],
     };
 
     var mlfbs = new List<string>();
@@ -294,7 +296,7 @@ public partial class Portal
       mlfbs.AddRange(list);
     }
 
-    mlfbs = mlfbs.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    mlfbs = [.. mlfbs.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase),];
 
     var versions = new List<string>();
     if (!string.IsNullOrWhiteSpace(preferredVersion))
@@ -328,7 +330,7 @@ public partial class Portal
     versions.Add("21.0.0.0");
     versions.Add("V21.0.0.0");
     versions.Add("");
-    versions = versions.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    versions = [.. versions.Distinct(StringComparer.OrdinalIgnoreCase),];
 
     foreach (var mlfb in mlfbs)
     {
@@ -351,7 +353,7 @@ public partial class Portal
     return (null, null, null, attempts, lastError ?? "All attempts failed");
   }
 
-  public List<GsdDeviceCandidate> SearchInstalledGsdDevices(string keyword, int limit = 50)
+  public List<GsdDeviceCandidate> SearchInstalledGsdDevices(string? keyword, int limit = 50)
   {
     var normalizedKeyword = (keyword ?? string.Empty).Trim();
     var results = new List<GsdDeviceCandidate>();
@@ -414,15 +416,17 @@ public partial class Portal
       logger?.LogWarning(ex, "GSDML scan failed during GSD device search");
     }
 
-    return results.Select(c =>
+    return
+    [
+      .. results.Select(c =>
       {
         c.Score = Portal.ScoreGsdCandidate(c, normalizedKeyword, null);
         return c;
-      }).OrderByDescending(c => c.Score ?? 0).ThenBy(c => c.Source).ThenBy(c => c.Description).Take(Math.Max(1, limit))
-      .ToList();
+      }).OrderByDescending(c => c.Score ?? 0).ThenBy(c => c.Source).ThenBy(c => c.Description).Take(Math.Max(1, limit)),
+    ];
   }
 
-  public List<HardwareCatalogCandidate> SearchHardwareCatalog(string keyword, int limit = 50)
+  public List<HardwareCatalogCandidate> SearchHardwareCatalog(string? keyword, int limit = 50)
   {
     var normalizedKeyword = (keyword ?? string.Empty).Trim();
     var results = new List<HardwareCatalogCandidate>();
@@ -474,12 +478,15 @@ public partial class Portal
       logger?.LogWarning(ex, "HardwareCatalog search failed");
     }
 
-    return results.Select(c =>
-      {
-        c.Score = Portal.ScoreHardwareCatalogCandidate(c, normalizedKeyword);
-        return c;
-      }).OrderByDescending(c => c.Score ?? 0).ThenBy(c => c.ArticleNumber).ThenBy(c => c.Description)
-      .Take(Math.Max(1, limit)).ToList();
+    return
+    [
+      .. results.Select(c =>
+        {
+          c.Score = Portal.ScoreHardwareCatalogCandidate(c, normalizedKeyword);
+          return c;
+        }).OrderByDescending(c => c.Score ?? 0).ThenBy(c => c.ArticleNumber).ThenBy(c => c.Description)
+        .Take(Math.Max(1, limit)),
+    ];
   }
 
   public (Device? Device, HardwareCatalogCandidate? Candidate, List<HardwareCatalogCandidate> Candidates, List<string>
@@ -518,7 +525,7 @@ public partial class Portal
       {
         var itemName = Portal.MakeEngineeringName(deviceName);
         var dev = project.Devices.CreateWithItem(typeIdentifier, itemName, deviceName);
-        if (dev is Device d)
+        if (dev is { } d)
         {
           attempts.Add($"{typeIdentifier} -> OK");
           return (d, candidate, candidates, attempts, null);
@@ -534,7 +541,7 @@ public partial class Portal
       }
     }
 
-    if (!candidates.Any(c => c.Insertable == true))
+    if (candidates.All(c => c.Insertable != true))
     {
       lastError = "Hardware catalog returned no insertable TypeIdentifier candidates.";
     }
@@ -563,8 +570,7 @@ public partial class Portal
         "No project is open. Open or attach to a project before adding the device.");
     }
 
-    var project = this.CurrentProject as Project;
-    if (project == null)
+    if (this.CurrentProject is not Project project)
     {
       return (null, null, candidates, attempts, "Current project is not a local Project instance.");
     }
@@ -577,7 +583,7 @@ public partial class Portal
       {
         var itemName = Portal.MakeEngineeringName(deviceName);
         var dev = project.Devices.CreateWithItem(typeIdentifier, itemName, deviceName);
-        if (dev is Device d)
+        if (dev is { } d)
         {
           attempts.Add($"{typeIdentifier} -> OK");
           return (d, candidate, candidates, attempts, null);
@@ -593,7 +599,7 @@ public partial class Portal
       }
     }
 
-    if (!candidates.Any(c => !string.IsNullOrWhiteSpace(c.TypeIdentifier)))
+    if (candidates.All(c => string.IsNullOrWhiteSpace(c.TypeIdentifier)))
     {
       lastError = "Only GSDML file metadata was found; HardwareCatalog did not return an insertable TypeIdentifier.";
     }
@@ -601,10 +607,10 @@ public partial class Portal
     return (null, null, candidates, attempts, lastError ?? "All insert attempts failed");
   }
 
-  private static IEnumerable<string> BuildHardwareCatalogFilters(string keyword)
+  private static IEnumerable<string> BuildHardwareCatalogFilters(string? keyword)
   {
     var raw = (keyword ?? string.Empty).Trim();
-    var tokens = raw.Split(new[] { ' ', '\t', ',', ';', '/', '\\', '-', '_', }, StringSplitOptions.RemoveEmptyEntries);
+    var tokens = raw.Split([' ', '\t', ',', ';', '/', '\\', '-', '_',], StringSplitOptions.RemoveEmptyEntries);
     return new[] { raw, }.Concat(tokens.Where(t => t.Length >= 3)).Distinct(StringComparer.OrdinalIgnoreCase)
       .Where(x => !string.IsNullOrWhiteSpace(x));
   }
@@ -618,7 +624,7 @@ public partial class Portal
       yield break;
     }
 
-    var value = find.Invoke(catalog, new object[] { filter, });
+    var value = find.Invoke(catalog, [filter,]);
     if (value is not IEnumerable enumerable)
     {
       yield break;
@@ -914,7 +920,7 @@ public partial class Portal
       : 0);
   }
 
-  private static int ScoreGsdCandidateText(string text, string keyword, string? preferredDap)
+  private static int ScoreGsdCandidateText(string? text, string? keyword, string? preferredDap)
   {
     var score = 0;
     var haystack = text ?? string.Empty;
@@ -942,27 +948,27 @@ public partial class Portal
     return score;
   }
 
-  private static bool ContainsAnyKeywordToken(string text, string keyword)
+  private static bool ContainsAnyKeywordToken(string? text, string keyword)
   {
     return Portal.SplitSearchTokens(keyword)
       .Any(t => (text ?? string.Empty).IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0);
   }
 
-  private static bool ContainsAllKeywordTokens(string text, string keyword)
+  private static bool ContainsAllKeywordTokens(string? text, string keyword)
   {
     var tokens = Portal.SplitSearchTokens(keyword).ToList();
     return tokens.Count > 0 &&
       tokens.All(t => (text ?? string.Empty).IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0);
   }
 
-  private static IEnumerable<string> SplitSearchTokens(string keyword)
+  private static IEnumerable<string> SplitSearchTokens(string? keyword)
   {
     return (keyword ?? string.Empty)
-      .Split(new[] { ' ', '\t', ',', ';', '/', '\\', '-', '_', }, StringSplitOptions.RemoveEmptyEntries)
+      .Split([' ', '\t', ',', ';', '/', '\\', '-', '_',], StringSplitOptions.RemoveEmptyEntries)
       .Where(t => t.Length >= 2).Distinct(StringComparer.OrdinalIgnoreCase);
   }
 
-  private static string MakeEngineeringName(string value)
+  private static string MakeEngineeringName(string? value)
   {
     var name = Regex.Replace(value ?? "Device_1", @"[^\w]", "_");
     if (string.IsNullOrWhiteSpace(name))
@@ -978,7 +984,7 @@ public partial class Portal
     return name;
   }
 
-  private static string NormalizeOrderNumber(string s) => (s ?? string.Empty).Replace(" ", "").Trim();
+  private static string NormalizeOrderNumber(string? s) => (s ?? string.Empty).Replace(" ", "").Trim();
 
   private static string TryFormatMlfbWithSpaces(string value)
   {
@@ -990,12 +996,12 @@ public partial class Portal
 
     if (n.StartsWith("6ES7", StringComparison.OrdinalIgnoreCase))
     {
-      return n.Substring(0, 4) + " " + n.Substring(4);
+      return n[..4] + " " + n[4..];
     }
 
     if (n.StartsWith("6AV2", StringComparison.OrdinalIgnoreCase))
     {
-      return n.Substring(0, 4) + " " + n.Substring(4);
+      return n[..4] + " " + n[4..];
     }
 
     return n;
@@ -1034,7 +1040,7 @@ public partial class Portal
 
     var sb = new StringBuilder();
     sb.AppendLine($"{root.Name} [DeviceItem]");
-    Portal.BuildDeviceItemTree(sb, root, new List<bool>(), 0, Math.Max(0, maxDepth));
+    Portal.BuildDeviceItemTree(sb, root, [], 0, Math.Max(0, maxDepth));
     return sb.ToString();
   }
 
@@ -1065,7 +1071,7 @@ public partial class Portal
       {
         var n = info.Name ?? "";
         var lower = n.ToLowerInvariant();
-        if (!keys.Any(k => lower.Contains(k)))
+        if (!keys.Any(lower.Contains))
         {
           continue;
         }
@@ -1174,6 +1180,9 @@ public partial class Portal
   {
     var lines = new List<string>();
 
+    Walk(messages);
+    return lines;
+
     void Walk(IEnumerable<TransferResultMessage>? ms)
     {
       if (ms == null)
@@ -1195,12 +1204,10 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
       }
     }
-
-    Walk(messages);
-    return lines;
   }
 
   public ResponseMessage SetDeviceItemAttribute(string deviceItemPath, string attributeName, string value)
@@ -1245,6 +1252,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
 
       meta["oldValue"] = oldValue?.ToString() ?? string.Empty;
@@ -1261,6 +1269,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
 
       meta["newValue"] = newValue?.ToString() ?? string.Empty;
@@ -1394,7 +1403,7 @@ public partial class Portal
   // ----- PUT/GET access (dependency check for S7 reads) -----
 
   private static string NormalizeAttrName(string? n) =>
-    new((n ?? string.Empty).ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+    new([.. (n ?? string.Empty).ToLowerInvariant().Where(char.IsLetterOrDigit),]);
 
   // Locate the CPU DeviceItem + attribute controlling "Permit access with PUT/GET communication".
   // The exact Openness attribute name varies by CPU/firmware, so match any attribute whose
@@ -1412,7 +1421,7 @@ public partial class Portal
         string[] names;
         try
         {
-          names = it.GetAttributeInfos().Select(x => x.Name ?? string.Empty).ToArray();
+          names = [.. it.GetAttributeInfos().Select(x => x.Name ?? string.Empty),];
         }
         catch
         {
@@ -1433,7 +1442,7 @@ public partial class Portal
   private static bool AttrValueIsEnabled(object? v) =>
     v is bool b
       ? b
-      : v?.ToString()?.Equals("True", StringComparison.OrdinalIgnoreCase) ?? false;
+      : v?.ToString().Equals("True", StringComparison.OrdinalIgnoreCase) ?? false;
 
   // Read whether a CPU permits remote PUT/GET access (precondition for ReadPlcLiveValuesS7 on DB areas).
   public JsonObject GetPutGetAccess(string devicePath)
@@ -1473,6 +1482,7 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     return new JsonObject
@@ -1524,6 +1534,7 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     try
@@ -1548,6 +1559,7 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     return new JsonObject
@@ -1609,6 +1621,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
 
         if (infos == null || infos.Count == 0)
@@ -1707,6 +1720,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
     }
 
@@ -1778,9 +1792,9 @@ public partial class Portal
         var create = plcNode.Node.GetType().GetMethod("CreateAndConnectToSubnet",
           BindingFlags.Public | BindingFlags.Instance,
           null,
-          new[] { typeof(string), },
+          [typeof(string),],
           null);
-        subnet = create?.Invoke(plcNode.Node, new object[] { subnetName, });
+        subnet = create?.Invoke(plcNode.Node, [subnetName,]);
         sb.AppendLine("PLC CreateAndConnectToSubnet: " + (subnet == null
           ? "NULL"
           : "OK " + Portal.TryGetName(subnet)));
@@ -1800,7 +1814,7 @@ public partial class Portal
       try
       {
         var connect = hmiNode.Node.GetType().GetMethod("ConnectToSubnet", BindingFlags.Public | BindingFlags.Instance);
-        connect?.Invoke(hmiNode.Node, new[] { subnet, });
+        connect?.Invoke(hmiNode.Node, [subnet,]);
         sb.AppendLine("HMI ConnectToSubnet: OK");
       }
       catch (Exception ex)
@@ -1900,9 +1914,9 @@ public partial class Portal
         var create = node.Node.GetType().GetMethod("CreateAndConnectToSubnet",
           BindingFlags.Public | BindingFlags.Instance,
           null,
-          new[] { typeof(string), },
+          [typeof(string),],
           null);
-        subnet = create?.Invoke(node.Node, new object[] { subnetName, });
+        subnet = create?.Invoke(node.Node, [subnetName,]);
         meta["created"] = subnet != null;
       }
       else
@@ -1988,7 +2002,7 @@ public partial class Portal
       if (!string.Equals(connectedName, subnetName, StringComparison.OrdinalIgnoreCase))
       {
         var connect = selected.Node.GetType().GetMethod("ConnectToSubnet", BindingFlags.Public | BindingFlags.Instance);
-        connect?.Invoke(selected.Node, new[] { subnet, });
+        connect?.Invoke(selected.Node, [subnet,]);
       }
 
       meta["selectedNodeBefore"] = Portal.FormatNodeInfo(selected);
@@ -2042,8 +2056,7 @@ public partial class Portal
         return new ResponseMessage { Message = "Invalid settings JSON", Meta = meta, };
       }
 
-      var exact = root?["exactAttributes"] as JsonObject;
-      if (exact == null || exact.Count == 0)
+      if (root?["exactAttributes"] is not JsonObject exact || exact.Count == 0)
       {
         meta["error"] =
           "settingsJson must contain exactAttributes. Attribute names must come from GetDeviceItemInfo/GetDeviceItemNetworkInfo readback.";
@@ -2086,6 +2099,7 @@ public partial class Portal
           }
           catch
           {
+            // ignored
           }
 
           var typedValue = Portal.CoerceAttributeValue(value, oldValue, info);
@@ -2097,6 +2111,7 @@ public partial class Portal
           }
           catch
           {
+            // ignored
           }
 
           applied.Add(new JsonObject
@@ -2274,6 +2289,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
 
       try
@@ -2294,7 +2310,7 @@ public partial class Portal
         }
 
         var generic = create.MakeGenericMethod(hmiConnectionType);
-        var created = generic.Invoke(composition, new[] { c.LocalNode, c.PartnerTarget, c.PartnerNode, });
+        var created = generic.Invoke(composition, [c.LocalNode, c.PartnerTarget, c.PartnerNode,]);
         sb.AppendLine("  Create<HmiConnection>: " + (created == null
           ? "NULL"
           : "OK " + created.GetType().FullName));
@@ -2316,6 +2332,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
 
         break;
@@ -2480,7 +2497,7 @@ public partial class Portal
         " | name=" + (Portal.TryGetName(c.Target) ?? "<unnamed>"));
       foreach (var serviceType in serviceTypes)
       {
-        object? service = null;
+        object? service;
         try
         {
           service = Portal.TryGetService(c.Target, serviceType);
@@ -2669,12 +2686,12 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     try
     {
-      var nodes = Portal.TryGetPropertyValue(service, "Nodes") as IEnumerable;
-      if (nodes != null && nodes is not string)
+      if (Portal.TryGetPropertyValue(service, "Nodes") is IEnumerable nodes and not string)
       {
         var nodeInfos = new List<string>();
         foreach (var node in nodes)
@@ -2694,6 +2711,7 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     try
@@ -2708,13 +2726,14 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     try
     {
       var methods = service.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance).Where(m =>
       {
-        var n = m.Name ?? "";
+        var n = m.Name;
         return n.IndexOf("Connect", StringComparison.OrdinalIgnoreCase) >= 0 ||
           n.IndexOf("Disconnect", StringComparison.OrdinalIgnoreCase) >= 0 ||
           n.IndexOf("Subnet", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -2726,6 +2745,7 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     return parts.Count == 0
@@ -2733,27 +2753,19 @@ public partial class Portal
       : string.Join("; ", parts);
   }
 
-  private readonly struct NetworkNodeInfo
+  private readonly struct NetworkNodeInfo(string path, DeviceItem item, object networkInterface, object node)
   {
-    public NetworkNodeInfo(string path, DeviceItem item, object networkInterface, object node)
-    {
-      this.Path = path;
-      this.Item = item;
-      this.NetworkInterface = networkInterface;
-      this.Node = node;
-    }
-
-    public string Path { get; }
-    public DeviceItem Item { get; }
-    public object NetworkInterface { get; }
-    public object Node { get; }
+    public string Path { get; } = path;
+    public DeviceItem Item { get; } = item;
+    public object NetworkInterface { get; } = networkInterface;
+    public object Node { get; } = node;
   }
 
   private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
   {
     public static readonly ReferenceEqualityComparer Instance = new();
 
-    public new bool Equals(object? x, object? y) => object.ReferenceEquals(x, y);
+    bool IEqualityComparer<object>.Equals(object? x, object? y) => object.ReferenceEquals(x, y);
 
     public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
   }
@@ -2770,6 +2782,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
 
       if (networkInterface == null)
@@ -2923,7 +2936,7 @@ public partial class Portal
       return result;
     }
 
-    var infos = getInfos.Invoke(target, Array.Empty<object>()) as IEnumerable;
+    var infos = getInfos.Invoke(target, []) as IEnumerable;
     if (infos == null)
     {
       return result;
@@ -2944,25 +2957,26 @@ public partial class Portal
       }
 
       var lower = name.ToLowerInvariant();
-      if (!interesting.Any(k => lower.Contains(k)))
+      if (!interesting.Any(lower.Contains))
       {
         continue;
       }
 
       try
       {
-        var value = getAttr.Invoke(target, new object[] { name, });
+        var value = getAttr.Invoke(target, [name,]);
         result.Add($"{name}={value ?? ""}");
       }
       catch
       {
+        // ignored
       }
     }
 
     return result;
   }
 
-  private static bool IsSupportedProfinetSubnetType(string subnetType)
+  private static bool IsSupportedProfinetSubnetType(string? subnetType)
   {
     var value = (subnetType ?? string.Empty).Trim();
     return value.Length == 0 || value.Equals("PROFINET", StringComparison.OrdinalIgnoreCase) ||
@@ -2991,7 +3005,7 @@ public partial class Portal
             continue;
           }
 
-          var name = Portal.TryGetName(subnet) ?? subnet.ToString() ?? string.Empty;
+          var name = Portal.TryGetName(subnet) ?? subnet.ToString();
           if (string.Equals(name, subnetName, StringComparison.OrdinalIgnoreCase))
           {
             return subnet;
@@ -3025,7 +3039,7 @@ public partial class Portal
             continue;
           }
 
-          var name = Portal.TryGetName(subnet) ?? subnet.ToString() ?? string.Empty;
+          var name = Portal.TryGetName(subnet) ?? subnet.ToString();
           if (string.Equals(name, subnetName, StringComparison.OrdinalIgnoreCase))
           {
             yield return subnet;
@@ -3062,23 +3076,6 @@ public partial class Portal
       return lines;
     }
 
-    void AddFromDevice(Device device)
-    {
-      foreach (var root in device.DeviceItems)
-      {
-        foreach (var node in Portal.FindNetworkNodes(root))
-        {
-          var subnet = Portal.TryGetPropertyValue(node.Node, "ConnectedSubnet");
-          var name = Portal.TryGetName(subnet) ?? subnet?.ToString() ?? "<none>";
-          if (string.IsNullOrWhiteSpace(subnetName) ||
-            string.Equals(name, subnetName, StringComparison.OrdinalIgnoreCase))
-          {
-            lines.Add(Portal.FormatNodeInfo(node));
-          }
-        }
-      }
-    }
-
     foreach (var device in this.CurrentProject.Devices)
     {
       AddFromDevice(device);
@@ -3090,6 +3087,20 @@ public partial class Portal
     }
 
     return lines;
+
+    void AddFromDevice(Device device)
+    {
+      foreach (var root in device.DeviceItems)
+      {
+        lines.AddRange(Portal.FindNetworkNodes(root)
+          .Select(node => new { node, subnet = Portal.TryGetPropertyValue(node.Node, "ConnectedSubnet"), })
+          .Select(@t => new { @t, name = Portal.TryGetName(@t.subnet) ?? @t.subnet?.ToString() ?? "<none>", })
+          .Where(@t =>
+            string.IsNullOrWhiteSpace(subnetName) ||
+            string.Equals(@t.name, subnetName, StringComparison.OrdinalIgnoreCase))
+          .Select(@t => Portal.FormatNodeInfo(@t.@t.node)));
+      }
+    }
   }
 
   private static void AddSubnetReadbackLinesFromGroup(DeviceUserGroup group, string subnetName, List<string> lines)
@@ -3126,7 +3137,7 @@ public partial class Portal
   private JsonArray BuildDeviceItemNetworkReadbackJson(string deviceItemPath)
   {
     var arr = new JsonArray();
-    var attrs = this.GetDeviceItemNetworkInfo(deviceItemPath) ?? new List<NetworkAttribute>();
+    var attrs = this.GetDeviceItemNetworkInfo(deviceItemPath) ?? [];
     foreach (var attr in attrs)
     {
       arr.Add(new JsonObject
@@ -3158,6 +3169,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
 
       if (svc == null)
@@ -3167,8 +3179,7 @@ public partial class Portal
 
       var details = new List<string> { $"service={svc.GetType().FullName}", };
 
-      var nodes = Portal.TryGetPropertyValue(svc, "Nodes") as IEnumerable;
-      if (nodes != null && nodes is not string)
+      if (Portal.TryGetPropertyValue(svc, "Nodes") is IEnumerable nodes and not string)
       {
         var nodeInfos = new List<string>();
         foreach (var node in nodes)
@@ -3197,6 +3208,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
       }
 
@@ -3330,6 +3342,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
 
       try
@@ -3341,6 +3354,7 @@ public partial class Portal
       }
       catch
       {
+        // ignored
       }
     }
   }
@@ -3354,7 +3368,7 @@ public partial class Portal
     }
 
     // Hardware components (Items)
-    if (node.Items != null && node.Items.Count > 0)
+    if (node.Items is { Count: > 0, })
     {
       var items = node.Items.ToList();
       for (var i = 0; i < items.Count; i++)
@@ -3366,7 +3380,7 @@ public partial class Portal
     }
 
     // Sub device items
-    if (node.DeviceItems != null && node.DeviceItems.Count > 0)
+    if (node.DeviceItems is { Count: > 0, })
     {
       var children = node.DeviceItems.ToList();
       for (var i = 0; i < children.Count; i++)
@@ -3374,7 +3388,7 @@ public partial class Portal
         var child = children[i];
         var isLast = i == children.Count - 1;
         sb.AppendLine($"{Portal.GetTreePrefixStatic(ancestorStates, isLast)}{child.Name} [DeviceItem]");
-        Portal.BuildDeviceItemTree(sb, child, new List<bool>(ancestorStates) { isLast, }, depth + 1, maxDepth);
+        Portal.BuildDeviceItemTree(sb, child, [.. ancestorStates, isLast,], depth + 1, maxDepth);
       }
     }
   }
@@ -3382,9 +3396,9 @@ public partial class Portal
   private static string GetTreePrefixStatic(List<bool> ancestorStates, bool isLast)
   {
     var prefix = new StringBuilder();
-    for (var i = 0; i < ancestorStates.Count; i++)
+    foreach (var t in ancestorStates)
     {
-      prefix.Append(ancestorStates[i]
+      prefix.Append(t
         ? "    "
         : "│   ");
     }

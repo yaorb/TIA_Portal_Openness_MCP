@@ -22,15 +22,15 @@ internal static class PlcBuilderToolJson
     var udtName = PlcBuilderToolJson.ReadString(root, "$.name", "name", "udtName");
     var members = PlcBuilderToolJson.ReadArray(root, "members", "$.members").Select((x, i) =>
       new PlcUdtMemberDefinition(
-        PlcBuilderToolJson.ReadString(PlcBuilderToolJson.AsObject(x, "$.members[" + i + "]"),
-          "$.members[" + i + "].name",
+        PlcBuilderToolJson.ReadString(PlcBuilderToolJson.AsObject(x, $"$.members[{i}]"),
+          $"$.members[{i}].name",
           "name"),
-        PlcBuilderToolJson.ReadString(PlcBuilderToolJson.AsObject(x, "$.members[" + i + "]"),
-          "$.members[" + i + "].datatype",
+        PlcBuilderToolJson.ReadString(PlcBuilderToolJson.AsObject(x, $"$.members[{i}]"),
+          $"$.members[{i}].datatype",
           "datatype",
           "dataType"),
-        PlcBuilderToolJson.ReadBool(PlcBuilderToolJson.AsObject(x, "$.members[" + i + "]"), "externalWritable", false),
-        PlcBuilderToolJson.ReadOptionalString(PlcBuilderToolJson.AsObject(x, "$.members[" + i + "]"),
+        PlcBuilderToolJson.ReadBool(PlcBuilderToolJson.AsObject(x, $"$.members[{i}]"), "externalWritable", false),
+        PlcBuilderToolJson.ReadOptionalString(PlcBuilderToolJson.AsObject(x, $"$.members[{i}]"),
           "commentZhCn",
           "comment",
           "commentZh"))).ToArray();
@@ -47,10 +47,10 @@ internal static class PlcBuilderToolJson
     var tableName = PlcBuilderToolJson.ReadString(root, "$.tableName", "tableName", "name");
     var tags = PlcBuilderToolJson.ReadArray(root, "tags", "$.tags").Select((x, i) =>
     {
-      var tag = PlcBuilderToolJson.AsObject(x, "$.tags[" + i + "]");
-      return new PlcTagDefinition(PlcBuilderToolJson.ReadString(tag, "$.tags[" + i + "].name", "name"),
-        PlcBuilderToolJson.ReadString(tag, "$.tags[" + i + "].dataTypeName", "dataTypeName", "datatype", "dataType"),
-        PlcBuilderToolJson.ReadString(tag, "$.tags[" + i + "].logicalAddress", "logicalAddress", "address"));
+      var tag = PlcBuilderToolJson.AsObject(x, $"$.tags[{i}]");
+      return new PlcTagDefinition(PlcBuilderToolJson.ReadString(tag, $"$.tags[{i}].name", "name"),
+        PlcBuilderToolJson.ReadString(tag, $"$.tags[{i}].dataTypeName", "dataTypeName", "datatype", "dataType"),
+        PlcBuilderToolJson.ReadString(tag, $"$.tags[{i}].logicalAddress", "logicalAddress", "address"));
     }).ToArray();
 
     var xml = PlcTagTableXmlBuilder.BuildXml(tableName, tags);
@@ -72,9 +72,9 @@ internal static class PlcBuilderToolJson
 
     var members = membersNode.Select((x, i) =>
     {
-      var member = PlcBuilderToolJson.AsObject(x, "$.staticMembers[" + i + "]");
-      return new PlcDbMemberDefinition(PlcBuilderToolJson.ReadString(member, "$.staticMembers[" + i + "].name", "name"),
-        PlcBuilderToolJson.ReadString(member, "$.staticMembers[" + i + "].datatype", "datatype", "dataType"),
+      var member = PlcBuilderToolJson.AsObject(x, $"$.staticMembers[{i}]");
+      return new PlcDbMemberDefinition(PlcBuilderToolJson.ReadString(member, $"$.staticMembers[{i}].name", "name"),
+        PlcBuilderToolJson.ReadString(member, $"$.staticMembers[{i}].datatype", "datatype", "dataType"),
         PlcBuilderToolJson.ReadNullableBool(member, "externalWritable"),
         PlcBuilderToolJson.ReadOptionalString(member, "commentZhCn", "comment", "commentZh"),
         PlcBuilderToolJson.ReadOptionalString(member, "startValue"));
@@ -106,7 +106,7 @@ internal static class PlcBuilderToolJson
     var root = PlcBuilderToolJson.ParseObject(json, "$");
     var callName = PlcBuilderToolJson.ReadString(root, "$.callName", "callName", "name");
     var parameters = PlcBuilderToolJson.ReadArray(root, "parameters", "$.parameters").Select((x, i) =>
-      PlcBuilderToolJson.ReadFlgNetParameter(PlcBuilderToolJson.AsObject(x, "$.parameters[" + i + "]"), i)).ToArray();
+      PlcBuilderToolJson.ReadFlgNetParameter(PlcBuilderToolJson.AsObject(x, $"$.parameters[{i}]"), i)).ToArray();
 
     var xml = FlgNetCallXmlBuilder.BuildXml(callName, parameters);
     return PlcBuilderToolJson.BuildResult("plc-build-flgnet-call-xml",
@@ -166,24 +166,23 @@ internal static class PlcBuilderToolJson
     var built = new List<PlcLadFcBlockXmlComposer.LadNetwork>();
     for (var i = 0; i < nets.Count; i++)
     {
-      var n = PlcBuilderToolJson.AsObject(nets[i], "$.networks[" + i + "]");
+      var n = PlcBuilderToolJson.AsObject(nets[i], $"$.networks[{i}]");
       var netTitle = PlcBuilderToolJson.ReadOptionalString(n, "titleZhCn", "title");
       var netComment = PlcBuilderToolJson.ReadOptionalString(n, "commentZhCn", "comment");
       // 每个 network 是一个 FC 调用：用 FlgNetCallXmlBuilder
       var callJson = n["callJson"] as JsonObject ?? n["call"] as JsonObject;
       if (callJson == null)
       {
-        throw new ArgumentException("$.networks[" + i + "] 缺少 callJson 对象");
+        throw new ArgumentException($"$.networks[{i}] 缺少 callJson 对象");
       }
 
       var callName =
-        PlcBuilderToolJson.ReadString(callJson, "$.networks[" + i + "].callJson.callName", "callName", "name");
-      var parametersArray = callJson["parameters"] as JsonArray;
-      var parameters = parametersArray == null
+        PlcBuilderToolJson.ReadString(callJson, $"$.networks[{i}].callJson.callName", "callName", "name");
+      var parameters = callJson["parameters"] is not JsonArray parametersArray
         ? Array.Empty<FlgNetCallParameter>()
         : parametersArray.Select((x, j) =>
           PlcBuilderToolJson.ReadFlgNetParameter(
-            PlcBuilderToolJson.AsObject(x, "$.networks[" + i + "].callJson.parameters[" + j + "]"),
+            PlcBuilderToolJson.AsObject(x, $"$.networks[{i}].callJson.parameters[{j}]"),
             j)).ToArray();
       var flgNet = FlgNetCallXmlBuilder.BuildFlgNet(callName, parameters);
       built.Add(new PlcLadFcBlockXmlComposer.LadNetwork(flgNet, netTitle, netComment));
@@ -257,8 +256,8 @@ internal static class PlcBuilderToolJson
     var operations = PlcBuilderToolJson.ReadArray(root, "operations", "$.operations");
     for (var i = 0; i < operations.Count; i++)
     {
-      var op = PlcBuilderToolJson.AsObject(operations[i], "$.operations[" + i + "]");
-      var kind = PlcBuilderToolJson.ReadString(op, "$.operations[" + i + "].op", "op", "kind", "type").Trim()
+      var op = PlcBuilderToolJson.AsObject(operations[i], $"$.operations[{i}]");
+      var kind = PlcBuilderToolJson.ReadString(op, $"$.operations[{i}].op", "op", "kind", "type").Trim()
         .ToLowerInvariant();
       var indent = PlcBuilderToolJson.ReadOptionalInt(op, "indent") ?? 0;
       switch (kind)
@@ -266,7 +265,7 @@ internal static class PlcBuilderToolJson
         case "if":
         case "ifheader":
           builder.IfHeader(PlcBuilderToolJson.ReadString(op,
-              "$.operations[" + i + "].condition",
+              $"$.operations[{i}].condition",
               "condition",
               "conditionVariable",
               "variable"),
@@ -277,7 +276,7 @@ internal static class PlcBuilderToolJson
         case "elseif":
         case "elsifheader":
           builder.ElsIfHeader(PlcBuilderToolJson.ReadString(op,
-              "$.operations[" + i + "].condition",
+              $"$.operations[{i}].condition",
               "condition",
               "conditionVariable",
               "variable"),
@@ -296,7 +295,7 @@ internal static class PlcBuilderToolJson
         case "assign":
         case "assignment":
         {
-          var target = PlcBuilderToolJson.ReadString(op, "$.operations[" + i + "].target", "target");
+          var target = PlcBuilderToolJson.ReadString(op, $"$.operations[{i}].target", "target");
           var src = PlcBuilderToolJson.ReadOptionalString(op, "source", "fromSymbol");
           if (!string.IsNullOrWhiteSpace(src))
           {
@@ -305,7 +304,7 @@ internal static class PlcBuilderToolJson
           else
           {
             builder.Assignment(target,
-              PlcBuilderToolJson.ReadString(op, "$.operations[" + i + "].literalValue", "literalValue", "value"),
+              PlcBuilderToolJson.ReadString(op, $"$.operations[{i}].literalValue", "literalValue", "value"),
               indent);
           }
         }
@@ -317,7 +316,7 @@ internal static class PlcBuilderToolJson
             builder.Blank(indent);
           }
 
-          builder.Token(PlcBuilderToolJson.ReadString(op, "$.operations[" + i + "].text", "text"));
+          builder.Token(PlcBuilderToolJson.ReadString(op, $"$.operations[{i}].text", "text"));
           break;
 
         case "blank":
@@ -335,7 +334,7 @@ internal static class PlcBuilderToolJson
             builder.Blank(indent);
           }
 
-          builder.GlobalVariable(PlcBuilderToolJson.ReadString(op, "$.operations[" + i + "].name", "name").Split('.'));
+          builder.GlobalVariable(PlcBuilderToolJson.ReadString(op, $"$.operations[{i}].name", "name").Split('.'));
           break;
 
         case "local":
@@ -344,7 +343,7 @@ internal static class PlcBuilderToolJson
             builder.Blank(indent);
           }
 
-          builder.LocalVariable(PlcBuilderToolJson.ReadString(op, "$.operations[" + i + "].name", "name"));
+          builder.LocalVariable(PlcBuilderToolJson.ReadString(op, $"$.operations[{i}].name", "name"));
           break;
 
         case "symbol":
@@ -354,7 +353,7 @@ internal static class PlcBuilderToolJson
             builder.Blank(indent);
           }
 
-          builder.Symbol(PlcBuilderToolJson.ReadString(op, "$.operations[" + i + "].name", "name"));
+          builder.Symbol(PlcBuilderToolJson.ReadString(op, $"$.operations[{i}].name", "name"));
           break;
 
         case "literal":
@@ -364,7 +363,7 @@ internal static class PlcBuilderToolJson
           }
 
           builder.LiteralConstant(PlcBuilderToolJson.ReadString(op,
-            "$.operations[" + i + "].value",
+            $"$.operations[{i}].value",
             "value",
             "literalValue"));
           break;
@@ -385,7 +384,7 @@ internal static class PlcBuilderToolJson
           break;
 
         default:
-          throw new ArgumentException("Unsupported StructuredText operation at $.operations[" + i + "].op: " + kind);
+          throw new ArgumentException($"Unsupported StructuredText operation at $.operations[{i}].op: {kind}");
       }
     }
 
@@ -395,15 +394,15 @@ internal static class PlcBuilderToolJson
   // SCL 自由表达式行：items[] 解析 + 自动 Blank（紧贴标点除外）
   private static void EmitLine(StructuredTextXmlBuilder builder, JsonObject lineOp, int opIndex)
   {
-    var items = lineOp["items"] as JsonArray ?? throw new ArgumentException("$.operations[" + opIndex + "].items 缺失");
+    var items = lineOp["items"] as JsonArray ?? throw new ArgumentException($"$.operations[{opIndex}].items 缺失");
     string? lastTokenText = null;
     for (var k = 0; k < items.Count; k++)
     {
       var item = items[k] as JsonObject ??
-        throw new ArgumentException("$.operations[" + opIndex + "].items[" + k + "] 必须是对象");
+        throw new ArgumentException($"$.operations[{opIndex}].items[{k}] 必须是对象");
       var tightBefore = false; // 当前项前是否需要紧贴（如 ) ; , ）
 
-      if (item["sym"] is JsonNode symN)
+      if (item["sym"] is { } symN)
       {
         if (k > 0 && !tightBefore)
         {
@@ -413,10 +412,10 @@ internal static class PlcBuilderToolJson
         builder.Symbol(symN.ToString());
         lastTokenText = null;
       }
-      else if (item["token"] is JsonNode tokN)
+      else if (item["token"] is { } tokN)
       {
         var t = tokN.ToString();
-        tightBefore = t == ")" || t == "," || t == ";";
+        tightBefore = t is ")" or "," or ";";
         if (k > 0 && !tightBefore)
         {
           builder.Blank();
@@ -425,7 +424,7 @@ internal static class PlcBuilderToolJson
         builder.Token(t);
         lastTokenText = t;
       }
-      else if (item["lit"] is JsonNode litN)
+      else if (item["lit"] is { } litN)
       {
         if (k > 0)
         {
@@ -435,14 +434,14 @@ internal static class PlcBuilderToolJson
         builder.LiteralConstant(litN.ToString());
         lastTokenText = null;
       }
-      else if (item["raw"] is JsonNode rawN)
+      else if (item["raw"] is { } rawN)
       {
         builder.Token(rawN.ToString()); // 不自动加 Blank
         lastTokenText = rawN.ToString();
       }
       else
       {
-        throw new ArgumentException("$.operations[" + opIndex + "].items[" + k + "] 需要 sym / token / lit / raw 之一");
+        throw new ArgumentException($"$.operations[{opIndex}].items[{k}] 需要 sym / token / lit / raw 之一");
       }
     }
 
@@ -457,10 +456,10 @@ internal static class PlcBuilderToolJson
 
   private static FlgNetCallParameter ReadFlgNetParameter(JsonObject parameter, int index)
   {
-    var name = PlcBuilderToolJson.ReadString(parameter, "$.parameters[" + index + "].name", "parameterName", "name");
-    var section = PlcBuilderToolJson.ReadString(parameter, "$.parameters[" + index + "].section", "section");
+    var name = PlcBuilderToolJson.ReadString(parameter, $"$.parameters[{index}].name", "parameterName", "name");
+    var section = PlcBuilderToolJson.ReadString(parameter, $"$.parameters[{index}].section", "section");
     var dataType = PlcBuilderToolJson.ReadString(parameter,
-      "$.parameters[" + index + "].dataType",
+      $"$.parameters[{index}].dataType",
       "dataType",
       "datatype",
       "type");
@@ -471,48 +470,50 @@ internal static class PlcBuilderToolJson
       return FlgNetCallParameter.Constant(name,
         section,
         dataType,
-        PlcBuilderToolJson.ReadString(parameter, "$.parameters[" + index + "].value", "value", "constantValue"));
+        PlcBuilderToolJson.ReadString(parameter, $"$.parameters[{index}].value", "value", "constantValue"));
     }
 
-    var path = parameter["symbolPath"] as JsonArray;
-    if (path != null)
+    if (parameter["symbolPath"] is JsonArray path)
     {
       return FlgNetCallParameter.Global(name,
         section,
         dataType,
-        path.Select(x => x?.ToString() ?? "").Where(x => !string.IsNullOrWhiteSpace(x)).ToArray());
+        [.. path.Select(x => x?.ToString() ?? "").Where(x => !string.IsNullOrWhiteSpace(x)),]);
     }
 
     var symbol =
-      PlcBuilderToolJson.ReadString(parameter, "$.parameters[" + index + "].symbol", "symbol", "path", "plcTag");
+      PlcBuilderToolJson.ReadString(parameter, $"$.parameters[{index}].symbol", "symbol", "path", "plcTag");
     return FlgNetCallParameter.Global(name,
       section,
       dataType,
-      symbol.Split(new[] { '.', }, StringSplitOptions.RemoveEmptyEntries));
+      symbol.Split(['.',], StringSplitOptions.RemoveEmptyEntries));
   }
 
   private static PlcBlockMemberDefinition[] ReadMembers(JsonObject root, string arrayName, string path)
   {
-    return PlcBuilderToolJson.ReadArray(root, arrayName, path).Select((x, i) =>
-    {
-      var member = PlcBuilderToolJson.AsObject(x, path + "[" + i + "]");
-      return new PlcBlockMemberDefinition(PlcBuilderToolJson.ReadString(member, path + "[" + i + "].name", "name"),
-        PlcBuilderToolJson.ReadString(member, path + "[" + i + "].datatype", "datatype", "dataType"),
-        PlcBuilderToolJson.ReadOptionalString(member, "commentZhCn", "comment", "commentZh"));
-    }).ToArray();
+    return
+    [
+      .. PlcBuilderToolJson.ReadArray(root, arrayName, path).Select((x, i) =>
+      {
+        var member = PlcBuilderToolJson.AsObject(x, $"{path}[{i}]");
+        return new PlcBlockMemberDefinition(PlcBuilderToolJson.ReadString(member, $"{path}[{i}].name", "name"),
+          PlcBuilderToolJson.ReadString(member, $"{path}[{i}].datatype", "datatype", "dataType"),
+          PlcBuilderToolJson.ReadOptionalString(member, "commentZhCn", "comment", "commentZh"));
+      }),
+    ];
   }
 
   private static PlcBlockMemberDefinition[] ReadOptionalMembers(JsonObject root, string defaultArrayName,
-    string defaultPath, params string[] aliases)
+    string defaultPath, params string[]? aliases)
   {
-    var names = new[] { defaultArrayName, }.Concat(aliases ?? Array.Empty<string>()).ToArray();
+    var names = new[] { defaultArrayName, }.Concat(aliases ?? []).ToArray();
     var foundName = names.FirstOrDefault(name => root[name] is JsonArray);
     if (foundName == null)
     {
-      return Array.Empty<PlcBlockMemberDefinition>();
+      return [];
     }
 
-    return PlcBuilderToolJson.ReadMembers(root, foundName, "$." + foundName);
+    return PlcBuilderToolJson.ReadMembers(root, foundName, $"$.{foundName}");
   }
 
   private static string ReadStructuredTextInnerXml(JsonObject root)
@@ -546,7 +547,7 @@ internal static class PlcBuilderToolJson
       try
       {
         // StructuredText inner XML 是供 Block Composer 嵌入的片段，允许多个同级节点。
-        XDocument.Parse("<Fragment>" + xml + "</Fragment>");
+        XDocument.Parse($"<Fragment>{xml}</Fragment>");
       }
       catch
       {
@@ -577,7 +578,7 @@ internal static class PlcBuilderToolJson
   {
     if (string.IsNullOrWhiteSpace(json))
     {
-      throw new ArgumentException("Missing required JSON object: " + path);
+      throw new ArgumentException($"Missing required JSON object: {path}");
     }
 
     var node = JsonNode.Parse(json);
@@ -585,17 +586,17 @@ internal static class PlcBuilderToolJson
   }
 
   private static JsonObject AsObject(JsonNode? node, string path) =>
-    node as JsonObject ?? throw new ArgumentException("Expected JSON object at " + path);
+    node as JsonObject ?? throw new ArgumentException($"Expected JSON object at {path}");
 
   private static JsonArray ReadArray(JsonObject root, string name, string path) =>
-    root[name] as JsonArray ?? throw new ArgumentException("Missing required JSON array: " + path);
+    root[name] as JsonArray ?? throw new ArgumentException($"Missing required JSON array: {path}");
 
   private static string ReadString(JsonObject root, string path, params string[] names)
   {
     var value = PlcBuilderToolJson.ReadOptionalString(root, names);
     if (string.IsNullOrWhiteSpace(value))
     {
-      throw new ArgumentException("Missing required JSON string: " + path);
+      throw new ArgumentException($"Missing required JSON string: {path}");
     }
 
     return value;
@@ -619,7 +620,7 @@ internal static class PlcBuilderToolJson
     var value = PlcBuilderToolJson.ReadOptionalInt(root, names);
     if (!value.HasValue)
     {
-      throw new ArgumentException("Missing required JSON integer: " + path);
+      throw new ArgumentException($"Missing required JSON integer: {path}");
     }
 
     return value.Value;
@@ -663,11 +664,8 @@ internal static class PlcBuilderToolJson
       return boolValue;
     }
 
-    if (bool.TryParse(node.ToString(), out var parsed))
-    {
-      return parsed;
-    }
-
-    throw new ArgumentException("Expected JSON boolean at property '" + name + "'.");
+    return bool.TryParse(node.ToString(), out var parsed)
+      ? parsed
+      : throw new ArgumentException($"Expected JSON boolean at property '{name}'.");
   }
 }

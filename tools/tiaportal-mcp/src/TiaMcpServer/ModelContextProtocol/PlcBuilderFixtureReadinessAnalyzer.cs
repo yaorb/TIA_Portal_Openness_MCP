@@ -22,29 +22,29 @@ namespace TiaMcpServer.ModelContextProtocol;
 public static class PlcBuilderFixtureReadinessAnalyzer
 {
   private static readonly FixtureRule[] RequiredFixtures =
-  {
-    new("udt", "UDT_Fault.xml", Array.Empty<string>(), "UDT/PLC 数据类型金样本", new[] { "SW.Types.PlcStruct", }),
+  [
+    new("udt", "UDT_Fault.xml", [], "UDT/PLC 数据类型金样本", ["SW.Types.PlcStruct",]),
     new("tag-table",
       "TagTable_StartStop.xml",
-      Array.Empty<string>(),
+      [],
       "PLC 变量表金样本",
-      new[] { "SW.Tags.PlcTagTable", "SW.Tags.PlcTag", }),
+      ["SW.Tags.PlcTagTable", "SW.Tags.PlcTag",]),
     new("scl-fc",
       "FC_StartStop.xml",
-      Array.Empty<string>(),
+      [],
       "SCL FC 金样本",
-      new[] { "SW.Blocks.FC", "StructuredText", }),
+      ["SW.Blocks.FC", "StructuredText",]),
     new("lad-flgnet",
       Path.Combine("..", "Source", "5T车", "Blocks", "01_手动控制", "FC控制", "05-故障保护.xml"),
-      new[] { Path.Combine("Limit_Protect_roundtrip.xml", "Limit_Protect.xml"), },
+      [Path.Combine("Limit_Protect_roundtrip.xml", "Limit_Protect.xml"),],
       "LAD/FlgNet 金样本",
-      new[] { "SW.Blocks.FC", "FlgNet", }),
+      ["SW.Blocks.FC", "FlgNet",]),
     new("global-db",
       Path.Combine("Sim_Data_roundtrip.xml", "Sim_Data.xml"),
-      Array.Empty<string>(),
+      [],
       "全局 DB 金样本",
-      new[] { "SW.Blocks.GlobalDB", }),
-  };
+      ["SW.Blocks.GlobalDB",]),
+  ];
 
   public static JsonObject Analyze(string fixtureDirectory)
   {
@@ -64,7 +64,7 @@ public static class PlcBuilderFixtureReadinessAnalyzer
 
     var results = PlcBuilderFixtureReadinessAnalyzer.RequiredFixtures
       .Select(rule => PlcBuilderFixtureReadinessAnalyzer.AnalyzeFixture(fixtureDirectory, rule)).ToList();
-    root["fixtures"] = new JsonArray(results.Select(x => x.Json).ToArray());
+    root["fixtures"] = new JsonArray([.. results.Select(x => x.Json),]);
     root["summary"] = new JsonObject
     {
       ["required"] = PlcBuilderFixtureReadinessAnalyzer.RequiredFixtures.Length,
@@ -80,8 +80,8 @@ public static class PlcBuilderFixtureReadinessAnalyzer
   {
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var jsonPath = Path.Combine(reportDirectory, "plc_builder_fixture_readiness_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "plc_builder_fixture_readiness_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"plc_builder_fixture_readiness_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"plc_builder_fixture_readiness_{stamp}.md");
 
     File.WriteAllText(jsonPath,
       root.ToJsonString(new JsonSerializerOptions
@@ -95,13 +95,13 @@ public static class PlcBuilderFixtureReadinessAnalyzer
     root["markdownPath"] = mdPath;
   }
 
-  public static string BuildMarkdown(JsonObject root, string jsonPath)
+  private static string BuildMarkdown(JsonObject root, string jsonPath)
   {
     var md = new StringBuilder();
     md.AppendLine("# PLC Builder Fixture Readiness");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线只读检查，不连接 TIA Portal，不打开项目，不导入 PLC 对象。");
@@ -110,10 +110,9 @@ public static class PlcBuilderFixtureReadinessAnalyzer
 
     var summary = root["summary"] as JsonObject;
     md.AppendLine("## Summary");
-    md.AppendLine("- Fixture directory: " + root["fixtureDirectory"]);
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Required: " + summary?["required"] + ", pass: " + summary?["pass"] + ", fail: " +
-      summary?["fail"]);
+    md.AppendLine($"- Fixture directory: {root["fixtureDirectory"]}");
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Required: {summary?["required"]}, pass: {summary?["pass"]}, fail: {summary?["fail"]}");
     md.AppendLine();
 
     md.AppendLine("## Fixtures");
@@ -121,15 +120,15 @@ public static class PlcBuilderFixtureReadinessAnalyzer
     {
       foreach (var node in fixtures.OfType<JsonObject>())
       {
-        md.AppendLine("- " + node["id"] + " / " + node["title"] + ": " + node["status"]);
-        md.AppendLine("  - path: " + node["path"]);
-        md.AppendLine("  - required markers: " + string.Join(", ",
-          (node["requiredMarkers"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString())));
-        md.AppendLine("  - detected markers: " + string.Join(", ",
-          (node["detectedMarkers"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString())));
+        md.AppendLine($"- {node["id"]} / {node["title"]}: {node["status"]}");
+        md.AppendLine($"  - path: {node["path"]}");
+        md.AppendLine($"  - required markers: {string.Join(", ",
+          (node["requiredMarkers"] as JsonArray ?? []).Select(x => x?.ToString()))}");
+        md.AppendLine($"  - detected markers: {string.Join(", ",
+          (node["detectedMarkers"] as JsonArray ?? []).Select(x => x?.ToString()))}");
         if (!string.IsNullOrWhiteSpace(node["error"]?.ToString()))
         {
-          md.AppendLine("  - error: " + node["error"]);
+          md.AppendLine($"  - error: {node["error"]}");
         }
       }
     }
@@ -137,12 +136,14 @@ public static class PlcBuilderFixtureReadinessAnalyzer
     md.AppendLine();
 
     md.AppendLine("## Next Builder Scope");
-    if (root["nextBuilderScope"] is JsonArray steps)
+    if (root["nextBuilderScope"] is not JsonArray steps)
     {
-      foreach (var step in steps)
-      {
-        md.AppendLine("- " + step);
-      }
+      return md.ToString();
+    }
+
+    foreach (var step in steps)
+    {
+      md.AppendLine($"- {step}");
     }
 
     return md.ToString();
@@ -159,8 +160,8 @@ public static class PlcBuilderFixtureReadinessAnalyzer
       ["title"] = rule.Title,
       ["relativePath"] = rule.RelativePath,
       ["path"] = path,
-      ["attemptedPaths"] = new JsonArray(attemptedPaths.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray()),
-      ["requiredMarkers"] = new JsonArray(rule.RequiredMarkers.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray()),
+      ["attemptedPaths"] = new JsonArray(attemptedPaths.Select(JsonNode? (x) => JsonValue.Create(x)).ToArray()),
+      ["requiredMarkers"] = new JsonArray(rule.RequiredMarkers.Select(JsonNode? (x) => JsonValue.Create(x)).ToArray()),
     };
 
     if (!File.Exists(path))
@@ -180,7 +181,7 @@ public static class PlcBuilderFixtureReadinessAnalyzer
       var text = File.ReadAllText(path, Encoding.UTF8);
       var doc = XDocument.Parse(text, LoadOptions.PreserveWhitespace | LoadOptions.SetLineInfo);
       var localNames = (doc.Root == null
-        ? Enumerable.Empty<XElement>()
+        ? []
         : doc.Root.DescendantsAndSelf()).Select(x => x.Name.LocalName).Distinct(StringComparer.Ordinal).ToList();
       var detected = rule.RequiredMarkers
         .Where(marker => PlcBuilderFixtureReadinessAnalyzer.HasMarker(text, localNames, marker)).ToArray();
@@ -196,11 +197,13 @@ public static class PlcBuilderFixtureReadinessAnalyzer
       json["networkSourceCount"] = doc.Descendants().Count(x => x.Name.LocalName == "NetworkSource");
       json["compileUnitCount"] = doc.Descendants().Count(x => x.Name.LocalName == "SW.Blocks.CompileUnit");
 
-      if (detected.Length != rule.RequiredMarkers.Length)
+      if (detected.Length == rule.RequiredMarkers.Length)
       {
-        var missing = rule.RequiredMarkers.Except(detected, StringComparer.Ordinal).ToArray();
-        json["error"] = "缺少结构标记: " + string.Join(", ", missing);
+        return new FixtureResult(detected.Length == rule.RequiredMarkers.Length, json);
       }
+
+      var missing = rule.RequiredMarkers.Except(detected, StringComparer.Ordinal).ToArray();
+      json["error"] = $"缺少结构标记: {string.Join(", ", missing)}";
 
       return new FixtureResult(detected.Length == rule.RequiredMarkers.Length, json);
     }
@@ -217,27 +220,27 @@ public static class PlcBuilderFixtureReadinessAnalyzer
   {
     if (results.Any(x => !x.Ok))
     {
-      return new JsonArray
-      {
+      return
+      [
         "先补齐或修正失败金样本，避免后续 Builder 在错误样本上开发。",
         "修正后重新运行 --generate-plc-builder-fixture-readiness，全部 PASS 后再进入 XML Builder 实现。",
-      };
+      ];
     }
 
-    return new JsonArray
-    {
+    return
+    [
       "第一步实现 BuildUdtXml 或 BuildPlcTagTableXml，并使用本报告中的 UDT/变量表样本做 XML 解析回归。",
       "第二步实现 StructuredTextBuilder，只覆盖赋值、IF、调用、变量访问的最小集合。",
       "第三步再处理 FlgNetBuilder，必须用 LAD/FlgNet 金样本验证 Wire、NameCon、IdentCon 引用闭合。",
-    };
+    ];
   }
 
   private static bool HasMarker(string xmlText, IReadOnlyCollection<string> localNames, string marker)
   {
     if (marker.StartsWith("SW.", StringComparison.Ordinal))
     {
-      return xmlText.IndexOf("<" + marker, StringComparison.Ordinal) >= 0 ||
-        xmlText.IndexOf("</" + marker, StringComparison.Ordinal) >= 0;
+      return xmlText.IndexOf($"<{marker}", StringComparison.Ordinal) >= 0 ||
+        xmlText.IndexOf($"</{marker}", StringComparison.Ordinal) >= 0;
     }
 
     return localNames.Contains(marker);
@@ -245,7 +248,8 @@ public static class PlcBuilderFixtureReadinessAnalyzer
 
   private static string ResolveFirstExistingFixturePath(string fixtureDirectory, IEnumerable<string> relativePaths)
   {
-    foreach (var relativePath in relativePaths)
+    var enumerable = relativePaths as string[] ?? [.. relativePaths,];
+    foreach (var relativePath in enumerable)
     {
       var path = Path.GetFullPath(Path.Combine(fixtureDirectory, relativePath));
       if (File.Exists(path))
@@ -254,7 +258,7 @@ public static class PlcBuilderFixtureReadinessAnalyzer
       }
     }
 
-    return Path.GetFullPath(Path.Combine(fixtureDirectory, relativePaths.First()));
+    return Path.GetFullPath(Path.Combine(fixtureDirectory, enumerable.First()));
   }
 
   private static string Sha256(string path)
@@ -264,34 +268,24 @@ public static class PlcBuilderFixtureReadinessAnalyzer
     return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
   }
 
-  private sealed class FixtureRule
+  private sealed class FixtureRule(
+    string id,
+    string relativePath,
+    string[] alternativeRelativePaths,
+    string title,
+    string[] requiredMarkers
+  )
   {
-    public FixtureRule(string id, string relativePath, string[] alternativeRelativePaths, string title,
-      string[] requiredMarkers)
-    {
-      this.Id = id;
-      this.RelativePath = relativePath;
-      this.AlternativeRelativePaths = alternativeRelativePaths;
-      this.Title = title;
-      this.RequiredMarkers = requiredMarkers;
-    }
-
-    public string Id { get; }
-    public string RelativePath { get; }
-    public string[] AlternativeRelativePaths { get; }
-    public string Title { get; }
-    public string[] RequiredMarkers { get; }
+    public string Id { get; } = id;
+    public string RelativePath { get; } = relativePath;
+    public string[] AlternativeRelativePaths { get; } = alternativeRelativePaths;
+    public string Title { get; } = title;
+    public string[] RequiredMarkers { get; } = requiredMarkers;
   }
 
-  private sealed class FixtureResult
+  private sealed class FixtureResult(bool ok, JsonObject json)
   {
-    public FixtureResult(bool ok, JsonObject json)
-    {
-      this.Ok = ok;
-      this.Json = json;
-    }
-
-    public bool Ok { get; }
-    public JsonObject Json { get; }
+    public bool Ok { get; } = ok;
+    public JsonObject Json { get; } = json;
   }
 }

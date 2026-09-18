@@ -13,7 +13,7 @@ using Microsoft.Win32;
 namespace TiaMcpServer.Siemens;
 
 // Manual Siemens.Engineering.dll resolve
-public class Engineering
+public static class Engineering
 {
   public static int TiaMajorVersion { get; set; }
 
@@ -50,8 +50,8 @@ public class Engineering
     };
 
     // IEnumerable without given majorVersionString
-    var excludedTiaMajorVersions =
-      new[] { "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20", }.Where(v => v != $"V{tiaMajorVersionString}");
+    var excludedTiaMajorVersions = new[] { "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20", }
+      .Where(v => v != $"V{tiaMajorVersionString}").ToList();
 
     foreach (var dir in searchDirectories)
     {
@@ -125,6 +125,7 @@ public class Engineering
     }
     catch
     {
+      // ignored
     }
 
     // 3. Filesystem scan
@@ -147,6 +148,7 @@ public class Engineering
     }
     catch
     {
+      // ignored
     }
 
     return candidates.Count > 0
@@ -186,8 +188,8 @@ public class Engineering
     {
       Path.Combine(installPath, "PublicAPI", $"V{versionString}"), Path.Combine(installPath, "Bin", "PublicAPI"),
     };
-    var excluded =
-      new[] { "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20", }.Where(v => v != $"V{versionString}");
+    var excluded = new[] { "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20", }
+      .Where(v => v != $"V{versionString}").ToList();
 
     // V20 ships the monolithic Siemens.Engineering.dll; V21 splits it into
     // Siemens.Engineering.Base/Step7/... — either one proves Openness is present.
@@ -283,15 +285,16 @@ public class Engineering
       return filePath;
     }
 
+    var tmpExcludedTiaMajorVersions = excludedTiaMajorVersions.ToList();
     foreach (var subDir in Directory.GetDirectories(directory))
     {
       var subDirName = new DirectoryInfo(subDir).Name;
-      if (excludedTiaMajorVersions.Contains(subDirName))
+      if (tmpExcludedTiaMajorVersions.Contains(subDirName))
       {
         continue;
       }
 
-      var result = Engineering.FindAssemblyRecursive(subDir, fileName, excludedTiaMajorVersions);
+      var result = Engineering.FindAssemblyRecursive(subDir, fileName, tmpExcludedTiaMajorVersions);
       if (result != null)
       {
         return result;

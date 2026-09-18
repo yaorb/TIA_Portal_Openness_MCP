@@ -22,7 +22,7 @@ public static class ReleaseDiagnosticReportBuilder
       throw new ArgumentNullException(nameof(suiteRoot));
     }
 
-    var items = suiteRoot["items"] as JsonArray ?? new JsonArray();
+    var items = suiteRoot["items"] as JsonArray ?? [];
     var reportIndex = ReleaseDiagnosticReportBuilder.BuildReportIndex(items);
     var failedItems = new JsonArray(reportIndex.OfType<JsonObject>().Where(x => x["ok"]?.GetValue<bool>() != true)
       .Select(x => x.DeepClone()).ToArray());
@@ -70,63 +70,63 @@ public static class ReleaseDiagnosticReportBuilder
     var md = new StringBuilder();
     md.AppendLine("# TIA MCP Release Diagnostics");
     md.AppendLine();
-    md.AppendLine("Generated: " + diagnostics["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {diagnostics["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Summary");
     var summary = diagnostics["summary"] as JsonObject ?? new JsonObject();
-    md.AppendLine("- Suite OK: " + diagnostics["suiteOk"]);
-    md.AppendLine("- Items: " + summary["itemCount"]);
-    md.AppendLine("- Passed: " + summary["passedItemCount"]);
-    md.AppendLine("- Failed: " + summary["failedItemCount"]);
-    md.AppendLine("- Blocking signals: " + summary["blockingSignalCount"]);
-    md.AppendLine("- Suite directory: " + diagnostics["suiteDirectory"]);
+    md.AppendLine($"- Suite OK: {diagnostics["suiteOk"]}");
+    md.AppendLine($"- Items: {summary["itemCount"]}");
+    md.AppendLine($"- Passed: {summary["passedItemCount"]}");
+    md.AppendLine($"- Failed: {summary["failedItemCount"]}");
+    md.AppendLine($"- Blocking signals: {summary["blockingSignalCount"]}");
+    md.AppendLine($"- Suite directory: {diagnostics["suiteDirectory"]}");
     md.AppendLine();
 
     md.AppendLine("## Safety Redlines");
-    foreach (var redline in diagnostics["safetyRedlines"] as JsonArray ?? new JsonArray())
+    foreach (var redline in diagnostics["safetyRedlines"] as JsonArray ?? [])
     {
-      md.AppendLine("- " + redline);
+      md.AppendLine($"- {redline}");
     }
 
     md.AppendLine();
 
     md.AppendLine("## Report Index");
-    foreach (var node in diagnostics["reportIndex"] as JsonArray ?? new JsonArray())
+    foreach (var node in diagnostics["reportIndex"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
         continue;
       }
 
-      md.AppendLine("- " + item["id"] + ": " + (item["ok"]?.GetValue<bool>() == true
+      md.AppendLine($"- {item["id"]}: {(item["ok"]?.GetValue<bool>() == true
         ? "PASS"
-        : "FAIL") + " (" + item["summary"] + ")");
+        : "FAIL")} ({item["summary"]})");
       if (!string.IsNullOrWhiteSpace(item["markdownPath"]?.ToString()))
       {
-        md.AppendLine("  - report: " + item["markdownPath"]);
+        md.AppendLine($"  - report: {item["markdownPath"]}");
       }
     }
 
     md.AppendLine();
 
     md.AppendLine("## Observations");
-    foreach (var node in diagnostics["observations"]?["items"] as JsonArray ?? new JsonArray())
+    foreach (var node in diagnostics["observations"]?["items"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
         continue;
       }
 
-      md.AppendLine("- " + item["id"] + ": " + item["status"] + " - " + item["detail"]);
+      md.AppendLine($"- {item["id"]}: {item["status"]} - {item["detail"]}");
     }
 
     md.AppendLine();
 
     md.AppendLine("## Next Actions");
-    foreach (var action in diagnostics["recommendedNextActions"] as JsonArray ?? new JsonArray())
+    foreach (var action in diagnostics["recommendedNextActions"] as JsonArray ?? [])
     {
-      md.AppendLine("- " + action);
+      md.AppendLine($"- {action}");
     }
 
     return md.ToString();
@@ -134,15 +134,17 @@ public static class ReleaseDiagnosticReportBuilder
 
   private static JsonArray BuildReportIndex(JsonArray items)
   {
-    return new JsonArray(items.OfType<JsonObject>().Select(item => new JsonObject
-    {
-      ["id"] = item["id"]?.ToString() ?? "",
-      ["title"] = item["title"]?.ToString() ?? "",
-      ["ok"] = item["ok"]?.GetValue<bool>() == true,
-      ["summary"] = item["summary"]?.ToString() ?? "",
-      ["markdownPath"] = item["markdownPath"]?.ToString() ?? "",
-      ["jsonPath"] = item["jsonPath"]?.ToString() ?? "",
-    }).ToArray());
+    return new JsonArray([
+      .. items.OfType<JsonObject>().Select(item => new JsonObject
+      {
+        ["id"] = item["id"]?.ToString() ?? "",
+        ["title"] = item["title"]?.ToString() ?? "",
+        ["ok"] = item["ok"]?.GetValue<bool>() == true,
+        ["summary"] = item["summary"]?.ToString() ?? "",
+        ["markdownPath"] = item["markdownPath"]?.ToString() ?? "",
+        ["jsonPath"] = item["jsonPath"]?.ToString() ?? "",
+      }),
+    ]);
   }
 
   private static JsonObject BuildObservations(JsonObject root)
@@ -171,19 +173,19 @@ public static class ReleaseDiagnosticReportBuilder
       applyBlocked > 0
         ? "blocked-by-design"
         : "clear",
-      "applyBlockedCount=" + applyBlocked,
+      $"applyBlockedCount={applyBlocked}",
       false);
     Add("hmi-action-api-discovery",
       apiDiscovery > 0
         ? "needs-api-discovery"
         : "clear",
-      "apiDiscoveryRequiredCount=" + apiDiscovery,
+      $"apiDiscoveryRequiredCount={apiDiscovery}",
       apiDiscovery > 0);
     Add("hmi-action-safe-candidates",
       safeCandidates > 0
         ? "ready"
         : "none",
-      "safeDeterministicApplyCandidateCount=" + safeCandidates,
+      $"safeDeterministicApplyCandidateCount={safeCandidates}",
       false);
 
     var hmiPlcSync = root["hmiTemplatePlcSyncPrecheck"] as JsonObject ?? new JsonObject();
@@ -193,7 +195,7 @@ public static class ReleaseDiagnosticReportBuilder
       blockedTemplates > 0
         ? "blocked"
         : "ready",
-      "readyTemplateCount=" + readyTemplates + ", blockedTemplateCount=" + blockedTemplates,
+      $"readyTemplateCount={readyTemplates}, blockedTemplateCount={blockedTemplates}",
       blockedTemplates > 0);
 
     var onlineSafety = root["onlineSafety"] as JsonObject ?? new JsonObject();
@@ -201,7 +203,7 @@ public static class ReleaseDiagnosticReportBuilder
       onlineSafety["ok"]?.GetValue<bool>() == true
         ? "pass"
         : "fail",
-      "checkedTools=" + onlineSafety["checkedTools"],
+      $"checkedTools={onlineSafety["checkedTools"]}",
       onlineSafety["ok"]?.GetValue<bool>() != true);
 
     return new JsonObject { ["blockingSignalCount"] = blocking, ["items"] = items, };
@@ -216,13 +218,13 @@ public static class ReleaseDiagnosticReportBuilder
       result.Add("先处理 failedItems 中的失败项；禁止把失败总套件作为可发布版本。");
     }
 
-    if ((observations["items"] as JsonArray ?? new JsonArray()).OfType<JsonObject>().Any(x =>
+    if ((observations["items"] as JsonArray ?? []).OfType<JsonObject>().Any(x =>
       x["id"]?.ToString() == "hmi-plc-sync" && x["blocking"]?.GetValue<bool>() == true))
     {
       result.Add("补齐 HMI 模板到真实 PLC tag/DB 成员的显式映射，再重新运行 PLC 同步预检。");
     }
 
-    if ((observations["items"] as JsonArray ?? new JsonArray()).OfType<JsonObject>().Any(x =>
+    if ((observations["items"] as JsonArray ?? []).OfType<JsonObject>().Any(x =>
       x["id"]?.ToString() == "hmi-action-api-discovery" && x["blocking"]?.GetValue<bool>() == true))
     {
       result.Add("用临时 TIA V21 工程发现并读回 WinCC Unified 导航/弹窗事件 API，再解除相关配方阻断。");
@@ -253,7 +255,7 @@ public static class ReleaseDiagnosticReportBuilder
           return;
         }
 
-        var childPath = path + "." + kv.Key;
+        var childPath = $"{path}.{kv.Key}";
         if (ReleaseDiagnosticReportBuilder.IsSignalKey(kv.Key) && kv.Value is JsonArray arr && arr.Count > 0)
         {
           output.Add(new JsonObject
@@ -280,12 +282,12 @@ public static class ReleaseDiagnosticReportBuilder
     {
       for (var i = 0; i < arr.Count && output.Count < limit; i++)
       {
-        ReleaseDiagnosticReportBuilder.CollectSignals(arr[i], path + "[" + i + "]", output, limit);
+        ReleaseDiagnosticReportBuilder.CollectSignals(arr[i], $"{path}[{i}]", output, limit);
       }
     }
   }
 
-  private static bool IsSignalKey(string key)
+  private static bool IsSignalKey(string? key)
   {
     var k = key ?? "";
     return k.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0 ||

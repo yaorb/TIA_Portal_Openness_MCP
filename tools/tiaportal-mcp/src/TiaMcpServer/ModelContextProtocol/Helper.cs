@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Siemens.Engineering;
 using Siemens.Engineering.SW.Blocks;
 
@@ -9,33 +10,35 @@ using Siemens.Engineering.SW.Blocks;
 
 namespace TiaMcpServer.ModelContextProtocol;
 
-public class Helper
+public static class Helper
 {
-  public static List<Attribute> GetAttributeList(IEngineeringObject obj)
+  public static List<Attribute> GetAttributeList(IEngineeringObject? obj)
   {
     var attributes = new List<Attribute>();
 
-    if (obj != null)
+    if (obj == null)
     {
-      foreach (var attr in obj.GetAttributeInfos())
-      {
-        object value;
-        try
-        {
-          value = obj.GetAttribute(attr.Name);
-        }
-        catch (Exception ex)
-        {
-          value = $"<unreadable: {ex.GetType().Name}>";
-        }
+      return attributes;
+    }
 
-        attributes.Add(new Attribute
-        {
-          Name = attr.Name,
-          Value = Helper.ToSerializableValue(value),
-          AccessMode = Enum.GetName(typeof(EngineeringAttributeAccessMode), attr.AccessMode),
-        });
+    foreach (var attr in obj.GetAttributeInfos())
+    {
+      object value;
+      try
+      {
+        value = obj.GetAttribute(attr.Name);
       }
+      catch (Exception ex)
+      {
+        value = $"<unreadable: {ex.GetType().Name}>";
+      }
+
+      attributes.Add(new Attribute
+      {
+        Name = attr.Name,
+        Value = Helper.ToSerializableValue(value),
+        AccessMode = Enum.GetName(typeof(EngineeringAttributeAccessMode), attr.AccessMode),
+      });
     }
 
     return attributes;
@@ -43,7 +46,7 @@ public class Helper
 
   // Convert non-primitive attribute values to a safe representation to avoid JSON cycle errors
   // (e.g. CultureInfo.Parent.Parent.Parent... chain triggers JsonException at depth 64).
-  private static object ToSerializableValue(object value)
+  private static object ToSerializableValue(object? value)
   {
     if (value == null)
     {
@@ -72,33 +75,26 @@ public class Helper
   {
     var groupInfo = new BlockGroupInfo { Name = group.Name, };
 
-    var blockList = new List<ResponseBlockInfo>();
-    foreach (var block in group.Blocks)
+    var blockList = (from block in @group.Blocks
+    let attributes = Helper.GetAttributeList(block)
+    select new ResponseBlockInfo
     {
-      var attributes = Helper.GetAttributeList(block);
-      blockList.Add(new ResponseBlockInfo
-      {
-        Name = block.Name,
-        TypeName = block.GetType().Name,
-        Namespace = block.Namespace,
-        ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
-        MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
-        IsConsistent = block.IsConsistent,
-        HeaderName = block.HeaderName,
-        ModifiedDate = block.ModifiedDate,
-        IsKnowHowProtected = block.IsKnowHowProtected,
-        Attributes = attributes,
-        Description = block.ToString(),
-      });
-    }
+      Name = block.Name,
+      TypeName = block.GetType().Name,
+      Namespace = block.Namespace,
+      ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
+      MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
+      IsConsistent = block.IsConsistent,
+      HeaderName = block.HeaderName,
+      ModifiedDate = block.ModifiedDate,
+      IsKnowHowProtected = block.IsKnowHowProtected,
+      Attributes = attributes,
+      Description = block.ToString(),
+    }).ToList();
 
     groupInfo.Blocks = blockList;
 
-    var groupList = new List<BlockGroupInfo>();
-    foreach (var subGroup in group.Groups)
-    {
-      groupList.Add(Helper.BuildBlockHierarchy(subGroup));
-    }
+    var groupList = group.Groups.Select(Helper.BuildBlockHierarchy).ToList();
 
     groupInfo.Groups = groupList;
 

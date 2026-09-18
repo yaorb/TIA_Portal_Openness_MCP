@@ -255,7 +255,7 @@ public partial class Program
     Program.LogDiag("HMI action script recipe safety self-test:");
     Program.LogDiag("OK: " + root["ok"]);
     Program.LogDiag("Cases: " + root["caseCount"]);
-    foreach (var node in root["cases"] as JsonArray ?? new JsonArray())
+    foreach (var node in root["cases"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
@@ -282,7 +282,7 @@ public partial class Program
     var jsonPath = Path.Combine(reportDir, "hmi_template_layout_probe_" + stamp + ".json");
     var mdPath = Path.Combine(reportDir, "hmi_template_layout_probe_" + stamp + ".md");
     var root = HmiTemplateLayoutAnalyzer.AnalyzeDirectory(templateDir, TemplateExecutionJsonBuilds);
-    var results = root["results"] as JsonArray ?? new JsonArray();
+    var results = root["results"] as JsonArray ?? [];
     var failed = Convert.ToInt32(root["failed"]?.ToString() ?? "0");
     var warningCount = Convert.ToInt32(root["warnings"]?.ToString() ?? "0");
     var templateCount = Convert.ToInt32(root["templateCount"]?.ToString() ?? "0");
@@ -333,7 +333,7 @@ public partial class Program
     bool TemplateExecutionJsonBuilds(string templateFile)
     {
       var templateRoot = JsonNode.Parse(File.ReadAllText(templateFile, Encoding.UTF8)) as JsonObject;
-      var items = (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? new JsonArray()).Count;
+      var items = (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? []).Count;
       var screen = templateRoot?["Screen"] as JsonObject ?? templateRoot?["screen"] as JsonObject ?? new JsonObject();
       var width = int.TryParse((screen["Width"] ?? screen["width"])?.ToString(), out var parsedWidth)
         ? parsedWidth
@@ -413,7 +413,7 @@ public partial class Program
     tagXml = tagXml.Replace("<Name>Speed_Set</Name>", "<Name>Speed_Set_Deleted</Name>");
     File.WriteAllText(badTagPath, tagXml, Encoding.UTF8);
     File.WriteAllText(Path.Combine(badDir, "Bad_manifest.json"),
-      @"{""format"":""probe-bad-case"",""tagTableXmlPath"":""Bad_TagTable.xml"",""screenXmlPath"":""Bad_Screen.xml""}",
+      """{"format":"probe-bad-case","tagTableXmlPath":"Bad_TagTable.xml","screenXmlPath":"Bad_Screen.xml"}""",
       Encoding.UTF8);
     var validateBad = ClassicHmiMinimalPackageBuilder.ValidateFiles(badDir);
 
@@ -615,82 +615,94 @@ public partial class Program
   }
 
   private static string BuildClassicHmiMinimalPackageProbeJson() =>
-    @"{
-  ""Name"": ""Classic_Motor_ValidateProbe"",
-  ""TagTable"": {
-    ""Name"": ""Motor_HMI_Tags"",
-    ""Tags"": [
-      {""Name"":""Motor_Start"",""DataType"":""Bool"",""Length"":""1"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.Motor.Start""},
-      {""Name"":""Motor_Run"",""DataType"":""Bool"",""Length"":""1"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.Motor.Run""},
-      {""Name"":""Speed_Set"",""DataType"":""Int"",""Length"":""2"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.SpeedSet""}
-    ]
-  },
-  ""ScreenDesign"": {
-    ""Screen"": {""Name"":""Motor_Main"",""Width"":640,""Height"":480},
-    ""Items"": [
-      {""Type"":""Text"",""Name"":""Title"",""Left"":20,""Top"":20,""Width"":260,""Height"":36,""Text"":{""zh-CN"":""电机控制""}},
-      {""Type"":""Button"",""Name"":""Btn_Start"",""Left"":20,""Top"":82,""Width"":130,""Height"":46,""Text"":{""zh-CN"":""启动""},""Actions"":[
-        {""Event"":""Press"",""ActionKind"":""SetBit"",""TargetTag"":""Motor_Start""},
-        {""Event"":""Release"",""ActionKind"":""ResetBit"",""TargetTag"":""Motor_Start""}
-      ]},
-      {""Type"":""Lamp"",""Name"":""Lamp_Run"",""Left"":180,""Top"":86,""Width"":42,""Height"":42,""Tag"":""Motor_Run""},
-      {""Type"":""IOField"",""Name"":""IO_Speed"",""Left"":20,""Top"":154,""Width"":140,""Height"":38,""ProcessValueTag"":""Speed_Set""}
-    ]
-  }
-}";
+    """
+    {
+      "Name": "Classic_Motor_ValidateProbe",
+      "TagTable": {
+        "Name": "Motor_HMI_Tags",
+        "Tags": [
+          {"Name":"Motor_Start","DataType":"Bool","Length":"1","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.Motor.Start"},
+          {"Name":"Motor_Run","DataType":"Bool","Length":"1","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.Motor.Run"},
+          {"Name":"Speed_Set","DataType":"Int","Length":"2","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.SpeedSet"}
+        ]
+      },
+      "ScreenDesign": {
+        "Screen": {"Name":"Motor_Main","Width":640,"Height":480},
+        "Items": [
+          {"Type":"Text","Name":"Title","Left":20,"Top":20,"Width":260,"Height":36,"Text":{"zh-CN":"电机控制"}},
+          {"Type":"Button","Name":"Btn_Start","Left":20,"Top":82,"Width":130,"Height":46,"Text":{"zh-CN":"启动"},"Actions":[
+            {"Event":"Press","ActionKind":"SetBit","TargetTag":"Motor_Start"},
+            {"Event":"Release","ActionKind":"ResetBit","TargetTag":"Motor_Start"}
+          ]},
+          {"Type":"Lamp","Name":"Lamp_Run","Left":180,"Top":86,"Width":42,"Height":42,"Tag":"Motor_Run"},
+          {"Type":"IOField","Name":"IO_Speed","Left":20,"Top":154,"Width":140,"Height":38,"ProcessValueTag":"Speed_Set"}
+        ]
+      }
+    }
+    """;
 
   private static string BuildClassicHmiMinimalPackageProbePlcSymbolsJson(bool includeSpeedSet) =>
     includeSpeedSet
-      ? @"[
-  ""DB1_MotorData.Motor.Start"",
-  ""DB1_MotorData.Motor.Run"",
-  ""DB1_MotorData.SpeedSet""
-]"
-      : @"[
-  ""DB1_MotorData.Motor.Start"",
-  ""DB1_MotorData.Motor.Run""
-]";
+      ? """
+        [
+          "DB1_MotorData.Motor.Start",
+          "DB1_MotorData.Motor.Run",
+          "DB1_MotorData.SpeedSet"
+        ]
+        """
+      : """
+        [
+          "DB1_MotorData.Motor.Start",
+          "DB1_MotorData.Motor.Run"
+        ]
+        """;
 
   private static string BuildClassicHmiMinimalPackageProbePlcTagTableXml() =>
-    @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <SW.Tags.PlcTagTable ID=""0"">
-    <AttributeList><Name>MotorTags</Name></AttributeList>
-    <ObjectList>
-      <SW.Tags.PlcTag ID=""1"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""2"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
-    </ObjectList>
-  </SW.Tags.PlcTagTable>
-</Document>";
+    """
+    <?xml version="1.0" encoding="utf-8"?>
+    <Document>
+      <Engineering version="V21" />
+      <SW.Tags.PlcTagTable ID="0">
+        <AttributeList><Name>MotorTags</Name></AttributeList>
+        <ObjectList>
+          <SW.Tags.PlcTag ID="1" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
+          <SW.Tags.PlcTag ID="2" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
+        </ObjectList>
+      </SW.Tags.PlcTagTable>
+    </Document>
+    """;
 
   private static string BuildClassicHmiMinimalPackageProbePlcDbXml(bool includeSpeedSet)
   {
     var speedSet = includeSpeedSet
-      ? @"            <Member Name=""SpeedSet"" Datatype=""Int"" />"
+      ? """            <Member Name="SpeedSet" Datatype="Int" />"""
       : "";
-    return @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <SW.Blocks.GlobalDB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Static"">
-            <Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"">
-              <Member Name=""Start"" Datatype=""Bool"" />
-              <Member Name=""Run"" Datatype=""Bool"" />
-            </Member>
-" + speedSet + @"
-          </Section>
-        </Sections>
-      </Interface>
-      <Name>DB1_MotorData</Name>
-      <Number>1</Number>
-      <ProgrammingLanguage>DB</ProgrammingLanguage>
-    </AttributeList>
-  </SW.Blocks.GlobalDB>
-</Document>";
+    return """
+           <?xml version="1.0" encoding="utf-8"?>
+           <Document>
+             <Engineering version="V21" />
+             <SW.Blocks.GlobalDB ID="0">
+               <AttributeList>
+                 <Interface>
+                   <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                     <Section Name="Static">
+                       <Member Name="Motor" Datatype="&quot;UDT_Motor&quot;">
+                         <Member Name="Start" Datatype="Bool" />
+                         <Member Name="Run" Datatype="Bool" />
+                       </Member>
+
+           """ + speedSet + """
+
+                                      </Section>
+                                    </Sections>
+                                  </Interface>
+                                  <Name>DB1_MotorData</Name>
+                                  <Number>1</Number>
+                                  <ProgrammingLanguage>DB</ProgrammingLanguage>
+                                </AttributeList>
+                              </SW.Blocks.GlobalDB>
+                            </Document>
+                            """;
   }
 
   private static string BuildClassicHmiMinimalPackageProbeMarkdown(JsonObject root, string jsonPath)
@@ -969,7 +981,7 @@ public partial class Program
     {
       var tables = McpServer.GetPlcWatchTables(softwarePath);
       root["watchTables"] =
-        new JsonArray((tables.Items ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray());
+        new JsonArray([.. (tables.Items ?? []).Select(x => JsonValue.Create(x)),]);
     }
     catch (Exception ex)
     {
@@ -983,14 +995,15 @@ public partial class Program
       {
         ["message"] = export.Message ?? "",
         ["exported"] =
-          new JsonArray((export.Imported ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+          new JsonArray([.. (export.Imported ?? []).Select(x => JsonValue.Create(x)),]),
         ["exportedSummary"] =
-          new JsonArray((export.Imported ?? Array.Empty<string>()).Select(Program.AnalyzeExportedWatchTableXml)
-            .ToArray()),
-        ["failed"] = new JsonArray((export.Failed ?? Array.Empty<ImportFailure>()).Select(x => new JsonObject
-        {
-          ["path"] = x.Path ?? "", ["error"] = x.Error ?? "",
-        }).ToArray()),
+          new JsonArray([.. (export.Imported ?? []).Select(Program.AnalyzeExportedWatchTableXml),]),
+        ["failed"] = new JsonArray([
+          .. (export.Failed ?? []).Select(x => new JsonObject
+          {
+            ["path"] = x.Path ?? "", ["error"] = x.Error ?? "",
+          }),
+        ]),
       };
     }
     catch (Exception ex)
@@ -1012,7 +1025,7 @@ public partial class Program
 
     try
     {
-      var tableNames = (root["watchTables"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString() ?? "")
+      var tableNames = (root["watchTables"] as JsonArray ?? []).Select(x => x?.ToString() ?? "")
         .Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
       var selectedTable = tableNames.FirstOrDefault(x =>
           string.IsNullOrWhiteSpace(regexName) || Regex.IsMatch(x, regexName, RegexOptions.IgnoreCase)) ??
@@ -1020,7 +1033,7 @@ public partial class Program
 
       if (!string.IsNullOrWhiteSpace(selectedTable))
       {
-        var read = McpServer.ReadPlcWatchTableCurrentValuesReadOnly(softwarePath, selectedTable!);
+        var read = McpServer.ReadPlcWatchTableCurrentValuesReadOnly(softwarePath, selectedTable);
         root["onlineCurrentValueRead"] = read.Data ?? new JsonObject();
         root["onlineCurrentValueReadOk"] = read.Ok == true;
         root["onlineCurrentValueReadMessage"] = read.Message ?? "";
@@ -1204,7 +1217,7 @@ public partial class Program
         ["versionUsed"] = hmi.VersionUsed ?? "",
         ["error"] = hmi.Error ?? "",
         ["attempts"] =
-          new JsonArray((hmi.Attempts ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+          new JsonArray([.. (hmi.Attempts ?? []).Select(x => JsonValue.Create(x)),]),
       };
       if (hmi.Ok != true)
       {
@@ -1230,8 +1243,8 @@ public partial class Program
         40);
       root["import"] = Program.GlobalLibraryImportToJson(import);
 
-      var screens = McpServer.GetHmiScreens("HMI_RT_1").Items?.ToArray() ?? Array.Empty<string>();
-      root["screenReadback"] = new JsonArray(screens.Select(x => JsonValue.Create(x)).ToArray());
+      var screens = McpServer.GetHmiScreens("HMI_RT_1").Items?.ToArray() ?? [];
+      root["screenReadback"] = new JsonArray([.. screens.Select(x => JsonValue.Create(x)),]);
       var screenExists = screens.Any(x => string.Equals(x, screenName, StringComparison.OrdinalIgnoreCase));
       root["masterCopyImportReadbackOk"] = import.Ok == true;
       root["screenExists"] = screenExists;
@@ -1330,7 +1343,7 @@ public partial class Program
         ["versionUsed"] = hmi.VersionUsed ?? "",
         ["error"] = hmi.Error ?? "",
         ["attempts"] =
-          new JsonArray((hmi.Attempts ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+          new JsonArray([.. (hmi.Attempts ?? []).Select(x => JsonValue.Create(x)),]),
       };
       if (hmi.Ok != true)
       {
@@ -1492,11 +1505,11 @@ public partial class Program
 
       try
       {
-        var tables = McpServer.GetPlcTagTables(softwarePath).Items?.ToArray() ?? Array.Empty<string>();
-        root["plcTagTables"] = new JsonArray(tables.Select(x => JsonValue.Create(x)).ToArray());
+        var tables = McpServer.GetPlcTagTables(softwarePath).Items?.ToArray() ?? [];
+        root["plcTagTables"] = new JsonArray([.. tables.Select(x => JsonValue.Create(x)),]);
         var selectedTables = Program.SelectPlcTagTablesForPrecheck(tables, tagTableRegex, maxTagTablesToExport);
         root["selectedPlcTagTablesForExport"] =
-          new JsonArray(selectedTables.Select(x => JsonValue.Create(x)).ToArray());
+          new JsonArray([.. selectedTables.Select(x => JsonValue.Create(x)),]);
         root["tagExportMode"] = selectedTables.Length == 0
           ? "no tag table matched regex"
           : "bounded subset export";
@@ -1542,7 +1555,7 @@ public partial class Program
     var plcSymbols = Program.ExtractPlcSymbolsFromTagTableExports(exported);
     var plcExportCatalog = Program.AnalyzePlcExportDirectory(plcExportDirectory);
     var plcSymbolCatalog = Program.BuildPlcSymbolCatalog(plcExportCatalog);
-    foreach (var symbol in (plcExportCatalog["symbols"] as JsonArray ?? new JsonArray())
+    foreach (var symbol in (plcExportCatalog["symbols"] as JsonArray ?? [])
       .Select(x => x?.ToString() ?? "").Where(x => !string.IsNullOrWhiteSpace(x)))
     {
       plcSymbols.Add(symbol);
@@ -1550,23 +1563,22 @@ public partial class Program
 
     root["plcTagExport"] = new JsonObject
     {
-      ["exported"] = new JsonArray(exported.Select(x => JsonValue.Create(x)).ToArray()),
+      ["exported"] = new JsonArray([.. exported.Select(x => JsonValue.Create(x)),]),
       ["failed"] =
-        new JsonArray(failures.Select(x => new JsonObject { ["path"] = x.Path ?? "", ["error"] = x.Error ?? "", })
-          .ToArray()),
+        new JsonArray([.. failures.Select(x => new JsonObject { ["path"] = x.Path ?? "", ["error"] = x.Error ?? "", }),]),
       ["symbolCount"] = plcSymbols.Count,
-      ["symbolsSample"] = new JsonArray(plcSymbols.Take(120).Select(x => JsonValue.Create(x)).ToArray()),
+      ["symbolsSample"] = new JsonArray([.. plcSymbols.Take(120).Select(x => JsonValue.Create(x)),]),
     };
     root["plcExportCatalog"] = plcExportCatalog;
 
     var templates = HmiTemplateReferenceAnalyzer.Analyze(templateDir, "", "");
-    var templateArray = templates["templates"] as JsonArray ?? new JsonArray();
+    var templateArray = templates["templates"] as JsonArray ?? [];
     var mappingFile = Program.LoadHmiTemplateMappingFile(mappingPath);
     root["templateAnalysis"] = templateArray.DeepClone();
     root["mappingFile"] = mappingFile;
     root["effectiveTemplateAnalysis"] = Program.ApplyHmiTemplateMapping(templateArray, mappingFile);
     root["syncPrecheck"] =
-      Program.BuildHmiTemplateSyncPrecheck(root["effectiveTemplateAnalysis"] as JsonArray ?? new JsonArray(),
+      Program.BuildHmiTemplateSyncPrecheck(root["effectiveTemplateAnalysis"] as JsonArray ?? [],
         plcSymbols,
         plcSymbolCatalog);
     root["ok"] = failures.Count == 0 && root["plcTagTablesError"] == null;
@@ -1602,7 +1614,7 @@ public partial class Program
     var plcCatalog = Program.AnalyzePlcExportDirectory(plcExportDirectory);
     var plcSymbols = Program.BuildPlcSymbolCatalog(plcCatalog);
     var mappingAnalysis =
-      Program.BuildHmiTemplatePlcMapping(templates["templates"] as JsonArray ?? new JsonArray(), plcSymbols);
+      Program.BuildHmiTemplatePlcMapping(templates["templates"] as JsonArray ?? [], plcSymbols);
     var skeleton =
       Program.BuildHmiTemplateMappingSkeletonJson(templateDir, plcExportDirectory, mappingAnalysis, plcSymbols);
 
@@ -1631,7 +1643,7 @@ public partial class Program
     }
 
     var apFiles = Directory.EnumerateFiles(projectPath, "*.ap*", SearchOption.TopDirectoryOnly).ToList();
-    info["apFiles"] = new JsonArray(apFiles.Select(x => JsonValue.Create(x)).ToArray());
+    info["apFiles"] = new JsonArray([.. apFiles.Select(x => JsonValue.Create(x)),]);
 
     var runtimeRoot = Directory.EnumerateDirectories(projectPath, "currentConfiguration", SearchOption.AllDirectories)
       .FirstOrDefault();
@@ -1694,7 +1706,7 @@ public partial class Program
       ? libraryPath
       : Path.GetDirectoryName(libraryPath) ?? libraryPath;
     var alFiles = Directory.EnumerateFiles(rootDir, "*.al*", SearchOption.TopDirectoryOnly).ToList();
-    info["libraryFiles"] = new JsonArray(alFiles.Select(x => JsonValue.Create(x)).ToArray());
+    info["libraryFiles"] = new JsonArray([.. alFiles.Select(x => JsonValue.Create(x)),]);
     info["topLevel"] = Program.AnalyzeDirectorySummary(rootDir, 40);
 
     var dirs = new JsonObject();
@@ -1749,10 +1761,12 @@ public partial class Program
     obj["fileCount"] = files.Count;
     obj["totalBytes"] = files.Sum(f => f.Length);
     obj["extensions"] = new JsonArray(byExt);
-    obj["samples"] = new JsonArray(files.Take(sampleLimit).Select(f => new JsonObject
-    {
-      ["name"] = f.Name, ["relativePath"] = Program.MakeRelativePath(dir, f.FullName), ["bytes"] = f.Length,
-    }).ToArray());
+    obj["samples"] = new JsonArray([
+      .. files.Take(sampleLimit).Select(f => new JsonObject
+      {
+        ["name"] = f.Name, ["relativePath"] = Program.MakeRelativePath(dir, f.FullName), ["bytes"] = f.Length,
+      }),
+    ]);
     return obj;
   }
 
@@ -1886,8 +1900,7 @@ public partial class Program
     md.AppendLine("- Path: " + project?["path"]);
     md.AppendLine("- Exists: " + project?["exists"]);
     md.AppendLine("- HMI runtime detected: " + project?["hmiRuntimeDetected"]);
-    var counts = project?["fileCounts"] as JsonObject;
-    if (counts != null)
+    if (project?["fileCounts"] is JsonObject counts)
     {
       md.AppendLine("- Files: total=" + counts["total"] + ", rdf=" + counts["rdf"] + ", screens=" +
         counts["screenRdf"] + ", faceplates=" + counts["faceplateRdf"]);
@@ -1925,11 +1938,13 @@ public partial class Program
     {
       ["ok"] = safety.Ok == true,
       ["message"] = safety.Message ?? "",
-      ["policy"] = new JsonArray((safety.Policy ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
-      ["items"] = new JsonArray((safety.Items ?? Array.Empty<CapabilitySelfTestItem>()).Select(x => new JsonObject
-      {
-        ["id"] = x.Id ?? "", ["name"] = x.Name ?? "", ["status"] = x.Status ?? "", ["detail"] = x.Detail ?? "",
-      }).ToArray()),
+      ["policy"] = new JsonArray([.. (safety.Policy ?? []).Select(x => JsonValue.Create(x)),]),
+      ["items"] = new JsonArray([
+        .. (safety.Items ?? []).Select(x => new JsonObject
+        {
+          ["id"] = x.Id ?? "", ["name"] = x.Name ?? "", ["status"] = x.Status ?? "", ["detail"] = x.Detail ?? "",
+        }),
+      ]),
     };
   }
 
@@ -1980,7 +1995,7 @@ public partial class Program
     md.AppendLine();
 
     md.AppendLine("## Watch Tables");
-    if (root["watchTables"] is JsonArray watchTables && watchTables.Count > 0)
+    if (root["watchTables"] is JsonArray { Count: > 0, } watchTables)
     {
       foreach (var table in watchTables)
       {
@@ -2000,7 +2015,7 @@ public partial class Program
 
     md.AppendLine("## Export");
     var export = root["watchTableExport"] as JsonObject;
-    if (export?["exported"] is JsonArray exported && exported.Count > 0)
+    if (export?["exported"] is JsonArray { Count: > 0, } exported)
     {
       md.AppendLine("- Exported files:");
       foreach (var path in exported)
@@ -2009,7 +2024,7 @@ public partial class Program
       }
     }
 
-    if (export?["exportedSummary"] is JsonArray summaries && summaries.Count > 0)
+    if (export?["exportedSummary"] is JsonArray { Count: > 0, } summaries)
     {
       md.AppendLine("- Table summaries:");
       foreach (var summaryNode in summaries)
@@ -2020,7 +2035,7 @@ public partial class Program
       }
     }
 
-    if (export?["failed"] is JsonArray failed && failed.Count > 0)
+    if (export?["failed"] is JsonArray { Count: > 0, } failed)
     {
       md.AppendLine("- Failures:");
       foreach (var failure in failed)
@@ -2045,7 +2060,7 @@ public partial class Program
     md.AppendLine("- OK: " + root["onlineCurrentValueReadOk"]);
     md.AppendLine("- Message: " + root["onlineCurrentValueReadMessage"]);
     var currentRead = root["onlineCurrentValueRead"] as JsonObject;
-    if (currentRead?["entries"] is JsonArray currentEntries && currentEntries.Count > 0)
+    if (currentRead?["entries"] is JsonArray { Count: > 0, } currentEntries)
     {
       foreach (var entryNode in currentEntries.Take(20))
       {
@@ -2083,8 +2098,8 @@ public partial class Program
 
     try
     {
-      var doc = new XmlDocument();
-      doc.XmlResolver = null; // 安全：禁用外部实体/DTD 解析，防 XXE
+      var doc = new XmlDocument { XmlResolver = null, // 安全：禁用外部实体/DTD 解析，防 XXE
+      };
       doc.Load(path);
       var tableNameNode =
         doc.SelectSingleNode(
@@ -2140,14 +2155,14 @@ public partial class Program
       ["libraryType"] = probe.LibraryType ?? "",
       ["error"] = probe.Error ?? "",
       ["members"] =
-        new JsonArray((probe.Members ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. (probe.Members ?? []).Select(x => JsonValue.Create(x)),]),
       ["masterCopies"] =
-        new JsonArray((probe.MasterCopies ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
-      ["types"] = new JsonArray((probe.Types ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. (probe.MasterCopies ?? []).Select(x => JsonValue.Create(x)),]),
+      ["types"] = new JsonArray([.. (probe.Types ?? []).Select(x => JsonValue.Create(x)),]),
       ["folders"] =
-        new JsonArray((probe.Folders ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. (probe.Folders ?? []).Select(x => JsonValue.Create(x)),]),
       ["warnings"] =
-        new JsonArray((probe.Warnings ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. (probe.Warnings ?? []).Select(x => JsonValue.Create(x)),]),
       ["raw"] = probe.Raw?.DeepClone(),
     };
   }
@@ -2166,11 +2181,11 @@ public partial class Program
       ["importedItemName"] = import.ImportedItemName ?? "",
       ["error"] = import.Error ?? "",
       ["attempts"] =
-        new JsonArray((import.Attempts ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. (import.Attempts ?? []).Select(x => JsonValue.Create(x)),]),
       ["readbackItems"] =
-        new JsonArray((import.ReadbackItems ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. (import.ReadbackItems ?? []).Select(x => JsonValue.Create(x)),]),
       ["warnings"] =
-        new JsonArray((import.Warnings ?? Array.Empty<string>()).Select(x => JsonValue.Create(x)).ToArray()),
+        new JsonArray([.. (import.Warnings ?? []).Select(x => JsonValue.Create(x)),]),
       ["raw"] = import.Raw?.DeepClone(),
     };
   }
@@ -2212,8 +2227,7 @@ public partial class Program
 
     md.AppendLine();
 
-    var import = root["import"] as JsonObject;
-    if (import != null)
+    if (root["import"] is JsonObject import)
     {
       md.AppendLine("## Import Result");
       md.AppendLine("- OK: " + import["ok"]);
@@ -2312,18 +2326,18 @@ public partial class Program
     {
       try
       {
-        var doc = new XmlDocument();
-        doc.XmlResolver = null; // 安全：禁用外部实体/DTD 解析，防 XXE
+        var doc = new XmlDocument { XmlResolver = null, // 安全：禁用外部实体/DTD 解析，防 XXE
+        };
         doc.Load(file);
         foreach (var name in doc.GetElementsByTagName("Name").OfType<XmlElement>())
         {
-          var value = name.InnerText?.Trim();
+          var value = name.InnerText.Trim();
           if (string.IsNullOrWhiteSpace(value))
           {
             continue;
           }
 
-          if (value!.StartsWith("\"", StringComparison.Ordinal) && value.EndsWith("\"", StringComparison.Ordinal) &&
+          if (value.StartsWith("\"", StringComparison.Ordinal) && value.EndsWith("\"", StringComparison.Ordinal) &&
             value.Length >= 2)
           {
             value = value.Substring(1, value.Length - 2);
@@ -2350,17 +2364,17 @@ public partial class Program
   {
     if (tables.Length == 0 || maxCount <= 0 || string.IsNullOrWhiteSpace(regexText))
     {
-      return Array.Empty<string>();
+      return [];
     }
 
     try
     {
       var regex = new Regex(regexText, RegexOptions.IgnoreCase);
-      return tables.Where(x => regex.IsMatch(x)).Take(maxCount).ToArray();
+      return [.. tables.Where(x => regex.IsMatch(x)).Take(maxCount),];
     }
     catch
     {
-      return Array.Empty<string>();
+      return [];
     }
   }
 
@@ -2386,7 +2400,7 @@ public partial class Program
     var plcCatalog = Program.AnalyzePlcExportDirectory(plcExportDirectory);
     var plcSymbols = Program.BuildPlcSymbolCatalog(plcCatalog);
     var mappings =
-      Program.BuildHmiTemplatePlcMapping(templates["templates"] as JsonArray ?? new JsonArray(), plcSymbols);
+      Program.BuildHmiTemplatePlcMapping(templates["templates"] as JsonArray ?? [], plcSymbols);
 
     var root = new JsonObject
     {
@@ -2446,27 +2460,29 @@ public partial class Program
     }
 
     var symbols = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-    var blocks = root["blocks"] as JsonArray ?? new JsonArray();
-    var warnings = root["warnings"] as JsonArray ?? new JsonArray();
+    var blocks = root["blocks"] as JsonArray ?? [];
+    var warnings = root["warnings"] as JsonArray ?? [];
     var files = Directory.EnumerateFiles(directory, "*.xml", SearchOption.AllDirectories)
       .Where(x => x.IndexOf("\\ForceTables\\", StringComparison.OrdinalIgnoreCase) < 0).Take(2000).ToList();
     root["filesScanned"] = files.Count;
     var udtCatalog = Program.BuildUdtMemberCatalog(files, warnings);
-    root["udtTypes"] = new JsonArray(udtCatalog.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase).Select(x =>
-      new JsonObject
-      {
-        ["name"] = x.Key,
-        ["memberCount"] = x.Value.Count,
-        ["membersSample"] = new JsonArray(x.Value.Take(80).Select(m => Program.PlcMemberSymbolToJson(m)).ToArray()),
-      }).ToArray());
+    root["udtTypes"] = new JsonArray([
+      .. udtCatalog.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase).Select(x =>
+        new JsonObject
+        {
+          ["name"] = x.Key,
+          ["memberCount"] = x.Value.Count,
+          ["membersSample"] = new JsonArray([.. x.Value.Take(80).Select(Program.PlcMemberSymbolToJson),]),
+        }),
+    ]);
     root["udtTypeCount"] = udtCatalog.Count;
 
     foreach (var file in files)
     {
       try
       {
-        var doc = new XmlDocument();
-        doc.XmlResolver = null; // 安全：禁用外部实体/DTD 解析，防 XXE
+        var doc = new XmlDocument { XmlResolver = null, // 安全：禁用外部实体/DTD 解析，防 XXE
+        };
         doc.Load(file);
         var blockElement = doc.GetElementsByTagName("SW.Blocks.GlobalDB").OfType<XmlElement>().FirstOrDefault() ??
           doc.GetElementsByTagName("SW.Blocks.FB").OfType<XmlElement>().FirstOrDefault() ??
@@ -2520,7 +2536,7 @@ public partial class Program
       }
     }
 
-    root["symbols"] = new JsonArray(symbols.Select(x => JsonValue.Create(x)).ToArray());
+    root["symbols"] = new JsonArray([.. symbols.Select(x => JsonValue.Create(x)),]);
     root["symbolCount"] = symbols.Count;
     return root;
   }
@@ -2532,8 +2548,8 @@ public partial class Program
     {
       try
       {
-        var doc = new XmlDocument();
-        doc.XmlResolver = null; // 安全：禁用外部实体/DTD 解析，防 XXE
+        var doc = new XmlDocument { XmlResolver = null, // 安全：禁用外部实体/DTD 解析，防 XXE
+        };
         doc.Load(file);
         var udtElement = doc.GetElementsByTagName("SW.Types.PlcStruct").OfType<XmlElement>().FirstOrDefault();
         if (udtElement == null)
@@ -2625,7 +2641,7 @@ public partial class Program
   {
     var list = new List<PlcSymbolCandidate>();
     var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    foreach (var blockNode in plcExportCatalog["blocks"] as JsonArray ?? new JsonArray())
+    foreach (var blockNode in plcExportCatalog["blocks"] as JsonArray ?? [])
     {
       if (blockNode is not JsonObject block)
       {
@@ -2635,7 +2651,7 @@ public partial class Program
       var blockName = block["name"]?.ToString() ?? "";
       var kind = block["kind"]?.ToString() ?? "";
       var file = block["file"]?.ToString() ?? "";
-      foreach (var memberNode in block["members"] as JsonArray ?? new JsonArray())
+      foreach (var memberNode in block["members"] as JsonArray ?? [])
       {
         if (memberNode is not JsonObject member)
         {
@@ -2661,7 +2677,7 @@ public partial class Program
       }
     }
 
-    return list.OrderBy(x => x.Symbol, StringComparer.OrdinalIgnoreCase).ToList();
+    return [.. list.OrderBy(x => x.Symbol, StringComparer.OrdinalIgnoreCase),];
   }
 
   private static JsonArray BuildHmiTemplatePlcMapping(JsonArray templates, List<PlcSymbolCandidate> plcSymbols)
@@ -2681,7 +2697,7 @@ public partial class Program
       var review = 0;
       var missing = 0;
 
-      foreach (var tagNode in template["requiredTags"] as JsonArray ?? new JsonArray())
+      foreach (var tagNode in template["requiredTags"] as JsonArray ?? [])
       {
         if (tagNode is not JsonObject tag)
         {
@@ -2698,7 +2714,7 @@ public partial class Program
           ? "no-candidate"
           : best.VerifiedExact
             ? "verified-exact"
-            : best.Score >= 92 && best.DataTypeMatch
+            : best is { Score: >= 92, DataTypeMatch: true, }
               ? "high-confidence-review"
               : "review-required";
         var gateStatus = status == "verified-exact"
@@ -2750,7 +2766,7 @@ public partial class Program
           ["bestCandidate"] = best == null
             ? new JsonObject()
             : Program.PlcMappingCandidateToJson(best),
-          ["candidates"] = new JsonArray(candidates.Select(Program.PlcMappingCandidateToJson).ToArray()),
+          ["candidates"] = new JsonArray([.. candidates.Select(Program.PlcMappingCandidateToJson),]),
         });
       }
 
@@ -2877,7 +2893,7 @@ public partial class Program
         Score = score,
         DataTypeMatch = dataTypeMatch,
         VerifiedExact = verifiedExact,
-        Reasons = reasons.ToArray(),
+        Reasons = [.. reasons,],
       };
     }
   }
@@ -2895,7 +2911,7 @@ public partial class Program
       ["blockName"] = candidate.BlockName,
       ["blockKind"] = candidate.BlockKind,
       ["file"] = candidate.File,
-      ["reasons"] = new JsonArray(candidate.Reasons.Select(x => JsonValue.Create(x)).ToArray()),
+      ["reasons"] = new JsonArray([.. candidate.Reasons.Select(x => JsonValue.Create(x)),]),
     };
   }
 
@@ -2920,7 +2936,7 @@ public partial class Program
     md.AppendLine();
 
     md.AppendLine("## Template Summary");
-    foreach (var templateNode in root["templates"] as JsonArray ?? new JsonArray())
+    foreach (var templateNode in root["templates"] as JsonArray ?? [])
     {
       if (templateNode is not JsonObject template)
       {
@@ -2935,7 +2951,7 @@ public partial class Program
 
     md.AppendLine();
 
-    foreach (var templateNode in root["templates"] as JsonArray ?? new JsonArray())
+    foreach (var templateNode in root["templates"] as JsonArray ?? [])
     {
       if (templateNode is not JsonObject template)
       {
@@ -2945,7 +2961,7 @@ public partial class Program
       md.AppendLine("## " + template["templateName"]);
       md.AppendLine("| HMI tag | Desired PLC tag | Type | Status | Gate | Best candidate | Score | Next action |");
       md.AppendLine("|---|---|---|---|---|---|---:|---|");
-      foreach (var mappingNode in template["mappings"] as JsonArray ?? new JsonArray())
+      foreach (var mappingNode in template["mappings"] as JsonArray ?? [])
       {
         if (mappingNode is not JsonObject mapping)
         {
@@ -2994,7 +3010,7 @@ public partial class Program
       ["Templates"] = new JsonArray(),
     };
 
-    var templatesOut = root["Templates"] as JsonArray ?? new JsonArray();
+    var templatesOut = root["Templates"] as JsonArray ?? [];
     foreach (var templateNode in mappingAnalysis)
     {
       if (templateNode is not JsonObject template)
@@ -3003,7 +3019,7 @@ public partial class Program
       }
 
       var mappingsOut = new JsonArray();
-      foreach (var mappingNode in template["mappings"] as JsonArray ?? new JsonArray())
+      foreach (var mappingNode in template["mappings"] as JsonArray ?? [])
       {
         if (mappingNode is not JsonObject mapping)
         {
@@ -3025,7 +3041,7 @@ public partial class Program
           mapping["hmiTag"]?.ToString() ?? "",
           mapping["desiredPlcTag"]?.ToString() ?? "",
           mapping["dataType"]?.ToString() ?? "",
-          plcSymbols ?? new List<PlcSymbolCandidate>(),
+          plcSymbols ?? [],
           out var ruleMapped,
           out deterministicRule,
           out deterministicReason))
@@ -3081,7 +3097,7 @@ public partial class Program
     return root;
   }
 
-  private static bool TryResolveDeterministicHmiTemplateMapping(string templateName, string hmiTag,
+  private static bool TryResolveDeterministicHmiTemplateMapping(string? templateName, string? hmiTag,
     string originalPlcTag, string hmiDataType, List<PlcSymbolCandidate> plcSymbols, out string mappedPlcTag,
     out string ruleName, out string evidence)
   {
@@ -3165,8 +3181,8 @@ public partial class Program
       var json = JsonNode.Parse(File.ReadAllText(mappingPath, Encoding.UTF8)) as JsonObject ??
         throw new InvalidOperationException("Mapping root must be a JSON object.");
       root["format"] = json["Format"]?.ToString() ?? "";
-      var entries = root["entries"] as JsonArray ?? new JsonArray();
-      foreach (var templateNode in json["Templates"] as JsonArray ?? new JsonArray())
+      var entries = root["entries"] as JsonArray ?? [];
+      foreach (var templateNode in json["Templates"] as JsonArray ?? [])
       {
         if (templateNode is not JsonObject template)
         {
@@ -3174,7 +3190,7 @@ public partial class Program
         }
 
         var templateName = template["TemplateName"]?.ToString() ?? "";
-        foreach (var mappingNode in template["Mappings"] as JsonArray ?? new JsonArray())
+        foreach (var mappingNode in template["Mappings"] as JsonArray ?? [])
         {
           if (mappingNode is not JsonObject mapping)
           {
@@ -3217,7 +3233,7 @@ public partial class Program
   private static JsonArray ApplyHmiTemplateMapping(JsonArray templates, JsonObject mappingFile)
   {
     var map = new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
-    foreach (var entryNode in mappingFile["entries"] as JsonArray ?? new JsonArray())
+    foreach (var entryNode in mappingFile["entries"] as JsonArray ?? [])
     {
       if (entryNode is not JsonObject entry)
       {
@@ -3242,7 +3258,7 @@ public partial class Program
 
       var clone = template.DeepClone().AsObject();
       var templateName = clone["templateName"]?.ToString() ?? "";
-      foreach (var tagNode in clone["requiredTags"] as JsonArray ?? new JsonArray())
+      foreach (var tagNode in clone["requiredTags"] as JsonArray ?? [])
       {
         if (tagNode is not JsonObject tag)
         {
@@ -3277,7 +3293,7 @@ public partial class Program
     return result;
   }
 
-  private static string EscapeMarkdownCell(string value) =>
+  private static string EscapeMarkdownCell(string? value) =>
     (value ?? "").Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ");
 
   private static string ExtractLeafName(string symbol)
@@ -3357,12 +3373,11 @@ public partial class Program
       return true;
     }
 
-    var realTypes = new HashSet<string>(new[] { "Real", "LReal", }, StringComparer.OrdinalIgnoreCase);
+    var realTypes = new HashSet<string>(["Real", "LReal",], StringComparer.OrdinalIgnoreCase);
     var intTypes =
-      new HashSet<string>(new[]
-        {
+      new HashSet<string>([
           "SInt", "USInt", "Byte", "Int", "UInt", "Word", "DInt", "UDInt", "DWord", "LInt", "ULInt", "LWord",
-        },
+        ],
         StringComparer.OrdinalIgnoreCase);
     if (realTypes.Contains(expected) && realTypes.Contains(actual))
     {
@@ -3413,7 +3428,7 @@ public partial class Program
   {
     foreach (var element in root.GetElementsByTagName(tagName).OfType<XmlElement>())
     {
-      var value = element.InnerText?.Trim() ?? "";
+      var value = element.InnerText.Trim();
       if (!string.IsNullOrWhiteSpace(value))
       {
         return value.Trim('"');
@@ -3427,7 +3442,7 @@ public partial class Program
     List<PlcSymbolCandidate>? plcSymbolCatalog = null)
   {
     var result = new JsonArray();
-    var symbolByName = (plcSymbolCatalog ?? new List<PlcSymbolCandidate>())
+    var symbolByName = (plcSymbolCatalog ?? [])
       .GroupBy(x => Program.NormalizePlcSymbol(x.Symbol), StringComparer.OrdinalIgnoreCase)
       .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
     foreach (var node in templates)
@@ -3438,7 +3453,7 @@ public partial class Program
       }
 
       var templateName = template["templateName"]?.ToString() ?? "";
-      var requiredTags = template["requiredTags"] as JsonArray ?? new JsonArray();
+      var requiredTags = template["requiredTags"] as JsonArray ?? [];
       var requiredTagNames = requiredTags.OfType<JsonObject>().Select(x => x["Name"]?.ToString() ?? "")
         .Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
       var bindings = new JsonArray();
@@ -3561,7 +3576,7 @@ public partial class Program
       });
     }
 
-    foreach (var dyn in template["dynamizations"] as JsonArray ?? new JsonArray())
+    foreach (var dyn in template["dynamizations"] as JsonArray ?? [])
     {
       if (dyn is not JsonObject dynObj)
       {
@@ -3575,14 +3590,14 @@ public partial class Program
         dynObj["property"]?.ToString() ?? "");
     }
 
-    foreach (var recipe in template["actionRecipeSummary"]?["effectiveRecipes"] as JsonArray ?? new JsonArray())
+    foreach (var recipe in template["actionRecipeSummary"]?["effectiveRecipes"] as JsonArray ?? [])
     {
       if (recipe is not JsonObject recipeObj)
       {
         continue;
       }
 
-      foreach (var tagNode in recipeObj["targetTags"] as JsonArray ?? new JsonArray())
+      foreach (var tagNode in recipeObj["targetTags"] as JsonArray ?? [])
       {
         AddUsage(tagNode?.ToString() ?? "",
           "action",
@@ -3737,6 +3752,6 @@ public partial class Program
     public int Score { get; set; }
     public bool DataTypeMatch { get; set; }
     public bool VerifiedExact { get; set; }
-    public string[] Reasons { get; set; } = Array.Empty<string>();
+    public string[] Reasons { get; set; } = [];
   }
 }

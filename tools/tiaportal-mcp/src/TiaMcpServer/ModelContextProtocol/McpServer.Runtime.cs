@@ -19,7 +19,7 @@ namespace TiaMcpServer.ModelContextProtocol;
 // no CPU mode change.
 public static partial class McpServer
 {
-  internal static List<string> ParseItemSpecs(string itemsJson)
+  private static List<string> ParseItemSpecs(string itemsJson)
   {
     var list = new List<string>();
     if (string.IsNullOrWhiteSpace(itemsJson))
@@ -32,8 +32,7 @@ public static partial class McpServer
     {
       try
       {
-        var arr = JsonNode.Parse(s) as JsonArray;
-        if (arr != null)
+        if (JsonNode.Parse(s) is JsonArray arr)
         {
           foreach (var n in arr)
           {
@@ -53,7 +52,7 @@ public static partial class McpServer
       }
     }
 
-    foreach (var part in s.Split(new[] { ',', ';', '\n', '\r', }, StringSplitOptions.RemoveEmptyEntries))
+    foreach (var part in s.Split([',', ';', '\n', '\r',], StringSplitOptions.RemoveEmptyEntries))
     {
       var v = part.Trim();
       if (v.Length > 0)
@@ -158,8 +157,7 @@ public static partial class McpServer
             {
               Ok = false,
               Message =
-                $"PUT/GET access is DISABLED on '{devicePath}' (attribute '{pg["attributeName"]}'). S7 absolute DB reads will fail. " +
-                $"Enable it: SetPutGetAccess(devicePath:'{devicePath}', enable:true) then DownloadToPlc — or read M/I/Q which are unrestricted.",
+                $"PUT/GET access is DISABLED on '{devicePath}' (attribute '{pg["attributeName"]}'). S7 absolute DB reads will fail. Enable it: SetPutGetAccess(devicePath:'{devicePath}', enable:true) then DownloadToPlc — or read M/I/Q which are unrestricted.",
               Data = new JsonObject { ["putGetAccess"] = pg, ["precheck"] = "putget-disabled", },
               Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
             };
@@ -238,12 +236,10 @@ public static partial class McpServer
       {
         Ok = ok,
         Message = r.Error != null
-          ? r.Error + "  HINT: if the CPU IS reachable, this is commonly because remote PUT/GET access is disabled " +
-          "(TIA: CPU > Protection & Security > Connection mechanisms > 'Permit access with PUT/GET communication'), or a wrong rack/slot."
+          ? $"{r.Error}  HINT: if the CPU IS reachable, this is commonly because remote PUT/GET access is disabled (TIA: CPU > Protection & Security > Connection mechanisms > 'Permit access with PUT/GET communication'), or a wrong rack/slot."
           : ok
             ? $"Read {r.Items.Count} live value(s) from {ip} in {r.ElapsedMs} ms."
-            : $"Connected to {ip}, but one or more items failed — a DB read failing here usually means the DB is OPTIMIZED " +
-            "(no absolute access) or PUT/GET is disabled; M/I/Q are unrestricted. See items[].error.",
+            : $"Connected to {ip}, but one or more items failed — a DB read failing here usually means the DB is OPTIMIZED (no absolute access) or PUT/GET is disabled; M/I/Q are unrestricted. See items[].error.",
         Data = data,
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = ok, },
       };
@@ -550,9 +546,9 @@ public static partial class McpServer
       return new ResponseJsonReport
       {
         Ok = ok,
-        Message = r.Error ?? $"CPU at {ip} is {r.Status}" + (r.DiagRecordCount > 0
+        Message = r.Error ?? $"CPU at {ip} is {r.Status}{(r.DiagRecordCount > 0
           ? $"; {r.DiagRecordCount} diagnostic record(s)."
-          : "."),
+          : ".")}",
         Data = data,
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = ok, },
       };

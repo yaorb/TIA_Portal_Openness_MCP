@@ -38,7 +38,7 @@ namespace TiaMcpServer.ModelContextProtocol;
 public static partial class McpServer
 {
   /// <summary>超过这个字符数就寄存并只回头部。0 或负数表示不限。</summary>
-  public const int DefaultMaxResponseChars = 20000;
+  private const int DefaultMaxResponseChars = 20000;
 
   // 分页工具自身不能被这一层处理：它们的输出本来就是按 offset 夹紧过的，
   // 再包一层只会套娃出一个永远翻不到底的句柄。
@@ -76,7 +76,7 @@ public static partial class McpServer
   }
 
   /// <summary>给每个工具包上大响应寄存层。签名固定：Program.cs / WrapTools 按这个形状调。</summary>
-  public static IList<McpServerTool> WrapWithResponseGuard(IList<McpServerTool> tools)
+  private static IList<McpServerTool> WrapWithResponseGuard(IList<McpServerTool>? tools)
   {
     if (tools == null)
     {
@@ -91,8 +91,8 @@ public static partial class McpServer
         continue;
       }
 
-      var name = t.ProtocolTool?.Name;
-      outList.Add(name != null && McpServer.ExportToolNames.Contains(name)
+      var name = t.ProtocolTool.Name;
+      outList.Add(McpServer.ExportToolNames.Contains(name)
         ? t
         : new ResponseGuardTool(t));
     }
@@ -172,7 +172,7 @@ public static partial class McpServer
         ["exportId"] = e.Id,
         ["tool"] = e.Tool,
         ["target"] = e.Target,
-        ["createdUtc"] = e.CreatedUtc.ToString("yyyy-MM-dd HH:mm:ss") + "Z",
+        ["createdUtc"] = $"{e.CreatedUtc:yyyy-MM-dd HH:mm:ss}Z",
         ["totalLength"] = e.Length,
       });
     }
@@ -247,7 +247,7 @@ public static partial class McpServer
       var dir = Path.GetDirectoryName(full);
       if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
       {
-        Directory.CreateDirectory(dir!);
+        Directory.CreateDirectory(dir);
       }
 
       content = raw
@@ -258,15 +258,15 @@ public static partial class McpServer
     catch (Exception ex) when (ex is not McpException)
     {
       // 写盘抛了：内容没有完整写出去。注意磁盘上可能留了个半截文件，别当它是好的。
-      throw new McpProtocolException("写文件失败：" + ex.Message, ex, McpErrorCode.InternalError);
+      throw new McpProtocolException($"写文件失败：{ex.Message}", ex, McpErrorCode.InternalError);
     }
 
     // WriteAllText 返回即文件已落盘，长度是写进去的那份内容的长度。
     return new ResponseMessage
     {
-      Message = $"已写入 {full}（{content.Length} 字符，来自 {entry.Tool}）。" + (unwrapped
+      Message = $"已写入 {full}（{content.Length} 字符，来自 {entry.Tool}）。{(unwrapped
         ? "写的是工具正文本身（已剥掉 JSON 信封）；要原文加 raw=true。"
-        : ""),
+        : "")}",
       Meta = new JsonObject
       {
         ["ok"] = true,
@@ -294,7 +294,7 @@ public static partial class McpServer
 
     return new ResponseMessage
     {
-      Message = $"已删除 {exportId}。", Meta = new JsonObject { ["ok"] = true, ["exportId"] = exportId ?? "", },
+      Message = $"已删除 {exportId}。", Meta = new JsonObject { ["ok"] = true, ["exportId"] = exportId, },
     };
   }
 
@@ -310,23 +310,20 @@ public static partial class McpServer
     // 24h 那个默认值恒等于空操作（句柄本来就到 24h 自动过期），
     // 不点破的话最自然的一次裸调用永远回「已删除 0 份」，调用方只会以为工具坏了。
     var hint = n == 0 && olderThanHours >= ExportStore.DefaultTtlHours
-      ? $"（句柄本来就满 {ExportStore.DefaultTtlHours} 小时自动过期，所以这个默认值几乎总是删不掉东西；" + "要立刻清空传 olderThanHours=0。）"
+      ? $"（句柄本来就满 {ExportStore.DefaultTtlHours} 小时自动过期，所以这个默认值几乎总是删不掉东西；要立刻清空传 olderThanHours=0。）"
       : "";
     // 删了几份、还剩几份都是数出来的，纯内存操作，结局是确定的。
     return new ResponseMessage
     {
-      Message = $"已删除 {n} 份；剩余 {count} 份、共 {chars} 字符。" + hint,
+      Message = $"已删除 {n} 份；剩余 {count} 份、共 {chars} 字符。{hint}",
       Meta = new JsonObject { ["ok"] = true, ["deleted"] = n, ["remaining"] = count, },
     };
   }
 }
 
-internal sealed class ResponseGuardTool : McpServerTool
+internal sealed class ResponseGuardTool(McpServerTool inner) : McpServerTool
 {
-  private readonly McpServerTool _inner;
-
-  public ResponseGuardTool(McpServerTool inner) =>
-    this._inner = inner ?? throw new ArgumentNullException(nameof(inner));
+  private readonly McpServerTool _inner = inner ?? throw new ArgumentNullException(nameof(inner));
 
   public override Tool ProtocolTool => this._inner.ProtocolTool;
 
@@ -340,8 +337,8 @@ internal sealed class ResponseGuardTool : McpServerTool
     var result = await this._inner.InvokeAsync(request, cancellationToken).ConfigureAwait(false);
     try
     {
-      var name = this.ProtocolTool?.Name ?? "(unknown)";
-      var forwarded = ResponseGuardTool.ForwardedToolName(name, request?.Params?.Arguments);
+      var name = this.ProtocolTool.Name;
+      var forwarded = ResponseGuardTool.ForwardedToolName(name, request.Params.Arguments);
       // CallTool 转发到分页工具时同样要放行 —— 否则 GetExport 的那一页
       // 会被再寄存一次，模型拿到的是「一个句柄的句柄」，越翻越远。
       if (forwarded != null && McpServer.IsExportTool(forwarded))
@@ -349,7 +346,7 @@ internal sealed class ResponseGuardTool : McpServerTool
         return result;
       }
 
-      var target = ResponseGuardTool.DescribeTarget(request?.Params?.Arguments);
+      var target = ResponseGuardTool.DescribeTarget(request.Params.Arguments);
       if (forwarded != null)
       {
         target = ("→" + forwarded + " " + target).Trim();
@@ -369,7 +366,7 @@ internal sealed class ResponseGuardTool : McpServerTool
   ///   闭源线里这个helper长在审计层上，本线没有审计层，就地放一份 —— 只有这里用得着，
   ///   挂到 McpServer 上反而会跟别的回流文件撞名。
   /// </summary>
-  internal static string DescribeTarget(IDictionary<string, JsonElement>? args)
+  private static string DescribeTarget(IDictionary<string, JsonElement>? args)
   {
     if (args == null || args.Count == 0)
     {
@@ -377,10 +374,10 @@ internal sealed class ResponseGuardTool : McpServerTool
     }
 
     string[] keys =
-    {
+    [
       "blockPath", "blockName", "typeName", "path", "softwarePath", "softwareName", "deviceName", "tagTableName",
       "watchTableName", "screenName",
-    };
+    ];
     var parts = new List<string>();
     foreach (var k in keys)
     {
@@ -394,7 +391,7 @@ internal sealed class ResponseGuardTool : McpServerTool
         : v.ToString();
       if (!string.IsNullOrWhiteSpace(s))
       {
-        parts.Add(k + "=" + s);
+        parts.Add($"{k}={s}");
       }
 
       if (parts.Count >= 3)
@@ -432,23 +429,13 @@ internal sealed class ResponseGuardTool : McpServerTool
     try
     {
       var node = JsonNode.Parse(content);
-      if (node is not JsonObject obj)
-      {
-        return content;
-      }
-
-      if (!obj.TryGetPropertyValue("message", out var msg))
-      {
-        return content;
-      }
-
-      if (msg is not JsonValue v || !v.TryGetValue<string>(out var s))
+      if (node is not JsonObject obj || !obj.TryGetPropertyValue("message", out var msg) || msg is not JsonValue v || !v.TryGetValue<string>(out var s))
       {
         return content;
       }
 
       unwrapped = true;
-      return s ?? "";
+      return s;
     }
     catch
     {
@@ -458,7 +445,7 @@ internal sealed class ResponseGuardTool : McpServerTool
 
   /// <summary>CallTool 转发的目标工具名；本次调用不是转发则返回 null。</summary>
   // SDK 2.x 把 CallToolRequestParams.Arguments 由 IReadOnlyDictionary 改成了 IDictionary。
-  internal static string? ForwardedToolName(string toolName, IDictionary<string, JsonElement>? args)
+  private static string? ForwardedToolName(string toolName, IDictionary<string, JsonElement>? args)
   {
     if (!string.Equals(toolName, "CallTool", StringComparison.Ordinal))
     {
@@ -482,7 +469,7 @@ internal sealed class ResponseGuardTool : McpServerTool
   }
 
   /// <summary>超阈值就寄存并只回头部；其余情况原样返回同一个对象。</summary>
-  internal static CallToolResult Shrink(CallToolResult? result, string toolName, string target)
+  private static CallToolResult Shrink(CallToolResult? result, string toolName, string target)
   {
     if (result == null)
     {
@@ -504,17 +491,12 @@ internal sealed class ResponseGuardTool : McpServerTool
     // 只处理「恰好一个文本块」这一种形状。多块、图片、资源链接一律放行 ——
     // 看不懂的形状去改它，改坏的概率比省下来的上下文值钱。
     var blocks = result.Content;
-    if (blocks == null || blocks.Count != 1)
+    if (blocks is not [TextContentBlock text,])
     {
       return result;
     }
 
-    if (!(blocks[0] is TextContentBlock text))
-    {
-      return result;
-    }
-
-    var full = text.Text ?? "";
+    var full = text.Text;
     // 反向哨兵：没超阈值就在这里原样返回**同一个对象引用**，
     // 未超阈值的响应因此一字不变（含 StructuredContent、Meta、块类型）。
     if (full.Length <= limit)
@@ -543,10 +525,8 @@ internal sealed class ResponseGuardTool : McpServerTool
         ? JsonValue.Create(head.NextOffset.Value)
         : null,
       ["eof"] = head.Eof,
-      ["hint"] = $"这是 {toolName} 响应的前 {head.Returned} 个字符，共 {head.TotalLength} 个。" +
-        $"**你自己要读全文**：GetExport(exportId=\"{id}\", offset={head.NextOffset}) 往后翻，" +
-        "直到 eof=true；每页是**字符切片**，会从行或 JSON 中间断开，" + "要解析必须先把所有页拼完整再解析，别拿单页去 parse。" +
-        $"**用户要的是文件**：SaveExport(exportId=\"{id}\", outputPath=...) 一次落盘" + "（它只回路径，不回内容，所以你自己要看的话别用它）。",
+      ["hint"] =
+        $"这是 {toolName} 响应的前 {head.Returned} 个字符，共 {head.TotalLength} 个。**你自己要读全文**：GetExport(exportId=\"{id}\", offset={head.NextOffset}) 往后翻，直到 eof=true；每页是**字符切片**，会从行或 JSON 中间断开，要解析必须先把所有页拼完整再解析，别拿单页去 parse。**用户要的是文件**：SaveExport(exportId=\"{id}\", outputPath=...) 一次落盘（它只回路径，不回内容，所以你自己要看的话别用它）。",
     };
 
     var stub = new JsonObject { ["message"] = head.Text, ["meta"] = meta.DeepClone(), };

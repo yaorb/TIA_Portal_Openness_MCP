@@ -32,7 +32,7 @@ public static partial class McpServer
         return new ResponseProjectTree
         {
           Message = "Project tree retrieved",
-          Tree = "```\n" + tree + "\n```",
+          Tree = $"```\n{tree}\n```",
           Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
         };
       }
@@ -56,21 +56,22 @@ public static partial class McpServer
     {
       var device = McpServer.Portal.GetDevice(devicePath);
 
-      if (device != null)
+      if (device == null)
       {
-        var attributes = Helper.GetAttributeList(device);
-
-        return new ResponseDeviceInfo
-        {
-          Message = $"Device info retrieved from '{devicePath}'",
-          Name = device.Name,
-          Attributes = attributes,
-          Description = device.ToString(),
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+        throw new McpProtocolException($"Device not found at '{devicePath}'", McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException($"Device not found at '{devicePath}'", McpErrorCode.InternalError);
+      var attributes = Helper.GetAttributeList(device);
+
+      return new ResponseDeviceInfo
+      {
+        Message = $"Device info retrieved from '{devicePath}'",
+        Name = device.Name,
+        Attributes = attributes,
+        Description = device.ToString(),
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -90,21 +91,22 @@ public static partial class McpServer
     {
       var deviceItem = McpServer.Portal.GetDeviceItem(deviceItemPath);
 
-      if (deviceItem != null)
+      if (deviceItem == null)
       {
-        var attributes = Helper.GetAttributeList(deviceItem);
-
-        return new ResponseDeviceItemInfo
-        {
-          Message = $"Device item info retrieved from '{deviceItemPath}'",
-          Name = deviceItem.Name,
-          Attributes = attributes,
-          Description = deviceItem.ToString(),
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+        throw new McpProtocolException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
+      var attributes = Helper.GetAttributeList(deviceItem);
+
+      return new ResponseDeviceItemInfo
+      {
+        Message = $"Device item info retrieved from '{deviceItemPath}'",
+        Name = deviceItem.Name,
+        Attributes = attributes,
+        Description = deviceItem.ToString(),
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -129,7 +131,7 @@ public static partial class McpServer
         return new ResponseTree
         {
           Message = $"Device item tree retrieved from '{deviceItemPath}'",
-          Tree = "```\n" + tree + "\n```",
+          Tree = $"```\n{tree}\n```",
           Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
         };
       }
@@ -474,29 +476,32 @@ public static partial class McpServer
       var list = McpServer.Portal.GetDevices();
       var responseList = new List<ResponseDeviceInfo>();
 
-      if (list != null)
+      if (list == null)
       {
-        foreach (var device in list)
-        {
-          if (device != null)
-          {
-            var attributes = Helper.GetAttributeList(device);
-            responseList.Add(new ResponseDeviceInfo
-            {
-              Name = device.Name, Attributes = attributes, Description = device.ToString(),
-            });
-          }
-        }
-
-        return new ResponseDevices
-        {
-          Message = "Devices retrieved",
-          Items = responseList,
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+        throw new McpProtocolException("Failed retrieving devices", McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException("Failed retrieving devices", McpErrorCode.InternalError);
+      foreach (var device in list)
+      {
+        if (device == null)
+        {
+          continue;
+        }
+
+        var attributes = Helper.GetAttributeList(device);
+        responseList.Add(new ResponseDeviceInfo
+        {
+          Name = device.Name, Attributes = attributes, Description = device.ToString(),
+        });
+      }
+
+      return new ResponseDevices
+      {
+        Message = "Devices retrieved",
+        Items = responseList,
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {

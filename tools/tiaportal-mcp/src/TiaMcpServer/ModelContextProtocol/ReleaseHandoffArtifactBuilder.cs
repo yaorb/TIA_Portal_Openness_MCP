@@ -42,8 +42,8 @@ public static class ReleaseHandoffArtifactBuilder
       throw new InvalidOperationException("Offline release suite JSON root must be an object.");
 
     var diagnostics = ReleaseDiagnosticReportBuilder.Build(suiteRoot);
-    var diagJsonPath = Path.Combine(outputDirectory, "rebuilt_release_diagnostics_" + stamp + ".json");
-    var diagMdPath = Path.Combine(outputDirectory, "rebuilt_release_diagnostics_" + stamp + ".md");
+    var diagJsonPath = Path.Combine(outputDirectory, $"rebuilt_release_diagnostics_{stamp}.json");
+    var diagMdPath = Path.Combine(outputDirectory, $"rebuilt_release_diagnostics_{stamp}.md");
     ReleaseHandoffArtifactBuilder.WriteJsonAndMarkdown(diagnostics,
       diagJsonPath,
       diagMdPath,
@@ -55,8 +55,8 @@ public static class ReleaseHandoffArtifactBuilder
     suiteRoot["diagnosticMarkdownPath"] = diagMdPath;
 
     var runbook = ReleaseRunbookBuilder.Build(suiteRoot, diagnostics);
-    var runbookJsonPath = Path.Combine(outputDirectory, "rebuilt_release_runbook_" + stamp + ".json");
-    var runbookMdPath = Path.Combine(outputDirectory, "rebuilt_release_runbook_" + stamp + ".md");
+    var runbookJsonPath = Path.Combine(outputDirectory, $"rebuilt_release_runbook_{stamp}.json");
+    var runbookMdPath = Path.Combine(outputDirectory, $"rebuilt_release_runbook_{stamp}.md");
     ReleaseHandoffArtifactBuilder.WriteJsonAndMarkdown(runbook,
       runbookJsonPath,
       runbookMdPath,
@@ -68,8 +68,8 @@ public static class ReleaseHandoffArtifactBuilder
     suiteRoot["runbookMarkdownPath"] = runbookMdPath;
 
     var manifest = ReleaseManifestBuilder.Build(suiteRoot, diagnostics, runbook);
-    var manifestJsonPath = Path.Combine(outputDirectory, "rebuilt_release_manifest_" + stamp + ".json");
-    var manifestMdPath = Path.Combine(outputDirectory, "rebuilt_release_manifest_" + stamp + ".md");
+    var manifestJsonPath = Path.Combine(outputDirectory, $"rebuilt_release_manifest_{stamp}.json");
+    var manifestMdPath = Path.Combine(outputDirectory, $"rebuilt_release_manifest_{stamp}.md");
     ReleaseHandoffArtifactBuilder.WriteJsonAndMarkdown(manifest,
       manifestJsonPath,
       manifestMdPath,
@@ -79,8 +79,8 @@ public static class ReleaseHandoffArtifactBuilder
 
     var readinessGate = manifest["releaseReadinessGate"] as JsonObject ??
       ReleaseReadinessGateBuilder.Build(suiteRoot, diagnostics, runbook, manifest);
-    var readinessGateJsonPath = Path.Combine(outputDirectory, "rebuilt_release_readiness_gate_" + stamp + ".json");
-    var readinessGateMdPath = Path.Combine(outputDirectory, "rebuilt_release_readiness_gate_" + stamp + ".md");
+    var readinessGateJsonPath = Path.Combine(outputDirectory, $"rebuilt_release_readiness_gate_{stamp}.json");
+    var readinessGateMdPath = Path.Combine(outputDirectory, $"rebuilt_release_readiness_gate_{stamp}.md");
     ReleaseHandoffArtifactBuilder.WriteJsonAndMarkdown(readinessGate,
       readinessGateJsonPath,
       readinessGateMdPath,

@@ -122,7 +122,7 @@ public partial class Program
     var plcReadback = exportOk
       ? Program.ReadPlcTagTableExport(exportedTagTable)
       : new Dictionary<string, (string DataType, string Address)>(StringComparer.OrdinalIgnoreCase);
-    var plcTables = McpServer.GetPlcTagTables("PLC_1").Items?.ToArray() ?? Array.Empty<string>();
+    var plcTables = McpServer.GetPlcTagTables("PLC_1").Items?.ToArray() ?? [];
     var plcTableOk = plcTables.Any(t => string.Equals(t, "Sync_Minimal_Tags", StringComparison.OrdinalIgnoreCase));
 
     var connectionName = "HMI_Connection_1";
@@ -165,9 +165,9 @@ public partial class Program
       "Int",
       "Sync_Count");
 
-    var screens = McpServer.GetHmiScreens("HMI_RT_1").Items?.ToArray() ?? Array.Empty<string>();
-    var hmiTables = McpServer.GetHmiTagTables("HMI_RT_1").Items?.ToArray() ?? Array.Empty<string>();
-    var hmiTags = McpServer.GetHmiTags("HMI_RT_1", "Sync_HMI_Tags").Items?.ToArray() ?? Array.Empty<string>();
+    var screens = McpServer.GetHmiScreens("HMI_RT_1").Items?.ToArray() ?? [];
+    var hmiTables = McpServer.GetHmiTagTables("HMI_RT_1").Items?.ToArray() ?? [];
+    var hmiTags = McpServer.GetHmiTags("HMI_RT_1", "Sync_HMI_Tags").Items?.ToArray() ?? [];
     var rows = new List<Dictionary<string, object?>>();
     foreach (var tag in expected)
     {
@@ -249,28 +249,30 @@ public partial class Program
     foreach (var tag in tags)
     {
       objectList.AppendLine(
-        $@"      <SW.Tags.PlcTag ID=""{id++}"" CompositionName=""Tags""><AttributeList><DataTypeName>{SecurityElement.Escape(tag.DataType)}</DataTypeName><LogicalAddress>{SecurityElement.Escape(tag.Address)}</LogicalAddress><Name>{SecurityElement.Escape(tag.Name)}</Name></AttributeList></SW.Tags.PlcTag>");
+        $"""      <SW.Tags.PlcTag ID="{id++}" CompositionName="Tags"><AttributeList><DataTypeName>{SecurityElement.Escape(tag.DataType)}</DataTypeName><LogicalAddress>{SecurityElement.Escape(tag.Address)}</LogicalAddress><Name>{SecurityElement.Escape(tag.Name)}</Name></AttributeList></SW.Tags.PlcTag>""");
     }
 
     File.WriteAllText(Path.Combine(dir, "Sync_Minimal_Tags.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Tags.PlcTagTable ID=""0"">
-    <AttributeList><Name>Sync_Minimal_Tags</Name></AttributeList>
-    <ObjectList>
-{objectList}    </ObjectList>
-  </SW.Tags.PlcTagTable>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Tags.PlcTagTable ID="0">
+           <AttributeList><Name>Sync_Minimal_Tags</Name></AttributeList>
+           <ObjectList>
+       {objectList}    </ObjectList>
+         </SW.Tags.PlcTagTable>
+       </Document>
+       """,
       Encoding.UTF8);
   }
 
   private static Dictionary<string, (string DataType, string Address)> ReadPlcTagTableExport(string exportPath)
   {
     var result = new Dictionary<string, (string DataType, string Address)>(StringComparer.OrdinalIgnoreCase);
-    var doc = new XmlDocument();
-    doc.XmlResolver = null; // 安全：禁用外部实体/DTD 解析，防 XXE
+    var doc = new XmlDocument { XmlResolver = null, // 安全：禁用外部实体/DTD 解析，防 XXE
+    };
     doc.Load(exportPath);
     foreach (XmlElement node in doc.GetElementsByTagName("SW.Tags.PlcTag"))
     {
@@ -348,7 +350,7 @@ public partial class Program
       var prefix = field + "=";
       if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
       {
-        return trimmed.Substring(prefix.Length);
+        return trimmed[prefix.Length..];
       }
     }
 
@@ -600,48 +602,52 @@ public partial class Program
   }
 
   private static string MlText(string id, string composition, string text) =>
-    $@"<MultilingualText ID=""{id}"" CompositionName=""{composition}""><ObjectList><MultilingualTextItem ID=""{id}_1"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>{SecurityElement.Escape(text)}</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>";
+    $"""<MultilingualText ID="{id}" CompositionName="{composition}"><ObjectList><MultilingualTextItem ID="{id}_1" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>{SecurityElement.Escape(text)}</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>""";
 
   private static void WritePlcChineseCommentsMinimalXml(string dir)
   {
     File.WriteAllText(Path.Combine(dir, "CN_Comment_Tags.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Tags.PlcTagTable ID=""0"">
-    <AttributeList><Name>CN_Comment_Tags</Name></AttributeList>
-    <ObjectList>
-      <SW.Tags.PlcTag ID=""1"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M30.0</LogicalAddress><Name>CN_Start</Name></AttributeList><ObjectList>{Program.MlText("2", "Comment", "启动按钮，HMI 或现场按钮写入")}</ObjectList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""3"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M30.1</LogicalAddress><Name>CN_Stop</Name></AttributeList><ObjectList>{Program.MlText("4", "Comment", "停止按钮，优先切断运行保持")}</ObjectList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""5"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M30.2</LogicalAddress><Name>CN_Run</Name></AttributeList><ObjectList>{Program.MlText("6", "Comment", "运行状态输出，供HMI指示灯显示")}</ObjectList></SW.Tags.PlcTag>
-    </ObjectList>
-  </SW.Tags.PlcTagTable>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Tags.PlcTagTable ID="0">
+           <AttributeList><Name>CN_Comment_Tags</Name></AttributeList>
+           <ObjectList>
+             <SW.Tags.PlcTag ID="1" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M30.0</LogicalAddress><Name>CN_Start</Name></AttributeList><ObjectList>{Program.MlText("2", "Comment", "启动按钮，HMI 或现场按钮写入")}</ObjectList></SW.Tags.PlcTag>
+             <SW.Tags.PlcTag ID="3" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M30.1</LogicalAddress><Name>CN_Stop</Name></AttributeList><ObjectList>{Program.MlText("4", "Comment", "停止按钮，优先切断运行保持")}</ObjectList></SW.Tags.PlcTag>
+             <SW.Tags.PlcTag ID="5" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M30.2</LogicalAddress><Name>CN_Run</Name></AttributeList><ObjectList>{Program.MlText("6", "Comment", "运行状态输出，供HMI指示灯显示")}</ObjectList></SW.Tags.PlcTag>
+           </ObjectList>
+         </SW.Tags.PlcTagTable>
+       </Document>
+       """,
       Encoding.UTF8);
 
     File.WriteAllText(Path.Combine(dir, "FB_CN_LAD_Comment.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.FB ID=""0"">
-    <AttributeList>
-      <Interface><Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5""><Section Name=""Input""><Member Name=""Start"" Datatype=""Bool"" /><Member Name=""Stop"" Datatype=""Bool"" /></Section><Section Name=""Output""><Member Name=""Run"" Datatype=""Bool"" /></Section><Section Name=""InOut"" /><Section Name=""Static"" /><Section Name=""Temp"" /><Section Name=""Constant"" /></Sections></Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>FB_CN_LAD_Comment</Name><Namespace /><Number>31</Number><ProgrammingLanguage>LAD</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      {Program.MlText("1", "Comment", "LAD最小中文注释功能块：演示块注释、网络标题和网络注释可导入并读回。")}
-      <SW.Blocks.CompileUnit ID=""3"" CompositionName=""CompileUnits"">
-        <AttributeList>
-          <NetworkSource><FlgNet xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v5""><Parts><Access Scope=""LocalVariable"" UId=""21""><Symbol UId=""22""><Component Name=""Start"" UId=""23"" /></Symbol></Access><Access Scope=""LocalVariable"" UId=""24""><Symbol UId=""25""><Component Name=""Stop"" UId=""26"" /></Symbol></Access><Access Scope=""LocalVariable"" UId=""27""><Symbol UId=""28""><Component Name=""Run"" UId=""29"" /></Symbol></Access><Part Name=""Contact"" UId=""30"" /><Part Name=""Contact"" UId=""31""><Negated Name=""operand"" /></Part><Part Name=""Coil"" UId=""32"" /></Parts><Wires><Wire><Powerrail /><NameCon UId=""30"" Name=""in"" /></Wire><Wire><IdentCon UId=""21"" /><NameCon UId=""30"" Name=""operand"" /></Wire><Wire><NameCon UId=""30"" Name=""out"" /><NameCon UId=""31"" Name=""in"" /></Wire><Wire><IdentCon UId=""24"" /><NameCon UId=""31"" Name=""operand"" /></Wire><Wire><NameCon UId=""31"" Name=""out"" /><NameCon UId=""32"" Name=""in"" /></Wire><Wire><IdentCon UId=""27"" /><NameCon UId=""32"" Name=""operand"" /></Wire></Wires></FlgNet></NetworkSource>
-          <ProgrammingLanguage>LAD</ProgrammingLanguage>
-        </AttributeList>
-        <ObjectList>{Program.MlText("4", "Comment", "按下启动并且没有停止时，置位运行状态。")}{Program.MlText("5", "Title", "启动保持回路")}</ObjectList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.FB>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.FB ID="0">
+           <AttributeList>
+             <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5"><Section Name="Input"><Member Name="Start" Datatype="Bool" /><Member Name="Stop" Datatype="Bool" /></Section><Section Name="Output"><Member Name="Run" Datatype="Bool" /></Section><Section Name="InOut" /><Section Name="Static" /><Section Name="Temp" /><Section Name="Constant" /></Sections></Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>FB_CN_LAD_Comment</Name><Namespace /><Number>31</Number><ProgrammingLanguage>LAD</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             {Program.MlText("1", "Comment", "LAD最小中文注释功能块：演示块注释、网络标题和网络注释可导入并读回。")}
+             <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits">
+               <AttributeList>
+                 <NetworkSource><FlgNet xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v5"><Parts><Access Scope="LocalVariable" UId="21"><Symbol UId="22"><Component Name="Start" UId="23" /></Symbol></Access><Access Scope="LocalVariable" UId="24"><Symbol UId="25"><Component Name="Stop" UId="26" /></Symbol></Access><Access Scope="LocalVariable" UId="27"><Symbol UId="28"><Component Name="Run" UId="29" /></Symbol></Access><Part Name="Contact" UId="30" /><Part Name="Contact" UId="31"><Negated Name="operand" /></Part><Part Name="Coil" UId="32" /></Parts><Wires><Wire><Powerrail /><NameCon UId="30" Name="in" /></Wire><Wire><IdentCon UId="21" /><NameCon UId="30" Name="operand" /></Wire><Wire><NameCon UId="30" Name="out" /><NameCon UId="31" Name="in" /></Wire><Wire><IdentCon UId="24" /><NameCon UId="31" Name="operand" /></Wire><Wire><NameCon UId="31" Name="out" /><NameCon UId="32" Name="in" /></Wire><Wire><IdentCon UId="27" /><NameCon UId="32" Name="operand" /></Wire></Wires></FlgNet></NetworkSource>
+                 <ProgrammingLanguage>LAD</ProgrammingLanguage>
+               </AttributeList>
+               <ObjectList>{Program.MlText("4", "Comment", "按下启动并且没有停止时，置位运行状态。")}{Program.MlText("5", "Title", "启动保持回路")}</ObjectList>
+             </SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.FB>
+       </Document>
+       """,
       Encoding.UTF8);
 
     var h = Program.CreateStructuredTextXmlHelpers();
@@ -651,25 +657,27 @@ public partial class Program
       h.Blank(1),
       h.Tok(":="),
       h.Blank(1),
-      $@"<Access Scope=""Call"" UId=""101""><Instruction Name=""LIMIT"" UId=""102""><Token Text=""("" UId=""103"" /><Parameter Name=""MN"" UId=""104""><Token Text="":="" UId=""105"" />{h.Const("0")}</Parameter><Token Text="","" UId=""106"" /><Parameter Name=""IN"" UId=""107""><Token Text="":="" UId=""108"" />{h.Local("Raw")}</Parameter><Token Text="","" UId=""109"" /><Parameter Name=""MX"" UId=""110""><Token Text="":="" UId=""111"" />{h.Const("100")}</Parameter><Token Text="")"" UId=""112"" /></Instruction></Access>",
+      $"""<Access Scope="Call" UId="101"><Instruction Name="LIMIT" UId="102"><Token Text="(" UId="103" /><Parameter Name="MN" UId="104"><Token Text=":=" UId="105" />{h.Const("0")}</Parameter><Token Text="," UId="106" /><Parameter Name="IN" UId="107"><Token Text=":=" UId="108" />{h.Local("Raw")}</Parameter><Token Text="," UId="109" /><Parameter Name="MX" UId="110"><Token Text=":=" UId="111" />{h.Const("100")}</Parameter><Token Text=")" UId="112" /></Instruction></Access>""",
       h.Tok(";"));
 
     File.WriteAllText(Path.Combine(dir, "FC_CN_SCL_Comment.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.FC ID=""0"">
-    <AttributeList>
-      <Interface><Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5""><Section Name=""Input""><Member Name=""Raw"" Datatype=""Int"" /></Section><Section Name=""Output""><Member Name=""Limited"" Datatype=""Int"" /></Section><Section Name=""InOut"" /><Section Name=""Temp"" /><Section Name=""Constant"" /><Section Name=""Return""><Member Name=""Ret_Val"" Datatype=""Void"" /></Section></Sections></Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>FC_CN_SCL_Comment</Name><Namespace /><Number>32</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      {Program.MlText("1", "Comment", "SCL最小中文注释功能：演示SCL网络中文标题和中文注释。")}
-      <SW.Blocks.CompileUnit ID=""3"" CompositionName=""CompileUnits""><AttributeList><NetworkSource><StructuredText xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4"">{st}</StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList><ObjectList>{Program.MlText("4", "Comment", "将输入计数限制在0到100之间，避免HMI显示越界值。")}{Program.MlText("5", "Title", "计数值限幅")}</ObjectList></SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.FC>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.FC ID="0">
+           <AttributeList>
+             <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5"><Section Name="Input"><Member Name="Raw" Datatype="Int" /></Section><Section Name="Output"><Member Name="Limited" Datatype="Int" /></Section><Section Name="InOut" /><Section Name="Temp" /><Section Name="Constant" /><Section Name="Return"><Member Name="Ret_Val" Datatype="Void" /></Section></Sections></Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>FC_CN_SCL_Comment</Name><Namespace /><Number>32</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             {Program.MlText("1", "Comment", "SCL最小中文注释功能：演示SCL网络中文标题和中文注释。")}
+             <SW.Blocks.CompileUnit ID="3" CompositionName="CompileUnits"><AttributeList><NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">{st}</StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList><ObjectList>{Program.MlText("4", "Comment", "将输入计数限制在0到100之间，避免HMI显示越界值。")}{Program.MlText("5", "Title", "计数值限幅")}</ObjectList></SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.FC>
+       </Document>
+       """,
       Encoding.UTF8);
   }
 
@@ -727,71 +735,77 @@ public partial class Program
   private static void WriteMotorMinimalPlcXml(string dir)
   {
     File.WriteAllText(Path.Combine(dir, "UDT_Motor.xml"),
-      @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Types.PlcStruct ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""None"">
-            <Member Name=""Start"" Datatype=""Bool"" />
-            <Member Name=""Stop"" Datatype=""Bool"" />
-            <Member Name=""Run"" Datatype=""Bool"" />
-            <Member Name=""Fault"" Datatype=""Bool"" />
-          </Section>
-        </Sections>
-      </Interface>
-      <Name>UDT_Motor</Name>
-      <Namespace />
-    </AttributeList>
-  </SW.Types.PlcStruct>
-</Document>",
+      """
+      <?xml version="1.0" encoding="utf-8"?>
+      <Document>
+        <Engineering version="V21" />
+        <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+        <SW.Types.PlcStruct ID="0">
+          <AttributeList>
+            <Interface>
+              <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                <Section Name="None">
+                  <Member Name="Start" Datatype="Bool" />
+                  <Member Name="Stop" Datatype="Bool" />
+                  <Member Name="Run" Datatype="Bool" />
+                  <Member Name="Fault" Datatype="Bool" />
+                </Section>
+              </Sections>
+            </Interface>
+            <Name>UDT_Motor</Name>
+            <Namespace />
+          </AttributeList>
+        </SW.Types.PlcStruct>
+      </Document>
+      """,
       Encoding.UTF8);
 
     File.WriteAllText(Path.Combine(dir, "DB1_MotorData.xml"),
-      @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.GlobalDB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Static"">
-            <Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"" />
-            <Member Name=""Counter"" Datatype=""Int""><StartValue>0</StartValue></Member>
-            <Member Name=""ManualEnable"" Datatype=""Bool""><StartValue>true</StartValue></Member>
-          </Section>
-        </Sections>
-      </Interface>
-      <MemoryLayout>Optimized</MemoryLayout>
-      <Name>DB1_MotorData</Name>
-      <Namespace />
-      <Number>1</Number>
-      <ProgrammingLanguage>DB</ProgrammingLanguage>
-    </AttributeList>
-  </SW.Blocks.GlobalDB>
-</Document>",
+      """
+      <?xml version="1.0" encoding="utf-8"?>
+      <Document>
+        <Engineering version="V21" />
+        <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+        <SW.Blocks.GlobalDB ID="0">
+          <AttributeList>
+            <Interface>
+              <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                <Section Name="Static">
+                  <Member Name="Motor" Datatype="&quot;UDT_Motor&quot;" />
+                  <Member Name="Counter" Datatype="Int"><StartValue>0</StartValue></Member>
+                  <Member Name="ManualEnable" Datatype="Bool"><StartValue>true</StartValue></Member>
+                </Section>
+              </Sections>
+            </Interface>
+            <MemoryLayout>Optimized</MemoryLayout>
+            <Name>DB1_MotorData</Name>
+            <Namespace />
+            <Number>1</Number>
+            <ProgrammingLanguage>DB</ProgrammingLanguage>
+          </AttributeList>
+        </SW.Blocks.GlobalDB>
+      </Document>
+      """,
       Encoding.UTF8);
 
     File.WriteAllText(Path.Combine(dir, "Motor_IO_Tags.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Tags.PlcTagTable ID=""0"">
-    <AttributeList><Name>Motor_IO_Tags</Name></AttributeList>
-    <ObjectList>
-      <SW.Tags.PlcTag ID=""1"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList><ObjectList>{Program.MlText("101", "Comment", "启动按钮，HMI或现场按钮写入")}</ObjectList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""2"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.1</LogicalAddress><Name>Motor_Stop</Name></AttributeList><ObjectList>{Program.MlText("102", "Comment", "停止按钮，优先切断运行保持")}</ObjectList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""3"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList><ObjectList>{Program.MlText("103", "Comment", "运行状态输出，供HMI指示灯显示")}</ObjectList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""4"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.3</LogicalAddress><Name>Motor_Fault</Name></AttributeList><ObjectList>{Program.MlText("104", "Comment", "故障状态输入，触发运行复位")}</ObjectList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""5"" CompositionName=""Tags""><AttributeList><DataTypeName>Int</DataTypeName><LogicalAddress>%MW2</LogicalAddress><Name>Counter</Name></AttributeList><ObjectList>{Program.MlText("105", "Comment", "一秒节拍累计值，供HMI数值框显示")}</ObjectList></SW.Tags.PlcTag>
-    </ObjectList>
-  </SW.Tags.PlcTagTable>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Tags.PlcTagTable ID="0">
+           <AttributeList><Name>Motor_IO_Tags</Name></AttributeList>
+           <ObjectList>
+             <SW.Tags.PlcTag ID="1" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList><ObjectList>{Program.MlText("101", "Comment", "启动按钮，HMI或现场按钮写入")}</ObjectList></SW.Tags.PlcTag>
+             <SW.Tags.PlcTag ID="2" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.1</LogicalAddress><Name>Motor_Stop</Name></AttributeList><ObjectList>{Program.MlText("102", "Comment", "停止按钮，优先切断运行保持")}</ObjectList></SW.Tags.PlcTag>
+             <SW.Tags.PlcTag ID="3" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList><ObjectList>{Program.MlText("103", "Comment", "运行状态输出，供HMI指示灯显示")}</ObjectList></SW.Tags.PlcTag>
+             <SW.Tags.PlcTag ID="4" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.3</LogicalAddress><Name>Motor_Fault</Name></AttributeList><ObjectList>{Program.MlText("104", "Comment", "故障状态输入，触发运行复位")}</ObjectList></SW.Tags.PlcTag>
+             <SW.Tags.PlcTag ID="5" CompositionName="Tags"><AttributeList><DataTypeName>Int</DataTypeName><LogicalAddress>%MW2</LogicalAddress><Name>Counter</Name></AttributeList><ObjectList>{Program.MlText("105", "Comment", "一秒节拍累计值，供HMI数值框显示")}</ObjectList></SW.Tags.PlcTag>
+           </ObjectList>
+         </SW.Tags.PlcTagTable>
+       </Document>
+       """,
       Encoding.UTF8);
 
     Program.WriteMotorFb1LadXml(dir);
@@ -893,156 +907,162 @@ public partial class Program
   private static void WriteMotorFb1LadXml(string dir)
   {
     File.WriteAllText(Path.Combine(dir, "FB1_LAD_Motor.xml"),
-      @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.FB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Input""><Member Name=""ManualEnable"" Datatype=""Bool"" /></Section>
-          <Section Name=""Output"" />
-          <Section Name=""InOut""><Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"" /></Section>
-          <Section Name=""Static"" />
-        </Sections>
-      </Interface>
-      <MemoryLayout>Optimized</MemoryLayout>
-      <Name>FB1_LAD_Motor</Name>
-      <Namespace />
-      <Number>1</Number>
-      <ProgrammingLanguage>LAD</ProgrammingLanguage>
-      <SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      <MultilingualText ID=""A1"" CompositionName=""Comment""><ObjectList><MultilingualTextItem ID=""A2"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>LAD电机控制功能块，包含中文块注释、网络标题和网络说明。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-      <SW.Blocks.CompileUnit ID=""1"" CompositionName=""CompileUnits"">
-        <AttributeList>
-          <NetworkSource>
-            <FlgNet xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v5"">
-              <Parts>
-                <Access Scope=""LocalVariable"" UId=""21""><Symbol><Component Name=""ManualEnable"" /></Symbol></Access>
-                <Access Scope=""LocalVariable"" UId=""22""><Symbol><Component Name=""Motor"" /><Component Name=""Start"" /></Symbol></Access>
-                <Access Scope=""LocalVariable"" UId=""23""><Symbol><Component Name=""Motor"" /><Component Name=""Run"" /></Symbol></Access>
-                <Part Name=""Contact"" UId=""24"" />
-                <Part Name=""Contact"" UId=""25"" />
-                <Part Name=""SCoil"" UId=""26"" />
-              </Parts>
-              <Wires>
-                <Wire UId=""27""><Powerrail /><NameCon UId=""24"" Name=""in"" /></Wire>
-                <Wire UId=""28""><IdentCon UId=""21"" /><NameCon UId=""24"" Name=""operand"" /></Wire>
-                <Wire UId=""29""><NameCon UId=""24"" Name=""out"" /><NameCon UId=""25"" Name=""in"" /></Wire>
-                <Wire UId=""30""><IdentCon UId=""22"" /><NameCon UId=""25"" Name=""operand"" /></Wire>
-                <Wire UId=""31""><NameCon UId=""25"" Name=""out"" /><NameCon UId=""26"" Name=""in"" /></Wire>
-                <Wire UId=""32""><IdentCon UId=""23"" /><NameCon UId=""26"" Name=""operand"" /></Wire>
-              </Wires>
-            </FlgNet>
-          </NetworkSource>
-          <ProgrammingLanguage>LAD</ProgrammingLanguage>
-        </AttributeList>
-        <ObjectList>
-          <MultilingualText ID=""A3"" CompositionName=""Comment""><ObjectList><MultilingualTextItem ID=""A4"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>启动条件成立时置位运行状态。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-          <MultilingualText ID=""A5"" CompositionName=""Title""><ObjectList><MultilingualTextItem ID=""A6"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>启动运行自保持</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-        </ObjectList>
-      </SW.Blocks.CompileUnit>
-      <SW.Blocks.CompileUnit ID=""2"" CompositionName=""CompileUnits"">
-        <AttributeList>
-          <NetworkSource>
-            <FlgNet xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v5"">
-              <Parts>
-                <Access Scope=""LocalVariable"" UId=""21""><Symbol><Component Name=""Motor"" /><Component Name=""Stop"" /></Symbol></Access>
-                <Access Scope=""LocalVariable"" UId=""22""><Symbol><Component Name=""Motor"" /><Component Name=""Fault"" /></Symbol></Access>
-                <Access Scope=""LocalVariable"" UId=""23""><Symbol><Component Name=""ManualEnable"" /></Symbol></Access>
-                <Access Scope=""LocalVariable"" UId=""24""><Symbol><Component Name=""Motor"" /><Component Name=""Run"" /></Symbol></Access>
-                <Part Name=""Contact"" UId=""25"" />
-                <Part Name=""Contact"" UId=""26"" />
-                <Part Name=""Contact"" UId=""27""><Negated Name=""operand"" /></Part>
-                <Part Name=""O"" UId=""28""><TemplateValue Name=""Card"" Type=""Cardinality"">3</TemplateValue></Part>
-                <Part Name=""RCoil"" UId=""29"" />
-              </Parts>
-              <Wires>
-                <Wire UId=""30""><Powerrail /><NameCon UId=""25"" Name=""in"" /><NameCon UId=""26"" Name=""in"" /><NameCon UId=""27"" Name=""in"" /></Wire>
-                <Wire UId=""31""><IdentCon UId=""21"" /><NameCon UId=""25"" Name=""operand"" /></Wire>
-                <Wire UId=""32""><IdentCon UId=""22"" /><NameCon UId=""26"" Name=""operand"" /></Wire>
-                <Wire UId=""33""><IdentCon UId=""23"" /><NameCon UId=""27"" Name=""operand"" /></Wire>
-                <Wire UId=""34""><NameCon UId=""25"" Name=""out"" /><NameCon UId=""28"" Name=""in1"" /></Wire>
-                <Wire UId=""35""><NameCon UId=""26"" Name=""out"" /><NameCon UId=""28"" Name=""in2"" /></Wire>
-                <Wire UId=""36""><NameCon UId=""27"" Name=""out"" /><NameCon UId=""28"" Name=""in3"" /></Wire>
-                <Wire UId=""37""><NameCon UId=""28"" Name=""out"" /><NameCon UId=""29"" Name=""in"" /></Wire>
-                <Wire UId=""38""><IdentCon UId=""24"" /><NameCon UId=""29"" Name=""operand"" /></Wire>
-              </Wires>
-            </FlgNet>
-          </NetworkSource>
-          <ProgrammingLanguage>LAD</ProgrammingLanguage>
-        </AttributeList>
-        <ObjectList>
-          <MultilingualText ID=""A7"" CompositionName=""Comment""><ObjectList><MultilingualTextItem ID=""A8"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>停止、故障或手动使能取消时复位运行状态。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-          <MultilingualText ID=""A9"" CompositionName=""Title""><ObjectList><MultilingualTextItem ID=""AA"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>停止故障复位</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-        </ObjectList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.FB>
-</Document>",
+      """
+      <?xml version="1.0" encoding="utf-8"?>
+      <Document>
+        <Engineering version="V21" />
+        <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+        <SW.Blocks.FB ID="0">
+          <AttributeList>
+            <Interface>
+              <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                <Section Name="Input"><Member Name="ManualEnable" Datatype="Bool" /></Section>
+                <Section Name="Output" />
+                <Section Name="InOut"><Member Name="Motor" Datatype="&quot;UDT_Motor&quot;" /></Section>
+                <Section Name="Static" />
+              </Sections>
+            </Interface>
+            <MemoryLayout>Optimized</MemoryLayout>
+            <Name>FB1_LAD_Motor</Name>
+            <Namespace />
+            <Number>1</Number>
+            <ProgrammingLanguage>LAD</ProgrammingLanguage>
+            <SetENOAutomatically>false</SetENOAutomatically>
+          </AttributeList>
+          <ObjectList>
+            <MultilingualText ID="A1" CompositionName="Comment"><ObjectList><MultilingualTextItem ID="A2" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>LAD电机控制功能块，包含中文块注释、网络标题和网络说明。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+            <SW.Blocks.CompileUnit ID="1" CompositionName="CompileUnits">
+              <AttributeList>
+                <NetworkSource>
+                  <FlgNet xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v5">
+                    <Parts>
+                      <Access Scope="LocalVariable" UId="21"><Symbol><Component Name="ManualEnable" /></Symbol></Access>
+                      <Access Scope="LocalVariable" UId="22"><Symbol><Component Name="Motor" /><Component Name="Start" /></Symbol></Access>
+                      <Access Scope="LocalVariable" UId="23"><Symbol><Component Name="Motor" /><Component Name="Run" /></Symbol></Access>
+                      <Part Name="Contact" UId="24" />
+                      <Part Name="Contact" UId="25" />
+                      <Part Name="SCoil" UId="26" />
+                    </Parts>
+                    <Wires>
+                      <Wire UId="27"><Powerrail /><NameCon UId="24" Name="in" /></Wire>
+                      <Wire UId="28"><IdentCon UId="21" /><NameCon UId="24" Name="operand" /></Wire>
+                      <Wire UId="29"><NameCon UId="24" Name="out" /><NameCon UId="25" Name="in" /></Wire>
+                      <Wire UId="30"><IdentCon UId="22" /><NameCon UId="25" Name="operand" /></Wire>
+                      <Wire UId="31"><NameCon UId="25" Name="out" /><NameCon UId="26" Name="in" /></Wire>
+                      <Wire UId="32"><IdentCon UId="23" /><NameCon UId="26" Name="operand" /></Wire>
+                    </Wires>
+                  </FlgNet>
+                </NetworkSource>
+                <ProgrammingLanguage>LAD</ProgrammingLanguage>
+              </AttributeList>
+              <ObjectList>
+                <MultilingualText ID="A3" CompositionName="Comment"><ObjectList><MultilingualTextItem ID="A4" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>启动条件成立时置位运行状态。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+                <MultilingualText ID="A5" CompositionName="Title"><ObjectList><MultilingualTextItem ID="A6" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>启动运行自保持</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+              </ObjectList>
+            </SW.Blocks.CompileUnit>
+            <SW.Blocks.CompileUnit ID="2" CompositionName="CompileUnits">
+              <AttributeList>
+                <NetworkSource>
+                  <FlgNet xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v5">
+                    <Parts>
+                      <Access Scope="LocalVariable" UId="21"><Symbol><Component Name="Motor" /><Component Name="Stop" /></Symbol></Access>
+                      <Access Scope="LocalVariable" UId="22"><Symbol><Component Name="Motor" /><Component Name="Fault" /></Symbol></Access>
+                      <Access Scope="LocalVariable" UId="23"><Symbol><Component Name="ManualEnable" /></Symbol></Access>
+                      <Access Scope="LocalVariable" UId="24"><Symbol><Component Name="Motor" /><Component Name="Run" /></Symbol></Access>
+                      <Part Name="Contact" UId="25" />
+                      <Part Name="Contact" UId="26" />
+                      <Part Name="Contact" UId="27"><Negated Name="operand" /></Part>
+                      <Part Name="O" UId="28"><TemplateValue Name="Card" Type="Cardinality">3</TemplateValue></Part>
+                      <Part Name="RCoil" UId="29" />
+                    </Parts>
+                    <Wires>
+                      <Wire UId="30"><Powerrail /><NameCon UId="25" Name="in" /><NameCon UId="26" Name="in" /><NameCon UId="27" Name="in" /></Wire>
+                      <Wire UId="31"><IdentCon UId="21" /><NameCon UId="25" Name="operand" /></Wire>
+                      <Wire UId="32"><IdentCon UId="22" /><NameCon UId="26" Name="operand" /></Wire>
+                      <Wire UId="33"><IdentCon UId="23" /><NameCon UId="27" Name="operand" /></Wire>
+                      <Wire UId="34"><NameCon UId="25" Name="out" /><NameCon UId="28" Name="in1" /></Wire>
+                      <Wire UId="35"><NameCon UId="26" Name="out" /><NameCon UId="28" Name="in2" /></Wire>
+                      <Wire UId="36"><NameCon UId="27" Name="out" /><NameCon UId="28" Name="in3" /></Wire>
+                      <Wire UId="37"><NameCon UId="28" Name="out" /><NameCon UId="29" Name="in" /></Wire>
+                      <Wire UId="38"><IdentCon UId="24" /><NameCon UId="29" Name="operand" /></Wire>
+                    </Wires>
+                  </FlgNet>
+                </NetworkSource>
+                <ProgrammingLanguage>LAD</ProgrammingLanguage>
+              </AttributeList>
+              <ObjectList>
+                <MultilingualText ID="A7" CompositionName="Comment"><ObjectList><MultilingualTextItem ID="A8" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>停止、故障或手动使能取消时复位运行状态。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+                <MultilingualText ID="A9" CompositionName="Title"><ObjectList><MultilingualTextItem ID="AA" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>停止故障复位</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+              </ObjectList>
+            </SW.Blocks.CompileUnit>
+          </ObjectList>
+        </SW.Blocks.FB>
+      </Document>
+      """,
       Encoding.UTF8);
   }
 
   private static void WriteMotorFb1InstanceDbXml(string dir)
   {
     File.WriteAllText(Path.Combine(dir, "IDB_FB1_LAD_Motor.xml"),
-      @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.InstanceDB ID=""0"">
-    <AttributeList>
-      <InstanceOfName>FB1_LAD_Motor</InstanceOfName>
-      <InstanceOfType>FB</InstanceOfType>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Input""><Member Name=""ManualEnable"" Datatype=""Bool"" /></Section>
-          <Section Name=""Output"" />
-          <Section Name=""InOut""><Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"" /></Section>
-          <Section Name=""Static"" />
-        </Sections>
-      </Interface>
-      <Name>IDB_FB1_LAD_Motor</Name>
-      <Namespace />
-      <Number>101</Number>
-      <ProgrammingLanguage>DB</ProgrammingLanguage>
-    </AttributeList>
-    <ObjectList />
-  </SW.Blocks.InstanceDB>
-</Document>",
+      """
+      <?xml version="1.0" encoding="utf-8"?>
+      <Document>
+        <Engineering version="V21" />
+        <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+        <SW.Blocks.InstanceDB ID="0">
+          <AttributeList>
+            <InstanceOfName>FB1_LAD_Motor</InstanceOfName>
+            <InstanceOfType>FB</InstanceOfType>
+            <Interface>
+              <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                <Section Name="Input"><Member Name="ManualEnable" Datatype="Bool" /></Section>
+                <Section Name="Output" />
+                <Section Name="InOut"><Member Name="Motor" Datatype="&quot;UDT_Motor&quot;" /></Section>
+                <Section Name="Static" />
+              </Sections>
+            </Interface>
+            <Name>IDB_FB1_LAD_Motor</Name>
+            <Namespace />
+            <Number>101</Number>
+            <ProgrammingLanguage>DB</ProgrammingLanguage>
+          </AttributeList>
+          <ObjectList />
+        </SW.Blocks.InstanceDB>
+      </Document>
+      """,
       Encoding.UTF8);
   }
 
   private static void WriteMotorFb2InstanceDbXml(string dir)
   {
     File.WriteAllText(Path.Combine(dir, "IDB_FB2_SCL_Count.xml"),
-      @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.InstanceDB ID=""0"">
-    <AttributeList>
-      <InstanceOfName>FB2_SCL_Count</InstanceOfName>
-      <InstanceOfType>FB</InstanceOfType>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Input"" />
-          <Section Name=""Output"" />
-          <Section Name=""InOut""><Member Name=""Counter"" Datatype=""Int"" /></Section>
-          <Section Name=""Static""><Member Name=""Tick_1s"" Datatype=""TON_TIME"" Version=""1.0""><AttributeList><BooleanAttribute Name=""SetPoint"" SystemDefined=""true"">true</BooleanAttribute></AttributeList></Member></Section>
-        </Sections>
-      </Interface>
-      <Name>IDB_FB2_SCL_Count</Name>
-      <Namespace />
-      <Number>102</Number>
-      <ProgrammingLanguage>DB</ProgrammingLanguage>
-    </AttributeList>
-    <ObjectList />
-  </SW.Blocks.InstanceDB>
-</Document>",
+      """
+      <?xml version="1.0" encoding="utf-8"?>
+      <Document>
+        <Engineering version="V21" />
+        <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+        <SW.Blocks.InstanceDB ID="0">
+          <AttributeList>
+            <InstanceOfName>FB2_SCL_Count</InstanceOfName>
+            <InstanceOfType>FB</InstanceOfType>
+            <Interface>
+              <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                <Section Name="Input" />
+                <Section Name="Output" />
+                <Section Name="InOut"><Member Name="Counter" Datatype="Int" /></Section>
+                <Section Name="Static"><Member Name="Tick_1s" Datatype="TON_TIME" Version="1.0"><AttributeList><BooleanAttribute Name="SetPoint" SystemDefined="true">true</BooleanAttribute></AttributeList></Member></Section>
+              </Sections>
+            </Interface>
+            <Name>IDB_FB2_SCL_Count</Name>
+            <Namespace />
+            <Number>102</Number>
+            <ProgrammingLanguage>DB</ProgrammingLanguage>
+          </AttributeList>
+          <ObjectList />
+        </SW.Blocks.InstanceDB>
+      </Document>
+      """,
       Encoding.UTF8);
   }
 
@@ -1151,33 +1171,35 @@ public partial class Program
     h.Line(st, h.Tok("END_IF"), h.Tok(";"));
 
     File.WriteAllText(Path.Combine(dir, "FB1_LAD_Motor.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.FB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Input""><Member Name=""ManualEnable"" Datatype=""Bool"" /></Section>
-          <Section Name=""Output"" />
-          <Section Name=""InOut""><Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"" /></Section>
-          <Section Name=""Static"" />
-          <Section Name=""Temp"" />
-          <Section Name=""Constant"" />
-        </Sections>
-      </Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>FB1_LAD_Motor</Name><Namespace /><Number>1</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      <SW.Blocks.CompileUnit ID=""1"" CompositionName=""CompileUnits"">
-        <AttributeList><NetworkSource><StructuredText xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4"">
-{st}
-        </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.FB>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.FB ID="0">
+           <AttributeList>
+             <Interface>
+               <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                 <Section Name="Input"><Member Name="ManualEnable" Datatype="Bool" /></Section>
+                 <Section Name="Output" />
+                 <Section Name="InOut"><Member Name="Motor" Datatype="&quot;UDT_Motor&quot;" /></Section>
+                 <Section Name="Static" />
+                 <Section Name="Temp" />
+                 <Section Name="Constant" />
+               </Sections>
+             </Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>FB1_LAD_Motor</Name><Namespace /><Number>1</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             <SW.Blocks.CompileUnit ID="1" CompositionName="CompileUnits">
+               <AttributeList><NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+       {st}
+               </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
+             </SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.FB>
+       </Document>
+       """,
       Encoding.UTF8);
   }
 
@@ -1185,7 +1207,7 @@ public partial class Program
   {
     var h = Program.CreateStructuredTextXmlHelpers();
     var st = new StringBuilder();
-    h.Line(st, h.InstanceCall("Tick_1s", new[] { ("IN", h.Const("TRUE")), ("PT", h.TypedConst("T#1S")), }), h.Tok(";"));
+    h.Line(st, h.InstanceCall("Tick_1s", [("IN", h.Const("TRUE")), ("PT", h.TypedConst("T#1S")),]), h.Tok(";"));
     h.Line(st, h.Tok("IF"), h.Blank(1), h.LocalField("Tick_1s", "Q"), h.Blank(1), h.Tok("THEN"));
     h.Line(st,
       h.Blank(2),
@@ -1215,43 +1237,45 @@ public partial class Program
     h.Line(st, h.Blank(2), h.Tok("END_IF"), h.Tok(";"));
     h.Line(st,
       h.Blank(2),
-      h.InstanceCall("Tick_1s", new[] { ("IN", h.Const("FALSE")), ("PT", h.TypedConst("T#1S")), }),
+      h.InstanceCall("Tick_1s", [("IN", h.Const("FALSE")), ("PT", h.TypedConst("T#1S")),]),
       h.Tok(";"));
     h.Line(st, h.Tok("END_IF"), h.Tok(";"));
 
     File.WriteAllText(Path.Combine(dir, "FB2_SCL_Count.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.FB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Input"" />
-          <Section Name=""Output"" />
-          <Section Name=""InOut""><Member Name=""Counter"" Datatype=""Int"" /></Section>
-          <Section Name=""Static""><Member Name=""Tick_1s"" Datatype=""TON_TIME"" Version=""1.0""><AttributeList><BooleanAttribute Name=""SetPoint"" SystemDefined=""true"">true</BooleanAttribute></AttributeList></Member></Section>
-          <Section Name=""Temp"" />
-          <Section Name=""Constant"" />
-        </Sections>
-      </Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>FB2_SCL_Count</Name><Namespace /><Number>2</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      <MultilingualText ID=""B1"" CompositionName=""Comment""><ObjectList><MultilingualTextItem ID=""B2"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>SCL计数功能块，包含中文块注释、网络标题和网络说明。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-      <SW.Blocks.CompileUnit ID=""1"" CompositionName=""CompileUnits"">
-        <AttributeList><NetworkSource><StructuredText xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4"">
-{st}
-        </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
-        <ObjectList>
-          <MultilingualText ID=""B3"" CompositionName=""Comment""><ObjectList><MultilingualTextItem ID=""B4"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>定时器到达后计数加一，达到上限后清零。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-          <MultilingualText ID=""B5"" CompositionName=""Title""><ObjectList><MultilingualTextItem ID=""B6"" CompositionName=""Items""><AttributeList><Culture>zh-CN</Culture><Text>一秒节拍计数</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
-        </ObjectList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.FB>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.FB ID="0">
+           <AttributeList>
+             <Interface>
+               <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                 <Section Name="Input" />
+                 <Section Name="Output" />
+                 <Section Name="InOut"><Member Name="Counter" Datatype="Int" /></Section>
+                 <Section Name="Static"><Member Name="Tick_1s" Datatype="TON_TIME" Version="1.0"><AttributeList><BooleanAttribute Name="SetPoint" SystemDefined="true">true</BooleanAttribute></AttributeList></Member></Section>
+                 <Section Name="Temp" />
+                 <Section Name="Constant" />
+               </Sections>
+             </Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>FB2_SCL_Count</Name><Namespace /><Number>2</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             <MultilingualText ID="B1" CompositionName="Comment"><ObjectList><MultilingualTextItem ID="B2" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>SCL计数功能块，包含中文块注释、网络标题和网络说明。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+             <SW.Blocks.CompileUnit ID="1" CompositionName="CompileUnits">
+               <AttributeList><NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+       {st}
+               </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
+               <ObjectList>
+                 <MultilingualText ID="B3" CompositionName="Comment"><ObjectList><MultilingualTextItem ID="B4" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>定时器到达后计数加一，达到上限后清零。</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+                 <MultilingualText ID="B5" CompositionName="Title"><ObjectList><MultilingualTextItem ID="B6" CompositionName="Items"><AttributeList><Culture>zh-CN</Culture><Text>一秒节拍计数</Text></AttributeList></MultilingualTextItem></ObjectList></MultilingualText>
+               </ObjectList>
+             </SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.FB>
+       </Document>
+       """,
       Encoding.UTF8);
   }
 
@@ -1263,20 +1287,20 @@ public partial class Program
     string U() => (uid++).ToString();
 
     string Db(string member) =>
-      $@"<Access Scope=""GlobalVariable"" UId=""{U()}""><Symbol UId=""{U()}""><Component Name=""DB1_MotorData"" UId=""{U()}""><BooleanAttribute Name=""HasQuotes"" UId=""{U()}"">true</BooleanAttribute></Component><Token Text=""."" UId=""{U()}"" /><Component Name=""{member}"" UId=""{U()}"" /></Symbol></Access>";
+      $"""<Access Scope="GlobalVariable" UId="{U()}"><Symbol UId="{U()}"><Component Name="DB1_MotorData" UId="{U()}"><BooleanAttribute Name="HasQuotes" UId="{U()}">true</BooleanAttribute></Component><Token Text="." UId="{U()}" /><Component Name="{member}" UId="{U()}" /></Symbol></Access>""";
 
     string DbMotor(string member) =>
-      $@"<Access Scope=""GlobalVariable"" UId=""{U()}""><Symbol UId=""{U()}""><Component Name=""DB1_MotorData"" UId=""{U()}""><BooleanAttribute Name=""HasQuotes"" UId=""{U()}"">true</BooleanAttribute></Component><Token Text=""."" UId=""{U()}"" /><Component Name=""Motor"" UId=""{U()}"" /><Token Text=""."" UId=""{U()}"" /><Component Name=""{member}"" UId=""{U()}"" /></Symbol></Access>";
+      $"""<Access Scope="GlobalVariable" UId="{U()}"><Symbol UId="{U()}"><Component Name="DB1_MotorData" UId="{U()}"><BooleanAttribute Name="HasQuotes" UId="{U()}">true</BooleanAttribute></Component><Token Text="." UId="{U()}" /><Component Name="Motor" UId="{U()}" /><Token Text="." UId="{U()}" /><Component Name="{member}" UId="{U()}" /></Symbol></Access>""";
 
     string PlcTag(string name) =>
-      $@"<Access Scope=""GlobalVariable"" UId=""{U()}""><Symbol UId=""{U()}""><Component Name=""{name}"" UId=""{U()}"" /></Symbol></Access>";
+      $"""<Access Scope="GlobalVariable" UId="{U()}"><Symbol UId="{U()}"><Component Name="{name}" UId="{U()}" /></Symbol></Access>""";
 
     string GlobalInstanceCall(string instanceName, params (string Name, string Value)[] args)
     {
       var b = new StringBuilder();
       b.Append(
-        $@"<Access Scope=""GlobalVariable"" UId=""{U()}""><Symbol UId=""{U()}""><Component Name=""{instanceName}"" UId=""{U()}""><BooleanAttribute Name=""HasQuotes"" UId=""{U()}"">true</BooleanAttribute></Component></Symbol></Access>");
-      b.Append($@"<Access Scope=""Call"" UId=""{U()}""><Instruction UId=""{U()}"">");
+        $"""<Access Scope="GlobalVariable" UId="{U()}"><Symbol UId="{U()}"><Component Name="{instanceName}" UId="{U()}"><BooleanAttribute Name="HasQuotes" UId="{U()}">true</BooleanAttribute></Component></Symbol></Access>""");
+      b.Append($"""<Access Scope="Call" UId="{U()}"><Instruction UId="{U()}">""");
       b.Append(h.Tok("("));
       for (var i = 0; i < args.Length; i++)
       {
@@ -1285,7 +1309,7 @@ public partial class Program
           b.Append(h.Tok(","));
         }
 
-        b.Append($@"<Parameter Name=""{SecurityElement.Escape(args[i].Name)}"" UId=""{U()}"">");
+        b.Append($"""<Parameter Name="{SecurityElement.Escape(args[i].Name)}" UId="{U()}">""");
         b.Append(h.Tok(":="));
         b.Append(args[i].Value);
         b.Append("</Parameter>");
@@ -1307,45 +1331,43 @@ public partial class Program
     h.Line(st, PlcTag("Counter"), h.Blank(1), h.Tok(":="), h.Blank(1), Db("Counter"), h.Tok(";"));
 
     File.WriteAllText(Path.Combine(dir, "Main.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.OB ID=""0"">
-    <AttributeList>
-      <Interface><Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5""><Section Name=""Input""><Member Name=""Initial_Call"" Datatype=""Bool"" Informative=""true"" /><Member Name=""Remanence"" Datatype=""Bool"" Informative=""true"" /></Section><Section Name=""Temp"" /><Section Name=""Constant"" /></Sections></Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>Main</Name><Namespace /><Number>1</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SecondaryType>ProgramCycle</SecondaryType><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      <SW.Blocks.CompileUnit ID=""1"" CompositionName=""CompileUnits"">
-        <AttributeList><NetworkSource><StructuredText xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4"">
-{st}
-        </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.OB>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.OB ID="0">
+           <AttributeList>
+             <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5"><Section Name="Input"><Member Name="Initial_Call" Datatype="Bool" Informative="true" /><Member Name="Remanence" Datatype="Bool" Informative="true" /></Section><Section Name="Temp" /><Section Name="Constant" /></Sections></Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>Main</Name><Namespace /><Number>1</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SecondaryType>ProgramCycle</SecondaryType><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             <SW.Blocks.CompileUnit ID="1" CompositionName="CompileUnits">
+               <AttributeList><NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+       {st}
+               </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
+             </SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.OB>
+       </Document>
+       """,
       Encoding.UTF8);
   }
 
-  private sealed class SyncTag
+  private sealed class SyncTag(
+    string name,
+    string dataType,
+    string address,
+    string role,
+    string controlName,
+    string bindingProperty
+  )
   {
-    public SyncTag(string name, string dataType, string address, string role, string controlName,
-      string bindingProperty)
-    {
-      this.Name = name;
-      this.DataType = dataType;
-      this.Address = address;
-      this.Role = role;
-      this.ControlName = controlName;
-      this.BindingProperty = bindingProperty;
-    }
-
-    public string Name { get; }
-    public string DataType { get; }
-    public string Address { get; }
-    public string Role { get; }
-    public string ControlName { get; }
-    public string BindingProperty { get; }
+    public string Name { get; } = name;
+    public string DataType { get; } = dataType;
+    public string Address { get; } = address;
+    public string Role { get; } = role;
+    public string ControlName { get; } = controlName;
+    public string BindingProperty { get; } = bindingProperty;
   }
 }

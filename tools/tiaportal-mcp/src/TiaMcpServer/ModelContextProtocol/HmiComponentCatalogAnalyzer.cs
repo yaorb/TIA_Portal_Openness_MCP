@@ -16,30 +16,30 @@ namespace TiaMcpServer.ModelContextProtocol;
 public static class HmiComponentCatalogAnalyzer
 {
   private static readonly (string Id, string Title, string[] Needles)[] ComponentRules =
-  {
-    ("layout", "布局框架", new[] { "Screenlayout", "Header", "Navigation", "SubNavigation", "ThirdNavigation", }),
-    ("dashboard", "仪表盘与总览", new[] { "Dashboard", "Overview", "Tile", "Value Overview", "ListView", }),
-    ("popup", "弹窗与选项面板", new[] { "Popup", "OptionPanel", "Option Panel", "Alerts", "Parameter Settings", }),
-    ("notification", "通知与报警", new[] { "Notification", "Alarm", "Warning", "Error", "Alerts", }),
-    ("command", "命令与功能面板", new[] { "Function Panel", "Functions", "Command", "Button", }),
-    ("wizard", "向导步骤", new[] { "Wizard", "Progress", "Steps", }),
-    ("value-input", "数值输入与步进", new[] { "ValueStepper", "IO", "Parameter", "Setting", }),
-    ("chart", "图表与趋势", new[] { "PieChart", "Trend", "Chart", }),
-    ("status-graphic", "状态图形", new[] { "Graphics", "NoError", "Error", "Ok", "NotOk", "Status", }),
-    ("machine-module", "设备模块", new[] { "Machine_Modules", "Module", "Motor", "Drive", }),
-  };
+  [
+    ("layout", "布局框架", ["Screenlayout", "Header", "Navigation", "SubNavigation", "ThirdNavigation",]),
+    ("dashboard", "仪表盘与总览", ["Dashboard", "Overview", "Tile", "Value Overview", "ListView",]),
+    ("popup", "弹窗与选项面板", ["Popup", "OptionPanel", "Option Panel", "Alerts", "Parameter Settings",]),
+    ("notification", "通知与报警", ["Notification", "Alarm", "Warning", "Error", "Alerts",]),
+    ("command", "命令与功能面板", ["Function Panel", "Functions", "Command", "Button",]),
+    ("wizard", "向导步骤", ["Wizard", "Progress", "Steps",]),
+    ("value-input", "数值输入与步进", ["ValueStepper", "IO", "Parameter", "Setting",]),
+    ("chart", "图表与趋势", ["PieChart", "Trend", "Chart",]),
+    ("status-graphic", "状态图形", ["Graphics", "NoError", "Error", "Ok", "NotOk", "Status",]),
+    ("machine-module", "设备模块", ["Machine_Modules", "Module", "Motor", "Drive",]),
+  ];
 
   private static readonly (string Id, string Title, string[] Needles, string SafePolicy)[] EventRules =
-  {
-    ("navigate", "画面导航", new[] { "Navigation", "Navigate", "Screen", }, "只切换画面，不写 PLC。"),
-    ("open-popup", "打开弹窗", new[] { "Popup", "OptionPanel", "Open", }, "只打开弹窗或参数面板，参数写入必须走确认按钮。"),
-    ("close-popup", "关闭弹窗", new[] { "Close", "Cancel", "Back", }, "关闭弹窗不写 PLC。"),
-    ("set-bit", "瞬时命令置位", new[] { "SetBitInTag", "Cmd_", "Start", "Stop", "Reset", },
+  [
+    ("navigate", "画面导航", ["Navigation", "Navigate", "Screen",], "只切换画面，不写 PLC。"),
+    ("open-popup", "打开弹窗", ["Popup", "OptionPanel", "Open",], "只打开弹窗或参数面板，参数写入必须走确认按钮。"),
+    ("close-popup", "关闭弹窗", ["Close", "Cancel", "Back",], "关闭弹窗不写 PLC。"),
+    ("set-bit", "瞬时命令置位", ["SetBitInTag", "Cmd_", "Start", "Stop", "Reset",],
       "只允许绑定到已验证的 PLC 命令变量，不能凭空生成 M 点。"),
-    ("set-value", "参数写入", new[] { "ValueStepper", "Parameter", "SetValue", "Write", }, "在线时应有权限、范围、确认和异常反馈。"),
-    ("wizard-step", "向导上一步/下一步", new[] { "Wizard", "Next", "Previous", "Step", }, "向导事件只改变 HMI 内部流程状态，最终写入集中确认。"),
-    ("acknowledge", "报警确认", new[] { "Alarm", "Acknowledge", "Notification_OK", }, "报警确认应使用 WinCC 报警服务，不直接改 PLC 报警位。"),
-  };
+    ("set-value", "参数写入", ["ValueStepper", "Parameter", "SetValue", "Write",], "在线时应有权限、范围、确认和异常反馈。"),
+    ("wizard-step", "向导上一步/下一步", ["Wizard", "Next", "Previous", "Step",], "向导事件只改变 HMI 内部流程状态，最终写入集中确认。"),
+    ("acknowledge", "报警确认", ["Alarm", "Acknowledge", "Notification_OK",], "报警确认应使用 WinCC 报警服务，不直接改 PLC 报警位。"),
+  ];
 
   public static JsonObject Analyze(string globalLibraryProbeJsonPath, string templateDirectory)
   {
@@ -76,13 +76,13 @@ public static class HmiComponentCatalogAnalyzer
     return root;
   }
 
-  public static string BuildMarkdown(JsonObject root, string jsonPath)
+  private static string BuildMarkdown(JsonObject root, string jsonPath)
   {
     var md = new StringBuilder();
     md.AppendLine("# HMI Component Catalog");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线分析，不连接 TIA，不写参考项目，不同步交付包。");
@@ -95,12 +95,12 @@ public static class HmiComponentCatalogAnalyzer
     {
       foreach (var node in components.OfType<JsonObject>())
       {
-        md.AppendLine("- " + node["title"] + ": libraryHits=" + node["libraryHitCount"] + ", templateHits=" +
-          node["templateHitCount"] + ", status=" + node["status"]);
-        var samples = node["sampleLibraryPaths"] as JsonArray ?? new JsonArray();
+        md.AppendLine(
+          $"- {node["title"]}: libraryHits={node["libraryHitCount"]}, templateHits={node["templateHitCount"]}, status={node["status"]}");
+        var samples = node["sampleLibraryPaths"] as JsonArray ?? [];
         foreach (var sample in samples.Take(3))
         {
-          md.AppendLine("  - " + sample);
+          md.AppendLine($"  - {sample}");
         }
       }
     }
@@ -112,9 +112,9 @@ public static class HmiComponentCatalogAnalyzer
     {
       foreach (var node in events.OfType<JsonObject>())
       {
-        md.AppendLine("- " + node["title"] + ": libraryHints=" + node["libraryHintCount"] + ", templateActions=" +
-          node["templateActionCount"]);
-        md.AppendLine("  - safety: " + node["safePolicy"]);
+        md.AppendLine(
+          $"- {node["title"]}: libraryHints={node["libraryHintCount"]}, templateActions={node["templateActionCount"]}");
+        md.AppendLine($"  - safety: {node["safePolicy"]}");
       }
     }
 
@@ -125,7 +125,7 @@ public static class HmiComponentCatalogAnalyzer
     {
       foreach (var node in coverage.OfType<JsonObject>())
       {
-        md.AppendLine("- " + node["templateName"] + ": " + node["summary"]);
+        md.AppendLine($"- {node["templateName"]}: {node["summary"]}");
       }
     }
 
@@ -136,7 +136,7 @@ public static class HmiComponentCatalogAnalyzer
     {
       foreach (var node in blueprint.OfType<JsonObject>())
       {
-        md.AppendLine("- " + node["area"] + ": " + node["components"] + " - " + node["purpose"]);
+        md.AppendLine($"- {node["area"]}: {node["components"]} - {node["purpose"]}");
       }
     }
 
@@ -147,7 +147,7 @@ public static class HmiComponentCatalogAnalyzer
     {
       foreach (var step in steps)
       {
-        md.AppendLine("- " + step);
+        md.AppendLine($"- {step}");
       }
     }
 
@@ -158,8 +158,8 @@ public static class HmiComponentCatalogAnalyzer
   {
     Directory.CreateDirectory(reportDir);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var jsonPath = Path.Combine(reportDir, "hmi_component_catalog_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDir, "hmi_component_catalog_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDir, $"hmi_component_catalog_{stamp}.json");
+    var mdPath = Path.Combine(reportDir, $"hmi_component_catalog_{stamp}.md");
     File.WriteAllText(jsonPath,
       root.ToJsonString(new JsonSerializerOptions
       {
@@ -189,7 +189,7 @@ public static class HmiComponentCatalogAnalyzer
       paths.AddRange(arr.Select(x => x?.ToString() ?? "").Where(x => !string.IsNullOrWhiteSpace(x)));
     }
 
-    return paths.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+    return [.. paths.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase),];
   }
 
   private static List<TemplateFact> LoadTemplateFacts(string templateDirectory)
@@ -205,8 +205,7 @@ public static class HmiComponentCatalogAnalyzer
     {
       try
       {
-        var json = JsonNode.Parse(File.ReadAllText(file, Encoding.UTF8)) as JsonObject;
-        if (json == null)
+        if (JsonNode.Parse(File.ReadAllText(file, Encoding.UTF8)) is not JsonObject json)
         {
           continue;
         }
@@ -255,7 +254,7 @@ public static class HmiComponentCatalogAnalyzer
       {
         facts.Add(new TemplateFact
         {
-          File = file, TemplateName = Path.GetFileNameWithoutExtension(file), Purpose = "Parse error: " + ex.Message,
+          File = file, TemplateName = Path.GetFileNameWithoutExtension(file), Purpose = $"Parse error: {ex.Message}",
         });
       }
     }
@@ -283,8 +282,8 @@ public static class HmiComponentCatalogAnalyzer
           : libraryHits.Count > 0
             ? "candidate-from-global-library"
             : "not-found",
-        ["sampleLibraryPaths"] = new JsonArray(libraryHits.Take(8).Select(x => JsonValue.Create(x)).ToArray()),
-        ["coveredTemplates"] = new JsonArray(templateHits.Select(x => JsonValue.Create(x)).ToArray()),
+        ["sampleLibraryPaths"] = new JsonArray([.. libraryHits.Take(8).Select(x => JsonValue.Create(x)),]),
+        ["coveredTemplates"] = new JsonArray([.. templateHits.Select(x => JsonValue.Create(x)),]),
       });
     }
 
@@ -306,7 +305,7 @@ public static class HmiComponentCatalogAnalyzer
         ["libraryHintCount"] = libraryHits.Count,
         ["templateActionCount"] = templateActionCount,
         ["safePolicy"] = rule.SafePolicy,
-        ["sampleLibraryPaths"] = new JsonArray(libraryHits.Take(6).Select(x => JsonValue.Create(x)).ToArray()),
+        ["sampleLibraryPaths"] = new JsonArray([.. libraryHits.Take(6).Select(x => JsonValue.Create(x)),]),
       });
     }
 
@@ -331,10 +330,10 @@ public static class HmiComponentCatalogAnalyzer
       {
         ["templateName"] = fact.TemplateName,
         ["file"] = fact.File,
-        ["coveredComponents"] = new JsonArray(coveredComponents.Select(x => JsonValue.Create(x)).ToArray()),
-        ["coveredEvents"] = new JsonArray(coveredEvents.Select(x => JsonValue.Create(x)).ToArray()),
-        ["recommendedComponentGaps"] = new JsonArray(missingComponents.Select(x => JsonValue.Create(x)).ToArray()),
-        ["recommendedEventGaps"] = new JsonArray(missingEvents.Select(x => JsonValue.Create(x)).ToArray()),
+        ["coveredComponents"] = new JsonArray([.. coveredComponents.Select(x => JsonValue.Create(x)),]),
+        ["coveredEvents"] = new JsonArray([.. coveredEvents.Select(x => JsonValue.Create(x)),]),
+        ["recommendedComponentGaps"] = new JsonArray([.. missingComponents.Select(x => JsonValue.Create(x)),]),
+        ["recommendedEventGaps"] = new JsonArray([.. missingEvents.Select(x => JsonValue.Create(x)),]),
         ["summary"] =
           $"components={coveredComponents.Count}, events={coveredEvents.Count}, recommendedGaps={missingComponents.Count + missingEvents.Count}",
       });
@@ -344,51 +343,45 @@ public static class HmiComponentCatalogAnalyzer
   }
 
   private static JsonArray BuildRecommendedBlueprint() =>
-    new()
+  [
+    new JsonObject { ["area"] = "顶部栏", ["components"] = "Header + 状态胶囊 + 当前用户/时间", ["purpose"] = "建立统一品牌感和运行状态入口。", },
+    new JsonObject
     {
-      new JsonObject
-      {
-        ["area"] = "顶部栏", ["components"] = "Header + 状态胶囊 + 当前用户/时间", ["purpose"] = "建立统一品牌感和运行状态入口。",
-      },
-      new JsonObject
-      {
-        ["area"] = "主导航", ["components"] = "MainNavigation + SubNavigation", ["purpose"] = "按总览、设备、报警、参数、诊断组织画面。",
-      },
-      new JsonObject
-      {
-        ["area"] = "总览区",
-        ["components"] = "Dashboard Tiles + Value Overview + Status Graphics",
-        ["purpose"] = "快速看到运行、自动、故障、产量、速度等关键状态。",
-      },
-      new JsonObject
-      {
-        ["area"] = "设备卡片", ["components"] = "Machine Module + Function Panel", ["purpose"] = "每台设备暴露状态、命令和进入详情的事件。",
-      },
-      new JsonObject
-      {
-        ["area"] = "参数区",
-        ["components"] = "ValueStepper + OptionPanel + Confirm/Cancel",
-        ["purpose"] = "参数输入要有范围、确认、取消和错误提示。",
-      },
-      new JsonObject
-      {
-        ["area"] = "报警区", ["components"] = "Notification + Alarm/Alert Popup", ["purpose"] = "报警摘要、确认入口和详细弹窗分层展示。",
-      },
-      new JsonObject
-      {
-        ["area"] = "向导区", ["components"] = "Wizard + Progress Indicator", ["purpose"] = "用于换型、点动、调试流程，事件按步骤推进。",
-      },
-    };
+      ["area"] = "主导航", ["components"] = "MainNavigation + SubNavigation", ["purpose"] = "按总览、设备、报警、参数、诊断组织画面。",
+    },
+    new JsonObject
+    {
+      ["area"] = "总览区",
+      ["components"] = "Dashboard Tiles + Value Overview + Status Graphics",
+      ["purpose"] = "快速看到运行、自动、故障、产量、速度等关键状态。",
+    },
+    new JsonObject
+    {
+      ["area"] = "设备卡片", ["components"] = "Machine Module + Function Panel", ["purpose"] = "每台设备暴露状态、命令和进入详情的事件。",
+    },
+    new JsonObject
+    {
+      ["area"] = "参数区",
+      ["components"] = "ValueStepper + OptionPanel + Confirm/Cancel",
+      ["purpose"] = "参数输入要有范围、确认、取消和错误提示。",
+    },
+    new JsonObject
+    {
+      ["area"] = "报警区", ["components"] = "Notification + Alarm/Alert Popup", ["purpose"] = "报警摘要、确认入口和详细弹窗分层展示。",
+    },
+    new JsonObject
+    {
+      ["area"] = "向导区", ["components"] = "Wizard + Progress Indicator", ["purpose"] = "用于换型、点动、调试流程，事件按步骤推进。",
+    },
+  ];
 
   private static JsonArray BuildNextSteps(JsonArray componentCatalog, JsonArray eventCatalog) =>
-    new()
-    {
-      "把现有模板扩展为 Header、Navigation、Dashboard、CommandPanel、AlarmBanner、PopupLauncher、ValueStepper 等组件契约。",
-      "每个按钮事件都声明 Event、ActionKind、TargetTag 或 TargetScreen，并由预检查验证 RequiredTags 中存在对应变量。",
-      "参数写入类控件统一增加 Min/Max/Unit/ConfirmRequired/ErrorTag 字段，避免 HMI 直接裸写 PLC。",
-      "模板应用前增加 PLC/HMI 同步校验：未验证 PLC 变量或 DB 成员时只生成报告，不落地到项目。",
-      "参考全局库路径只作为布局和组件命名依据，真正项目写入必须用 TIA 读回、编译和 HMI 导出验证。",
-    };
+  [
+    "把现有模板扩展为 Header、Navigation、Dashboard、CommandPanel、AlarmBanner、PopupLauncher、ValueStepper 等组件契约。",
+    "每个按钮事件都声明 Event、ActionKind、TargetTag 或 TargetScreen，并由预检查验证 RequiredTags 中存在对应变量。",
+    "参数写入类控件统一增加 Min/Max/Unit/ConfirmRequired/ErrorTag 字段，避免 HMI 直接裸写 PLC。",
+    "模板应用前增加 PLC/HMI 同步校验：未验证 PLC 变量或 DB 成员时只生成报告，不落地到项目。", "参考全局库路径只作为布局和组件命名依据，真正项目写入必须用 TIA 读回、编译和 HMI 导出验证。",
+  ];
 
   private static bool ContainsAny(string value, IEnumerable<string> needles)
   {
@@ -400,11 +393,11 @@ public static class HmiComponentCatalogAnalyzer
     public string File { get; set; } = "";
     public string TemplateName { get; set; } = "";
     public string Purpose { get; set; } = "";
-    public List<string> Components { get; } = new();
-    public List<string> ItemTypes { get; } = new();
-    public List<string> ItemNames { get; } = new();
-    public List<string> Events { get; } = new();
-    public List<string> Scripts { get; } = new();
+    public List<string> Components { get; } = [];
+    public List<string> ItemTypes { get; } = [];
+    public List<string> ItemNames { get; } = [];
+    public List<string> Events { get; } = [];
+    public List<string> Scripts { get; } = [];
 
     public bool ContainsAny(IEnumerable<string> needles)
     {

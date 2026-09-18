@@ -126,11 +126,11 @@ public partial class Portal
         if (goOnlineWithAddr != null)
         {
           var addrType = goOnlineWithAddr.GetParameters()[0].ParameterType;
-          var addrCtor = addrType.GetConstructor(new[] { typeof(string), });
+          var addrCtor = addrType.GetConstructor([typeof(string),]);
           if (addrCtor != null)
           {
-            var addr = addrCtor.Invoke(new object[] { ipAddress!, });
-            var rawState = goOnlineWithAddr.Invoke(provider, new[] { addr, });
+            var addr = addrCtor.Invoke([ipAddress!,]);
+            var rawState = goOnlineWithAddr.Invoke(provider, [addr,]);
             resultState = rawState is OnlineState os
               ? os
               : OnlineState.Offline;
@@ -317,7 +317,7 @@ public partial class Portal
           ? " (truncated)."
           : "."),
         IsOnline = true,
-        Entries = entries.ToArray(),
+        Entries = [.. entries,],
         Summary = summary,
         Truncated = truncated,
       };

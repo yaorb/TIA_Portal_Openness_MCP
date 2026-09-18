@@ -35,7 +35,8 @@ public partial class Portal
   private T? ResolveSingleByName<T>(IEnumerable<T> items, string name, Func<T, string> nameOf, string kind)
     where T : class
   {
-    var exact = items.FirstOrDefault(i => nameOf(i).Equals(name, StringComparison.OrdinalIgnoreCase));
+    var tmpItems = items.ToList();
+    var exact = tmpItems.FirstOrDefault(i => nameOf(i).Equals(name, StringComparison.OrdinalIgnoreCase));
     if (exact != null)
     {
       return exact;
@@ -58,7 +59,7 @@ public partial class Portal
     }
 
     // 匹配与抛歧义都放在 try 之外：否则「歧义」这个异常会被上面捕获非法正则的 catch 吞成 null。
-    var matches = items.Where(i => regex.IsMatch(nameOf(i))).Take(11).ToList();
+    var matches = tmpItems.Where(i => regex.IsMatch(nameOf(i))).Take(11).ToList();
     if (matches.Count == 0)
     {
       return null;
@@ -85,24 +86,19 @@ public partial class Portal
     }
 
     var softwareContainer = this.GetSoftwareContainer(softwarePath);
-    if (softwareContainer?.Software is PlcSoftware plcSoftware)
+    if (softwareContainer?.Software is PlcSoftware { BlockGroup: not null, })
     {
-      var blockGroup = plcSoftware?.BlockGroup;
+      var path = blockPath.Contains("/")
+        ? blockPath[..blockPath.LastIndexOf("/", StringComparison.Ordinal)]
+        : string.Empty;
+      var regexName = blockPath.Contains("/")
+        ? blockPath[(blockPath.LastIndexOf("/", StringComparison.Ordinal) + 1)..]
+        : blockPath;
 
-      if (blockGroup != null)
+      var group = this.GetPlcBlockGroupByPath(softwarePath, path);
+      if (group != null)
       {
-        var path = blockPath.Contains("/")
-          ? blockPath.Substring(0, blockPath.LastIndexOf("/"))
-          : string.Empty;
-        var regexName = blockPath.Contains("/")
-          ? blockPath.Substring(blockPath.LastIndexOf("/") + 1)
-          : blockPath;
-
-        var group = this.GetPlcBlockGroupByPath(softwarePath, path);
-        if (group != null)
-        {
-          return this.ResolveSingleByName(group.Blocks, regexName, b => b.Name, "block");
-        }
+        return this.ResolveSingleByName(group.Blocks, regexName, b => b.Name, "block");
       }
     }
 
@@ -119,31 +115,26 @@ public partial class Portal
     }
 
     var softwareContainer = this.GetSoftwareContainer(softwarePath);
-    if (softwareContainer?.Software is PlcSoftware plcSoftware)
+    if (softwareContainer?.Software is PlcSoftware { TypeGroup: not null, })
     {
-      var typeGroup = plcSoftware?.TypeGroup;
+      var path = typePath.Contains("/")
+        ? typePath[..typePath.LastIndexOf("/", StringComparison.Ordinal)]
+        : string.Empty;
+      var regexName = typePath.Contains("/")
+        ? typePath[(typePath.LastIndexOf("/", StringComparison.Ordinal) + 1)..]
+        : typePath;
 
-      if (typeGroup != null)
+      var group = this.GetPlcTypeGroupByPath(softwarePath, path);
+      if (group != null)
       {
-        var path = typePath.Contains("/")
-          ? typePath.Substring(0, typePath.LastIndexOf("/"))
-          : string.Empty;
-        var regexName = typePath.Contains("/")
-          ? typePath.Substring(typePath.LastIndexOf("/") + 1)
-          : typePath;
-
-        var group = this.GetPlcTypeGroupByPath(softwarePath, path);
-        if (group != null)
-        {
-          return this.ResolveSingleByName(group.Types, regexName, t => t.Name, "type");
-        }
+        return this.ResolveSingleByName(group.Types, regexName, t => t.Name, "type");
       }
     }
 
     return null;
   }
 
-  public string GetBlockPath(PlcBlock block)
+  public string GetBlockPath(PlcBlock? block)
   {
     if (block == null)
     {
@@ -443,7 +434,7 @@ public partial class Portal
     try
     {
       var bytes = File.ReadAllBytes(path);
-      var hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+      var hasBom = bytes is [0xEF, 0xBB, 0xBF, ..,];
       var text = File.ReadAllText(path, Encoding.UTF8);
 
       var fixedText = text;
@@ -630,7 +621,7 @@ public partial class Portal
           }
 
           var list = group.Blocks.Import(fi, ImportOptions.Override);
-          if (list != null && list.Count > 0)
+          if (list is { Count: > 0, })
           {
             imported.AddRange(list.Select(b => b?.Name).Where(n => !string.IsNullOrWhiteSpace(n))!.Cast<string>());
           }
@@ -731,7 +722,7 @@ public partial class Portal
     try
     {
       list = this.GetBlocks(softwarePath, regexName) is { } got
-        ? got.ToArray()
+        ? [.. got,]
         : [];
     }
     catch (Exception ex)
@@ -861,7 +852,7 @@ public partial class Portal
     try
     {
       list = this.GetTypes(softwarePath, regexName) is { } got
-        ? got.ToArray()
+        ? [.. got,]
         : [];
     }
     catch (Exception ex)
@@ -1042,10 +1033,10 @@ public partial class Portal
           // https://docs.tia.siemens.cloud/r/en-us/v20/creating-and-managing-blocks/exporting-and-importing-blocks-in-simatic-sd-format-s7-1200-s7-1500/exporting-and-importing-blocks-in-simatic-sd-format-s7-1200-s7-1500
 
           var groupPath = blockPath.Contains("/")
-            ? blockPath.Substring(0, blockPath.LastIndexOf("/"))
+            ? blockPath[..blockPath.LastIndexOf("/", StringComparison.Ordinal)]
             : string.Empty;
           var blockName = blockPath.Contains("/")
-            ? blockPath.Substring(blockPath.LastIndexOf("/") + 1)
+            ? blockPath[(blockPath.LastIndexOf("/", StringComparison.Ordinal) + 1)..]
             : blockPath;
 
           var group = this.GetPlcBlockGroupByPath(softwarePath, groupPath);
@@ -1085,7 +1076,7 @@ public partial class Portal
 
             var result = group?.Blocks.Find(blockName)?.ExportAsDocuments(new DirectoryInfo(exportPath), blockName);
 
-            if (result != null && result.State == DocumentResultState.Success)
+            if (result is { State: DocumentResultState.Success, })
             {
               success = true;
             }
@@ -1157,7 +1148,7 @@ public partial class Portal
     try
     {
       list = this.GetBlocks(softwarePath, regexName) is { } got
-        ? got.ToArray()
+        ? [.. got,]
         : [];
     }
     catch (Exception ex)
@@ -1307,7 +1298,7 @@ public partial class Portal
     }
 
     var softwareContainer = this.GetSoftwareContainer(softwarePath);
-    if (!(softwareContainer?.Software is PlcSoftware plcSoftware))
+    if (softwareContainer?.Software is not PlcSoftware plcSoftware)
     {
       throw new PortalException(PortalErrorCode.NotFound,
         $"PLC software '{softwarePath}' not found. Use GetProjectTree for the exact PLC name.");
@@ -1357,6 +1348,7 @@ public partial class Portal
     }
     catch
     {
+      // ignored
     }
 
     DocumentImportResult? result;
@@ -1386,7 +1378,7 @@ public partial class Portal
         ex);
     }
 
-    if (result == null || result.State != DocumentResultState.Success)
+    if (result is not { State: DocumentResultState.Success, })
     {
       throw new PortalException(PortalErrorCode.ImportFailed,
         $"ImportFromDocuments returned state '{result?.State.ToString() ?? "null"}' for '{fileNameWithoutExtension}'. The document set was not imported.");
@@ -1394,35 +1386,39 @@ public partial class Portal
 
     // Restore the original block number if Override renumbered it (symbolic/optimized blocks
     // are addressed by name, so this is cosmetic-but-important for a stable, diffable project).
-    if (prevNumber.HasValue)
+    if (!prevNumber.HasValue)
     {
-      var imported = this.FindBlockRecursive(plcSoftware.BlockGroup, fileNameWithoutExtension);
-      if (imported != null)
+      return true;
+    }
+
+    var imported = this.FindBlockRecursive(plcSoftware.BlockGroup, fileNameWithoutExtension);
+    if (imported == null)
+    {
+      return true;
+    }
+
+    try
+    {
+      if (imported.Number != prevNumber.Value)
       {
-        try
-        {
-          if (imported.Number != prevNumber.Value)
-          {
-            imported.AutoNumber = false;
-            imported.Number = prevNumber.Value;
-          }
-          else
-          {
-            imported.AutoNumber = prevAutoNumber;
-          }
-        }
-        catch (Exception ex)
-        {
-          logger?.LogWarning(ex, $"Could not restore block number {prevNumber} for {fileNameWithoutExtension}");
-        }
+        imported.AutoNumber = false;
+        imported.Number = prevNumber.Value;
       }
+      else
+      {
+        imported.AutoNumber = prevAutoNumber;
+      }
+    }
+    catch (Exception ex)
+    {
+      logger?.LogWarning(ex, $"Could not restore block number {prevNumber} for {fileNameWithoutExtension}");
     }
 
     return true;
   }
 
   /// <summary>Depth-first search for a block by exact name across all nested block groups.</summary>
-  private PlcBlock? FindBlockRecursive(PlcBlockGroup group, string blockName)
+  private PlcBlock? FindBlockRecursive(PlcBlockGroup? group, string blockName)
   {
     if (group == null)
     {
@@ -1518,7 +1514,7 @@ public partial class Portal
               ? group.Blocks.ImportFromDocuments(dir, name, option)
               : plcSoftware.BlockGroup.Blocks.ImportFromDocuments(dir, name, option);
 
-            if (result != null && result.State == DocumentResultState.Success && result.ImportedPlcBlocks != null)
+            if (result is { State: DocumentResultState.Success, ImportedPlcBlocks: not null, })
             {
               foreach (var blk in result.ImportedPlcBlocks)
               {

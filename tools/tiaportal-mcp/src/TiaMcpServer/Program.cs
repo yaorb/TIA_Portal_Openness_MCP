@@ -568,111 +568,108 @@ public partial class Program
   public static async Task RunStdioHost(CliOptions? options)
   {
     var builder = Host.CreateEmptyApplicationBuilder(null);
-    if (builder != null)
+    if (options is { Logging: not null, })
     {
-      if (options != null && options.Logging != null)
+      switch (options.Logging)
       {
-        switch (options.Logging)
-        {
-          case 1:
-            // ATTENTION: For STDIO, logs must go to stderr!
-            builder.Logging.AddConsole(options => { options.LogToStandardErrorThreshold = LogLevel.Trace; });
-            break;
+        case 1:
+          // ATTENTION: For STDIO, logs must go to stderr!
+          builder.Logging.AddConsole(loggerOptions => { loggerOptions.LogToStandardErrorThreshold = LogLevel.Trace; });
+          break;
 
-          case 2:
-            // Visual Studio Debug Output / Sysinternals.DebugView
-            builder.Logging.AddDebug();
-            builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
-            builder.Logging.AddFilter("ModelContextProtocol", LogLevel.Information);
-            builder.Logging.AddFilter("TiaMcpServer", LogLevel.Debug);
+        case 2:
+          // Visual Studio Debug Output / Sysinternals.DebugView
+          builder.Logging.AddDebug();
+          builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
+          builder.Logging.AddFilter("ModelContextProtocol", LogLevel.Information);
+          builder.Logging.AddFilter("TiaMcpServer", LogLevel.Debug);
 
-            // Log Level for Debug Output
-            builder.Logging.SetMinimumLevel(LogLevel.Debug);
-            break;
+          // Log Level for Debug Output
+          builder.Logging.SetMinimumLevel(LogLevel.Debug);
+          break;
 
-          case 3:
-            // Windows Event Log
-            builder.Logging.AddEventLog();
-            break;
-        }
+        case 3:
+          // Windows Event Log
+          builder.Logging.AddEventLog();
+          break;
       }
-
-      try
-      {
-        var mcp = builder.Services.AddMcpServer(o =>
-        {
-          // Injected into the model's context by the host at initialize time —
-          // reaches EVERY MCP client, including ones that never load SKILL.md.
-          o.ServerInstructions = McpGuides.ServerInstructions;
-        }).WithStdioServerTransport();
-        // TIA_MCP_PROFILE=lite → only [L0]/[L1] essentials (weak models / capped hosts).
-        //
-        // 两个分支都走 WrapTools：参数诊断和大响应分页是**每个工具都该有**的能力，
-        // 而原来的 `WithToolsFromAssembly()` 直接把工具塞进容器，中间没有插手的余地 ——
-        // 于是 full profile 下少传一个必填参数只会得到「An error occurred invoking 'X'.」，
-        // 大响应被截断后也拿不回后半段。改成先取列表再包装。
-        mcp.WithTools(McpServer.WrapTools(McpServer.IsLiteProfile()
-          ? McpServer.GetLiteTools()
-          : McpServer.GetAllTools()));
-        mcp.WithPromptsFromAssembly();
-      }
-      catch (ReflectionTypeLoadException ex)
-      {
-        Program.LogDiag("WithToolsFromAssembly failed: ReflectionTypeLoadException");
-        Program.LogDiag(ex.ToString());
-        if (ex.LoaderExceptions != null)
-        {
-          foreach (var le in ex.LoaderExceptions)
-          {
-            if (le == null)
-            {
-              continue;
-            }
-
-            Program.LogDiag("LoaderException:");
-            Program.LogDiag(le.ToString());
-          }
-        }
-
-        throw;
-      }
-
-      // Register the Portal service for dependency injection
-      builder.Services.AddSingleton<Portal>();
-
-      var host = builder.Build();
-
-      // Set the service provider for the MCP server, to retrieve Portal with injected logger
-      McpServer.SetServiceProvider(host.Services);
-
-      // Set the logger for the MCP server
-      McpServer.Logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("McpServer");
-
-      // log a bit of information about the server start
-      if (options != null && options.Logging != null && options.Logging > 0)
-      {
-        var logger = host.Services.GetRequiredService<ILogger<Program>>();
-
-        logger.LogInformation($"=== TIA Portal MCP Server '{DateTime.Now.ToShortTimeString()}' ===");
-
-        switch (options.Logging)
-        {
-          case 1:
-            logger.LogInformation("Logging to stderr");
-            break;
-
-          case 2:
-            logger.LogInformation("Logging to debug output");
-            break;
-
-          case 3:
-            logger.LogInformation("Logging to Windows event log");
-            break;
-        }
-      }
-
-      await host.RunAsync();
     }
+
+    try
+    {
+      var mcp = builder.Services.AddMcpServer(o =>
+      {
+        // Injected into the model's context by the host at initialize time —
+        // reaches EVERY MCP client, including ones that never load SKILL.md.
+        o.ServerInstructions = McpGuides.ServerInstructions;
+      }).WithStdioServerTransport();
+      // TIA_MCP_PROFILE=lite → only [L0]/[L1] essentials (weak models / capped hosts).
+      //
+      // 两个分支都走 WrapTools：参数诊断和大响应分页是**每个工具都该有**的能力，
+      // 而原来的 `WithToolsFromAssembly()` 直接把工具塞进容器，中间没有插手的余地 ——
+      // 于是 full profile 下少传一个必填参数只会得到「An error occurred invoking 'X'.」，
+      // 大响应被截断后也拿不回后半段。改成先取列表再包装。
+      mcp.WithTools(McpServer.WrapTools(McpServer.IsLiteProfile()
+        ? McpServer.GetLiteTools()
+        : McpServer.GetAllTools()));
+      mcp.WithPromptsFromAssembly();
+    }
+    catch (ReflectionTypeLoadException ex)
+    {
+      Program.LogDiag("WithToolsFromAssembly failed: ReflectionTypeLoadException");
+      Program.LogDiag(ex.ToString());
+      if (ex.LoaderExceptions != null)
+      {
+        foreach (var le in ex.LoaderExceptions)
+        {
+          if (le == null)
+          {
+            continue;
+          }
+
+          Program.LogDiag("LoaderException:");
+          Program.LogDiag(le.ToString());
+        }
+      }
+
+      throw;
+    }
+
+    // Register the Portal service for dependency injection
+    builder.Services.AddSingleton<Portal>();
+
+    var host = builder.Build();
+
+    // Set the service provider for the MCP server, to retrieve Portal with injected logger
+    McpServer.SetServiceProvider(host.Services);
+
+    // Set the logger for the MCP server
+    McpServer.Logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("McpServer");
+
+    // log a bit of information about the server start
+    if (options is { Logging: > 0, })
+    {
+      var logger = host.Services.GetRequiredService<ILogger<Program>>();
+
+      logger.LogInformation($"=== TIA Portal MCP Server '{DateTime.Now.ToShortTimeString()}' ===");
+
+      switch (options.Logging)
+      {
+        case 1:
+          logger.LogInformation("Logging to stderr");
+          break;
+
+        case 2:
+          logger.LogInformation("Logging to debug output");
+          break;
+
+        case 3:
+          logger.LogInformation("Logging to Windows event log");
+          break;
+      }
+    }
+
+    await host.RunAsync();
   }
 
   public static async Task RunHttpHost(CliOptions? options)
@@ -757,25 +754,12 @@ public partial class Program
     try
     {
       Console.Error.WriteLine(message);
-    }
-    catch
-    {
-    }
-
-    try
-    {
       File.AppendAllText(Program.DiagLogPath, message + Environment.NewLine);
-    }
-    catch
-    {
-    }
-
-    try
-    {
       File.AppendAllText(Program.DiagLogPathLocal, message + Environment.NewLine);
     }
     catch
     {
+      // ignored
     }
   }
 
@@ -803,6 +787,7 @@ public partial class Program
       }
       catch
       {
+        // ignored
       }
     }
   }

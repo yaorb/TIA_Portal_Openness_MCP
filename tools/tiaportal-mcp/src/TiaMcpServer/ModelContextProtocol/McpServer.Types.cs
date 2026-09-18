@@ -11,7 +11,7 @@ using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 // SDK 2.x 里 IMcpServer 接口已由抽象类 McpServer 取代；本命名空间下另有同名静态类（本服务器自身），裸写会解析到它，故起别名。
-using McpServerHost = global::ModelContextProtocol.Server.McpServer;
+using McpServerHost = ModelContextProtocol.Server.McpServer;
 using TiaMcpServer.Siemens;
 
 #endregion
@@ -32,26 +32,28 @@ public static partial class McpServer
     try
     {
       var type = McpServer.Portal.GetType(softwarePath, typePath);
-      if (type != null)
+      if (type == null)
       {
-        var attributes = Helper.GetAttributeList(type);
-
-        return new ResponseTypeInfo
-        {
-          Message = $"Type info retrieved from '{typePath}' in '{softwarePath}'",
-          Name = type.Name,
-          TypeName = type.GetType().Name,
-          Namespace = type.Namespace,
-          IsConsistent = type.IsConsistent,
-          ModifiedDate = type.ModifiedDate,
-          IsKnowHowProtected = type.IsKnowHowProtected,
-          Attributes = attributes,
-          Description = type.ToString(),
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+        throw new McpProtocolException($"Type not found at '{typePath}' in '{softwarePath}'",
+          McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException($"Type not found at '{typePath}' in '{softwarePath}'", McpErrorCode.InternalError);
+      var attributes = Helper.GetAttributeList(type);
+
+      return new ResponseTypeInfo
+      {
+        Message = $"Type info retrieved from '{typePath}' in '{softwarePath}'",
+        Name = type.Name,
+        TypeName = type.GetType().Name,
+        Namespace = type.Namespace,
+        IsConsistent = type.IsConsistent,
+        ModifiedDate = type.ModifiedDate,
+        IsKnowHowProtected = type.IsKnowHowProtected,
+        Attributes = attributes,
+        Description = type.ToString(),
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -80,44 +82,39 @@ public static partial class McpServer
       if (list == null)
       {
         throw new McpProtocolException(
-          $"No TIA project is open, cannot list types of '{softwarePath}'. " +
-          "Call Connect / OpenProject (or AttachToOpenProject) first. " + "This does NOT mean the PLC has no types.",
+          $"No TIA project is open, cannot list types of '{softwarePath}'. Call Connect / OpenProject (or AttachToOpenProject) first. This does NOT mean the PLC has no types.",
           McpErrorCode.InvalidParams);
       }
 
       var responseList = new List<ResponseTypeInfo>();
       foreach (var type in list)
       {
-        if (type != null)
+        if (type == null)
         {
-          var attributes = Helper.GetAttributeList(type);
-
-          responseList.Add(new ResponseTypeInfo
-          {
-            Name = type.Name,
-            TypeName = type.GetType().Name,
-            Namespace = type.Namespace,
-            IsConsistent = type.IsConsistent,
-            ModifiedDate = type.ModifiedDate,
-            IsKnowHowProtected = type.IsKnowHowProtected,
-            Attributes = attributes,
-            Description = type.ToString(),
-          });
+          continue;
         }
-      }
 
-      if (list != null)
-      {
-        return new ResponseTypes
+        var attributes = Helper.GetAttributeList(type);
+
+        responseList.Add(new ResponseTypeInfo
         {
-          Message = $"Types with regex '{regexName}' retrieved from '{softwarePath}'",
-          Items = responseList,
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+          Name = type.Name,
+          TypeName = type.GetType().Name,
+          Namespace = type.Namespace,
+          IsConsistent = type.IsConsistent,
+          ModifiedDate = type.ModifiedDate,
+          IsKnowHowProtected = type.IsKnowHowProtected,
+          Attributes = attributes,
+          Description = type.ToString(),
+        });
       }
 
-      throw new McpProtocolException($"Failed retrieving user defined types with regex '{regexName}' in '{softwarePath}'",
-        McpErrorCode.InternalError);
+      return new ResponseTypes
+      {
+        Message = $"Types with regex '{regexName}' retrieved from '{softwarePath}'",
+        Items = responseList,
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -173,9 +170,9 @@ public static partial class McpServer
 
           McpServer.Logger?.LogError(pex,
             "MCP ExportType failed for {SoftwarePath} {TypePath} -> {ExportPath}",
-            pex.Data?["softwarePath"],
-            pex.Data?["typePath"],
-            pex.Data?["exportPath"]);
+            pex.Data["softwarePath"],
+            pex.Data["typePath"],
+            pex.Data["exportPath"]);
           throw new McpProtocolException(msg, McpErrorCode.InternalError);
         }
       }
@@ -294,7 +291,7 @@ public static partial class McpServer
     [Description("preservePath: preserves the path/structure of the plc software")] bool preservePath = false)
   {
     var startTime = DateTime.Now;
-    var progressToken = context.Params?.ProgressToken;
+    var progressToken = context.Params.ProgressToken;
 
     try
     {
@@ -350,21 +347,23 @@ public static partial class McpServer
       {
         foreach (var t in allTypes)
         {
-          if (t != null && !t.IsConsistent)
+          if (t is not { IsConsistent: false, })
           {
-            var attrs = Helper.GetAttributeList(t);
-            inconsistentTypeInfos.Add(new ResponseTypeInfo
-            {
-              Name = t.Name,
-              TypeName = t.GetType().Name,
-              Namespace = t.Namespace,
-              IsConsistent = t.IsConsistent,
-              ModifiedDate = t.ModifiedDate,
-              IsKnowHowProtected = t.IsKnowHowProtected,
-              Attributes = attrs,
-              Description = t.ToString(),
-            });
+            continue;
           }
+
+          var attrs = Helper.GetAttributeList(t);
+          inconsistentTypeInfos.Add(new ResponseTypeInfo
+          {
+            Name = t.Name,
+            TypeName = t.GetType().Name,
+            Namespace = t.Namespace,
+            IsConsistent = t.IsConsistent,
+            ModifiedDate = t.ModifiedDate,
+            IsKnowHowProtected = t.IsKnowHowProtected,
+            Attributes = attrs,
+            Description = t.ToString(),
+          });
         }
       }
 

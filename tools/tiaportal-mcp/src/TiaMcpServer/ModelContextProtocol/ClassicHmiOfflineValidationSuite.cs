@@ -22,7 +22,7 @@ public static class ClassicHmiOfflineValidationSuite
   {
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var suiteDir = Path.Combine(reportDirectory, "suite_" + stamp);
+    var suiteDir = Path.Combine(reportDirectory, $"suite_{stamp}");
     var plcDir = Path.Combine(suiteDir, "plc_xml");
     var hmiDir = Path.Combine(suiteDir, "classic_hmi_package");
     Directory.CreateDirectory(plcDir);
@@ -66,7 +66,7 @@ public static class ClassicHmiOfflineValidationSuite
     tagXml = tagXml.Replace("<Name>Speed_Set</Name>", "<Name>Speed_Set_Deleted</Name>");
     File.WriteAllText(Path.Combine(badHmiDir, "Bad_TagTable.xml"), tagXml, Encoding.UTF8);
     File.WriteAllText(Path.Combine(badHmiDir, "Bad_manifest.json"),
-      @"{""format"":""bad-case"",""tagTableXmlPath"":""Bad_TagTable.xml"",""screenXmlPath"":""Bad_Screen.xml""}",
+      """{"format":"bad-case","tagTableXmlPath":"Bad_TagTable.xml","screenXmlPath":"Bad_Screen.xml"}""",
       Encoding.UTF8);
     var packageBad = ClassicHmiMinimalPackageBuilder.ValidateFiles(badHmiDir);
 
@@ -109,8 +109,8 @@ public static class ClassicHmiOfflineValidationSuite
       ["packageBad"] = packageBad,
     };
 
-    var jsonPath = Path.Combine(reportDirectory, "classic_hmi_offline_validation_suite_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "classic_hmi_offline_validation_suite_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"classic_hmi_offline_validation_suite_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"classic_hmi_offline_validation_suite_{stamp}.md");
     File.WriteAllText(jsonPath,
       root.ToJsonString(new JsonSerializerOptions
       {
@@ -150,25 +150,25 @@ public static class ClassicHmiOfflineValidationSuite
   {
     if (result["symbolCount"] != null)
     {
-      return "symbolCount=" + result["symbolCount"];
+      return $"symbolCount={result["symbolCount"]}";
     }
 
     if (result["fileCount"] != null)
     {
-      return "fileCount=" + result["fileCount"];
+      return $"fileCount={result["fileCount"]}";
     }
 
     if (result["missingTagCount"] != null)
     {
-      return "missingTagCount=" + result["missingTagCount"];
+      return $"missingTagCount={result["missingTagCount"]}";
     }
 
     if (result["missingPlcSymbolCount"] != null)
     {
-      return "missingPlcSymbolCount=" + result["missingPlcSymbolCount"];
+      return $"missingPlcSymbolCount={result["missingPlcSymbolCount"]}";
     }
 
-    return "ok=" + result["ok"];
+    return $"ok={result["ok"]}";
   }
 
   private static void CopyPackageFile(string? source, string target)
@@ -184,70 +184,76 @@ public static class ClassicHmiOfflineValidationSuite
   }
 
   private static string BuildClassicHmiPackageJson() =>
-    @"{
-  ""Name"": ""Classic_Motor_Suite"",
-  ""TagTable"": {
-    ""Name"": ""Motor_HMI_Tags"",
-    ""Tags"": [
-      {""Name"":""Motor_Start"",""DataType"":""Bool"",""Length"":""1"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.Motor.Start""},
-      {""Name"":""Motor_Run"",""DataType"":""Bool"",""Length"":""1"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.Motor.Run""},
-      {""Name"":""Speed_Set"",""DataType"":""Int"",""Length"":""2"",""Connection"":""HMI_Connection_1"",""PlcTag"":""DB1_MotorData.SpeedSet""}
-    ]
-  },
-  ""ScreenDesign"": {
-    ""Screen"": {""Name"":""Motor_Main"",""Width"":640,""Height"":480},
-    ""Items"": [
-      {""Type"":""Text"",""Name"":""Title"",""Left"":20,""Top"":20,""Width"":260,""Height"":36,""Text"":{""zh-CN"":""电机控制""}},
-      {""Type"":""Button"",""Name"":""Btn_Start"",""Left"":20,""Top"":82,""Width"":130,""Height"":46,""Text"":{""zh-CN"":""启动""},""Actions"":[
-        {""Event"":""Press"",""ActionKind"":""SetBit"",""TargetTag"":""Motor_Start""},
-        {""Event"":""Release"",""ActionKind"":""ResetBit"",""TargetTag"":""Motor_Start""}
-      ]},
-      {""Type"":""Lamp"",""Name"":""Lamp_Run"",""Left"":180,""Top"":86,""Width"":42,""Height"":42,""Tag"":""Motor_Run""},
-      {""Type"":""IOField"",""Name"":""IO_Speed"",""Left"":20,""Top"":154,""Width"":140,""Height"":38,""ProcessValueTag"":""Speed_Set""}
-    ]
-  }
-}";
+    """
+    {
+      "Name": "Classic_Motor_Suite",
+      "TagTable": {
+        "Name": "Motor_HMI_Tags",
+        "Tags": [
+          {"Name":"Motor_Start","DataType":"Bool","Length":"1","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.Motor.Start"},
+          {"Name":"Motor_Run","DataType":"Bool","Length":"1","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.Motor.Run"},
+          {"Name":"Speed_Set","DataType":"Int","Length":"2","Connection":"HMI_Connection_1","PlcTag":"DB1_MotorData.SpeedSet"}
+        ]
+      },
+      "ScreenDesign": {
+        "Screen": {"Name":"Motor_Main","Width":640,"Height":480},
+        "Items": [
+          {"Type":"Text","Name":"Title","Left":20,"Top":20,"Width":260,"Height":36,"Text":{"zh-CN":"电机控制"}},
+          {"Type":"Button","Name":"Btn_Start","Left":20,"Top":82,"Width":130,"Height":46,"Text":{"zh-CN":"启动"},"Actions":[
+            {"Event":"Press","ActionKind":"SetBit","TargetTag":"Motor_Start"},
+            {"Event":"Release","ActionKind":"ResetBit","TargetTag":"Motor_Start"}
+          ]},
+          {"Type":"Lamp","Name":"Lamp_Run","Left":180,"Top":86,"Width":42,"Height":42,"Tag":"Motor_Run"},
+          {"Type":"IOField","Name":"IO_Speed","Left":20,"Top":154,"Width":140,"Height":38,"ProcessValueTag":"Speed_Set"}
+        ]
+      }
+    }
+    """;
 
   private static string BuildPlcTagTableXml() =>
-    @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <SW.Tags.PlcTagTable ID=""0"">
-    <AttributeList><Name>MotorTags</Name></AttributeList>
-    <ObjectList>
-      <SW.Tags.PlcTag ID=""1"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""2"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
-    </ObjectList>
-  </SW.Tags.PlcTagTable>
-</Document>";
+    """
+    <?xml version="1.0" encoding="utf-8"?>
+    <Document>
+      <Engineering version="V21" />
+      <SW.Tags.PlcTagTable ID="0">
+        <AttributeList><Name>MotorTags</Name></AttributeList>
+        <ObjectList>
+          <SW.Tags.PlcTag ID="1" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Motor_Start</Name></AttributeList></SW.Tags.PlcTag>
+          <SW.Tags.PlcTag ID="2" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.2</LogicalAddress><Name>Motor_Run</Name></AttributeList></SW.Tags.PlcTag>
+        </ObjectList>
+      </SW.Tags.PlcTagTable>
+    </Document>
+    """;
 
   private static string BuildMotorDbXml(bool includeSpeedSet)
   {
     var speedSet = includeSpeedSet
-      ? @"            <Member Name=""SpeedSet"" Datatype=""Int"" />"
+      ? """            <Member Name="SpeedSet" Datatype="Int" />"""
       : "";
-    return @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <SW.Blocks.GlobalDB ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Static"">
-            <Member Name=""Motor"" Datatype=""&quot;UDT_Motor&quot;"">
-              <Member Name=""Start"" Datatype=""Bool"" />
-              <Member Name=""Run"" Datatype=""Bool"" />
-            </Member>
-" + speedSet + @"
-          </Section>
-        </Sections>
-      </Interface>
-      <Name>DB1_MotorData</Name>
-      <Number>1</Number>
-      <ProgrammingLanguage>DB</ProgrammingLanguage>
-    </AttributeList>
-  </SW.Blocks.GlobalDB>
-</Document>";
+    return $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <Document>
+              <Engineering version="V21" />
+              <SW.Blocks.GlobalDB ID="0">
+                <AttributeList>
+                  <Interface>
+                    <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                      <Section Name="Static">
+                        <Member Name="Motor" Datatype="&quot;UDT_Motor&quot;">
+                          <Member Name="Start" Datatype="Bool" />
+                          <Member Name="Run" Datatype="Bool" />
+                        </Member>
+            {speedSet}
+                      </Section>
+                    </Sections>
+                  </Interface>
+                  <Name>DB1_MotorData</Name>
+                  <Number>1</Number>
+                  <ProgrammingLanguage>DB</ProgrammingLanguage>
+                </AttributeList>
+              </SW.Blocks.GlobalDB>
+            </Document>
+            """;
   }
 
   private static string BuildMarkdown(JsonObject root, string jsonPath)
@@ -255,28 +261,28 @@ public static class ClassicHmiOfflineValidationSuite
     var md = new StringBuilder();
     md.AppendLine("# Classic HMI Offline Validation Suite");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线总验收，不连接 TIA Portal，不打开工程，不导入 PLC/HMI 对象。");
     md.AppendLine("- 只写 reports 目录下的套件文件和报告，不修改工程、reference 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Suite directory: " + root["suiteDirectory"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Suite directory: {root["suiteDirectory"]}");
     md.AppendLine();
     md.AppendLine("## Items");
-    foreach (var item in root["items"] as JsonArray ?? new JsonArray())
+    foreach (var item in root["items"] as JsonArray ?? [])
     {
       if (item is not JsonObject obj)
       {
         continue;
       }
 
-      md.AppendLine("- " + obj["title"] + ": " + (obj["ok"]?.GetValue<bool>() == true
+      md.AppendLine($"- {obj["title"]}: {(obj["ok"]?.GetValue<bool>() == true
         ? "PASS"
-        : "FAIL") + " (" + obj["summary"] + ")");
+        : "FAIL")} ({obj["summary"]})");
     }
 
     md.AppendLine();

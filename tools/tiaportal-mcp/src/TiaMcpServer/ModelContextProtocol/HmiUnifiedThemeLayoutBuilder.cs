@@ -67,11 +67,11 @@ public static class HmiUnifiedThemeLayoutBuilder
     var outputItems = new JsonArray();
     for (var i = 0; i < items.Count; i++)
     {
-      var src = items[i] as JsonObject ?? throw new ArgumentException("layoutJson.items[" + i + "] must be an object.");
+      var src = items[i] as JsonObject ?? throw new ArgumentException($"layoutJson.items[{i}] must be an object.");
       var name = src["name"]?.ToString() ?? src["Name"]?.ToString() ?? "";
       if (string.IsNullOrWhiteSpace(name))
       {
-        throw new ArgumentException("layoutJson.items[" + i + "].name is required.");
+        throw new ArgumentException($"layoutJson.items[{i}].name is required.");
       }
 
       var col = HmiUnifiedThemeLayoutBuilder.GetInt(src, "col", "Col", -1);
@@ -132,16 +132,13 @@ public static class HmiUnifiedThemeLayoutBuilder
     {
       foreach (var prop in themeScreen)
       {
-        if (screen[prop.Key] == null)
-        {
-          screen[prop.Key] = prop.Value?.DeepClone();
-        }
+        screen[prop.Key] ??= prop.Value?.DeepClone();
       }
     }
 
     var defaultProps = themeDesign["theme"]?["defaultItemProperties"] as JsonObject ?? new JsonObject();
     var mergedItems = new JsonArray();
-    foreach (var node in layoutDesign["items"] as JsonArray ?? new JsonArray())
+    foreach (var node in layoutDesign["items"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
@@ -152,10 +149,7 @@ public static class HmiUnifiedThemeLayoutBuilder
       var props = copy["properties"] as JsonObject ?? copy["Properties"] as JsonObject ?? new JsonObject();
       foreach (var prop in defaultProps)
       {
-        if (props[prop.Key] == null)
-        {
-          props[prop.Key] = prop.Value?.DeepClone();
-        }
+        props[prop.Key] ??= prop.Value?.DeepClone();
       }
 
       if (props.Count > 0)
@@ -188,7 +182,7 @@ public static class HmiUnifiedThemeLayoutBuilder
     var value = node.ToString();
     if (!Regex.IsMatch(value, @"^0x[0-9a-fA-F]{8}$"))
     {
-      throw new ArgumentException("Color '" + sourceName + "' must use TIA ARGB format like 0xFFF4F6F8.");
+      throw new ArgumentException($"Color '{sourceName}' must use TIA ARGB format like 0xFFF4F6F8.");
     }
 
     target[targetName] = value;
@@ -240,5 +234,5 @@ public static class HmiUnifiedThemeLayoutBuilder
   private static string ToCamel(string value) =>
     string.IsNullOrWhiteSpace(value)
       ? value
-      : char.ToLowerInvariant(value[0]) + value.Substring(1);
+      : char.ToLowerInvariant(value[0]) + value[1..];
 }

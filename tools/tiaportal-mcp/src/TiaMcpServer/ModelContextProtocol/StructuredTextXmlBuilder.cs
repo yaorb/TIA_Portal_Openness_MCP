@@ -18,12 +18,10 @@ namespace TiaMcpServer.ModelContextProtocol;
 ///   SCL StructuredText/v4 XML 片段构造器。
 ///   第一版只覆盖 IF/ELSE、赋值、局部变量、常量和换行缩进，先服务最小可验证用例。
 /// </summary>
-public sealed class StructuredTextXmlBuilder
+public sealed class StructuredTextXmlBuilder(int firstUid = 21)
 {
   private readonly StringBuilder _xml = new();
-  private int _uid;
-
-  public StructuredTextXmlBuilder(int firstUid = 21) => this._uid = firstUid;
+  private int _uid = firstUid;
 
   public StructuredTextXmlBuilder Token(string text)
   {
@@ -59,7 +57,7 @@ public sealed class StructuredTextXmlBuilder
       throw new ArgumentException("SCL 局部变量名不能为空。", nameof(name));
     }
 
-    return this.LocalVariable(new[] { name, });
+    return this.LocalVariable([name,]);
   }
 
   // 局部变量多段路径：用于多实例 FB 输出 (#trig.Q) / 局部 STRUCT 成员等。
@@ -202,17 +200,16 @@ public sealed class StructuredTextXmlBuilder
 
     if (!valid)
     {
-      throw new ArgumentException("SCL 局部符号非法：\"" + segment + "\"。它含运算符/空格/括号，看起来是表达式而非单个变量名。" +
-        "condition / source / {sym} 只接受单个变量名；复杂表达式请用 op:\"line\" + items[]，" +
-        "CASE/FOR/WHILE 或函数调用（ABS/LIMIT/TON 等）请走外部 SCL（ImportPlcExternalSource + GenerateBlocksFromExternalSource）。",
+      throw new ArgumentException(
+        $"SCL 局部符号非法：\"{segment}\"。它含运算符/空格/括号，看起来是表达式而非单个变量名。condition / source / {{sym}} 只接受单个变量名；复杂表达式请用 op:\"line\" + items[]，CASE/FOR/WHILE 或函数调用（ABS/LIMIT/TON 等）请走外部 SCL（ImportPlcExternalSource + GenerateBlocksFromExternalSource）。",
         nameof(segment));
     }
 
     if (string.Equals(s, "TRUE", StringComparison.OrdinalIgnoreCase) ||
       string.Equals(s, "FALSE", StringComparison.OrdinalIgnoreCase))
     {
-      throw new ArgumentException("SCL 布尔字面量 \"" + segment + "\" 不能作为符号。赋值请用 literalValue/value，行内请用 {lit:\"" +
-        s.ToUpperInvariant() + "\"}。",
+      throw new ArgumentException(
+        $"SCL 布尔字面量 \"{segment}\" 不能作为符号。赋值请用 literalValue/value，行内请用 {{lit:\"{s.ToUpperInvariant()}\"}}。",
         nameof(segment));
     }
   }
@@ -305,17 +302,16 @@ public sealed class StructuredTextXmlBuilder
   public string BuildInnerXml() => this._xml.ToString();
 
   public string BuildStructuredTextXml() =>
-    "<StructuredText xmlns=\"http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4\">" +
-    Environment.NewLine + this.BuildInnerXml() + "</StructuredText>";
+    $"<StructuredText xmlns=\"http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4\">{Environment.NewLine}{this.BuildInnerXml()}</StructuredText>";
 
   public static JsonObject RunProbe(string fixtureDirectory, string reportDirectory)
   {
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
     var goldenPath = Path.Combine(fixtureDirectory, "FC_StartStop.xml");
-    var generatedPath = Path.Combine(reportDirectory, "StructuredText_StartStop.generated_" + stamp + ".xml");
-    var jsonPath = Path.Combine(reportDirectory, "structured_text_builder_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "structured_text_builder_probe_" + stamp + ".md");
+    var generatedPath = Path.Combine(reportDirectory, $"StructuredText_StartStop.generated_{stamp}.xml");
+    var jsonPath = Path.Combine(reportDirectory, $"structured_text_builder_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"structured_text_builder_probe_{stamp}.md");
 
     var generatedXml = new StructuredTextXmlBuilder().IfHeader("EStop").Assignment("Run", "FALSE", 2).ElseLine()
       .IfHeader("Stop", 2).Assignment("Run", "FALSE", 4).EndIf(2).IfHeader("Start", 2).Assignment("Run", "TRUE", 4)
@@ -407,8 +403,11 @@ public sealed class StructuredTextXmlBuilder
 
   private static string[] NormalizeArray(JsonObject root, string name)
   {
-    return (root[name] as JsonArray ?? new JsonArray()).Select(x => x?.ToString() ?? "")
-      .Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+    return
+    [
+      .. (root[name] as JsonArray ?? []).Select(x => x?.ToString() ?? "")
+      .Where(x => !string.IsNullOrWhiteSpace(x)),
+    ];
   }
 
   private static string BuildProbeMarkdown(JsonObject root, string jsonPath)
@@ -416,29 +415,29 @@ public sealed class StructuredTextXmlBuilder
     var md = new StringBuilder();
     md.AppendLine("# StructuredText Builder Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线生成和解析 StructuredText XML，不连接 TIA Portal，不导入 PLC 块。");
     md.AppendLine("- 只写 reports 目录下的生成样本和探针报告，不修改 TMP_EXPORT 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Semantic equal to golden: " + root["semanticEqual"]);
-    md.AppendLine("- Golden: " + root["goldenPath"]);
-    md.AppendLine("- Generated: " + root["generatedPath"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Semantic equal to golden: {root["semanticEqual"]}");
+    md.AppendLine($"- Golden: {root["goldenPath"]}");
+    md.AppendLine($"- Generated: {root["generatedPath"]}");
     md.AppendLine();
     if (root["generated"] is JsonObject generated)
     {
       md.AppendLine("## Generated Semantics");
-      md.AppendLine("- IF count: " + generated["ifCount"]);
-      md.AppendLine("- END_IF count: " + generated["endIfCount"]);
-      md.AppendLine("- Assignment count: " + generated["assignmentCount"]);
+      md.AppendLine($"- IF count: {generated["ifCount"]}");
+      md.AppendLine($"- END_IF count: {generated["endIfCount"]}");
+      md.AppendLine($"- Assignment count: {generated["assignmentCount"]}");
       md.AppendLine(
-        "- Variables: " + string.Join(", ", StructuredTextXmlBuilder.NormalizeArray(generated, "variables")));
+        $"- Variables: {string.Join(", ", StructuredTextXmlBuilder.NormalizeArray(generated, "variables"))}");
       md.AppendLine(
-        "- Constants: " + string.Join(", ", StructuredTextXmlBuilder.NormalizeArray(generated, "constants")));
+        $"- Constants: {string.Join(", ", StructuredTextXmlBuilder.NormalizeArray(generated, "constants"))}");
     }
 
     return md.ToString();

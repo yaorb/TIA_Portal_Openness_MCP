@@ -215,8 +215,8 @@ public static class V2PlanCompletionAuditor
       ["ok"] = true,
     };
 
-    var jsonPath = Path.Combine(reportDirectory, "v2_plan_completion_audit_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "v2_plan_completion_audit_" + stamp + ".md");
+    var jsonPath = Path.Combine(reportDirectory, $"v2_plan_completion_audit_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"v2_plan_completion_audit_{stamp}.md");
     root["jsonPath"] = jsonPath;
     root["markdownPath"] = mdPath;
     File.WriteAllText(jsonPath,
@@ -234,26 +234,26 @@ public static class V2PlanCompletionAuditor
     var md = new StringBuilder();
     md.AppendLine("# TIA MCP V2 Plan Completion Audit");
     md.AppendLine();
-    md.AppendLine("- Generated: " + root["timestamp"]);
-    md.AppendLine("- Strict completion: " + root["strictCompletionPercent"] + "%");
-    md.AppendLine("- Can claim V2 complete: " + root["canClaimV2Complete"]);
-    md.AppendLine("- Verified hard gates: " + root["verifiedHardGateCount"] + "/" + root["hardGateCount"]);
+    md.AppendLine($"- Generated: {root["timestamp"]}");
+    md.AppendLine($"- Strict completion: {root["strictCompletionPercent"]}%");
+    md.AppendLine($"- Can claim V2 complete: {root["canClaimV2Complete"]}");
+    md.AppendLine($"- Verified hard gates: {root["verifiedHardGateCount"]}/{root["hardGateCount"]}");
     md.AppendLine();
     md.AppendLine("## Items");
-    foreach (var node in root["items"] as JsonArray ?? new JsonArray())
+    foreach (var node in root["items"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
         continue;
       }
 
-      md.AppendLine("- " + item["id"] + ": " + item["status"] + " - " + item["title"]);
-      md.AppendLine("  - evidence: " + item["evidence"]);
+      md.AppendLine($"- {item["id"]}: {item["status"]} - {item["title"]}");
+      md.AppendLine($"  - evidence: {item["evidence"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Blocked Hard Gates");
-    var blocked = root["blockedItems"] as JsonArray ?? new JsonArray();
+    var blocked = root["blockedItems"] as JsonArray ?? [];
     if (blocked.Count == 0)
     {
       md.AppendLine("- None.");
@@ -266,14 +266,14 @@ public static class V2PlanCompletionAuditor
         continue;
       }
 
-      md.AppendLine("- " + item["id"] + ": " + item["evidence"]);
+      md.AppendLine($"- {item["id"]}: {item["evidence"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Next Actions");
-    foreach (var action in root["nextActions"] as JsonArray ?? new JsonArray())
+    foreach (var action in root["nextActions"] as JsonArray ?? [])
     {
-      md.AppendLine("- " + action);
+      md.AppendLine($"- {action}");
     }
 
     return md.ToString();
@@ -311,7 +311,7 @@ public static class V2PlanCompletionAuditor
         "online-readonly-data-provider-plan" =>
           "实现 OPC UA/S7 read-only Provider 执行层；TIA Openness 继续负责变量发现和监控表定义读取，不负责当前值。",
         "hardware-network-primitives" => "补齐 EnsureSubnet/AttachDeviceNodeToSubnet/SetCpuCommonSettings 或等价原语，并返回读回证据。",
-        _                             => "补齐 " + id + " 的实现和验证证据。",
+        _                             => $"补齐 {id} 的实现和验证证据。",
       });
     }
 
@@ -336,7 +336,7 @@ public static class V2PlanCompletionAuditor
       return false;
     }
 
-    return (suite["items"] as JsonArray ?? new JsonArray()).OfType<JsonObject>().Any(x =>
+    return (suite["items"] as JsonArray ?? []).OfType<JsonObject>().Any(x =>
       string.Equals(x["id"]?.ToString(), id, StringComparison.OrdinalIgnoreCase) && x["ok"]?.GetValue<bool>() == true);
   }
 
@@ -408,7 +408,7 @@ public static class V2PlanCompletionAuditor
             continue;
           }
 
-          builder.AppendLine("### " + directory + " :: " + Path.GetFileName(latest));
+          builder.AppendLine($"### {directory} :: {Path.GetFileName(latest)}");
           builder.AppendLine(V2PlanCompletionAuditor.ReadText(latest));
         }
       }
@@ -421,30 +421,24 @@ public static class V2PlanCompletionAuditor
     }
   }
 
-  private sealed class EvidenceIndex
+  private sealed class EvidenceIndex(
+    string? mcpServer,
+    string? portal,
+    string? tests,
+    string? docs,
+    string? plan,
+    JsonObject? releaseSuite,
+    string? realValidationText
+  )
   {
-    public EvidenceIndex(string mcpServer, string portal, string tests, string docs, string plan,
-      JsonObject? releaseSuite, string realValidationText)
-    {
-      this.McpServer = mcpServer ?? "";
-      this.Portal = portal ?? "";
-      this.Tests = tests ?? "";
-      this.Docs = docs ?? "";
-      this.Plan = plan ?? "";
-      this.ReleaseSuite = releaseSuite;
-      this.ReleaseSuiteText = releaseSuite?.ToJsonString() ?? "";
-      this.RealValidationText = realValidationText ?? "";
-      this.LatestReleaseSuiteJsonPath = releaseSuite?["jsonPath"]?.ToString() ?? "";
-    }
-
-    public string McpServer { get; }
-    public string Portal { get; }
-    public string Tests { get; }
-    public string Docs { get; }
-    public string Plan { get; }
-    public JsonObject? ReleaseSuite { get; }
-    public string ReleaseSuiteText { get; }
-    public string RealValidationText { get; }
-    public string LatestReleaseSuiteJsonPath { get; }
+    public string McpServer { get; } = mcpServer ?? "";
+    public string Portal { get; } = portal ?? "";
+    public string Tests { get; } = tests ?? "";
+    public string Docs { get; } = docs ?? "";
+    public string Plan { get; } = plan ?? "";
+    public JsonObject? ReleaseSuite { get; } = releaseSuite;
+    public string ReleaseSuiteText { get; } = releaseSuite?.ToJsonString() ?? "";
+    public string RealValidationText { get; } = realValidationText ?? "";
+    public string LatestReleaseSuiteJsonPath { get; } = releaseSuite?["jsonPath"]?.ToString() ?? "";
   }
 }

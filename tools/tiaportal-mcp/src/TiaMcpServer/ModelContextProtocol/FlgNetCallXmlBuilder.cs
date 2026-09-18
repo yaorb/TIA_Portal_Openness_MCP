@@ -22,20 +22,20 @@ public static class FlgNetCallXmlBuilder
 {
   private static readonly XNamespace FlgNetNs = "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v5";
 
-  public static XDocument BuildDocument(string callName, IEnumerable<FlgNetCallParameter> parameters)
+  private static XDocument BuildDocument(string callName, IEnumerable<FlgNetCallParameter> parameters)
   {
     var root = FlgNetCallXmlBuilder.BuildFlgNet(callName, parameters);
     return new XDocument(new XDeclaration("1.0", "utf-8", null), root);
   }
 
-  public static XElement BuildFlgNet(string callName, IEnumerable<FlgNetCallParameter> parameters)
+  public static XElement BuildFlgNet(string callName, IEnumerable<FlgNetCallParameter>? parameters)
   {
     if (string.IsNullOrWhiteSpace(callName))
     {
       throw new ArgumentException("FlgNet 调用块名称不能为空。", nameof(callName));
     }
 
-    var parameterList = parameters?.ToArray() ?? Array.Empty<FlgNetCallParameter>();
+    var parameterList = parameters?.ToArray() ?? [];
     FlgNetCallXmlBuilder.ValidateParameters(parameterList);
 
     var uid = 21;
@@ -59,7 +59,7 @@ public static class FlgNetCallXmlBuilder
           new XAttribute("Section", x.Section),
           new XAttribute("Type", x.DataType)))));
 
-    var wireUid = uid++;
+    var wireUid = uid;
     var wires = new List<XElement>
     {
       new(FlgNetCallXmlBuilder.FlgNetNs + "Wire",
@@ -111,9 +111,9 @@ public static class FlgNetCallXmlBuilder
       "01_手动控制",
       "FC控制",
       "05-故障保护.xml");
-    var generatedPath = Path.Combine(reportDirectory, "FlgNet_LimitProtect.generated_" + stamp + ".xml");
-    var jsonPath = Path.Combine(reportDirectory, "flgnet_call_builder_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "flgnet_call_builder_probe_" + stamp + ".md");
+    var generatedPath = Path.Combine(reportDirectory, $"FlgNet_LimitProtect.generated_{stamp}.xml");
+    var jsonPath = Path.Combine(reportDirectory, $"flgnet_call_builder_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"flgnet_call_builder_probe_{stamp}.md");
 
     var parameters = new[]
     {
@@ -166,7 +166,7 @@ public static class FlgNetCallXmlBuilder
     return root;
   }
 
-  public static JsonObject AnalyzeFirstFlgNet(string path)
+  private static JsonObject AnalyzeFirstFlgNet(string path)
   {
     var root = new JsonObject { ["path"] = path, ["exists"] = File.Exists(path), };
     if (!File.Exists(path))
@@ -189,14 +189,14 @@ public static class FlgNetCallXmlBuilder
       var callInfo = call?.Elements().FirstOrDefault(x => x.Name.LocalName == "CallInfo");
       var accesses =
         flgNet?.Descendants().Where(x => x.Name.LocalName == "Access").Select(FlgNetCallXmlBuilder.ReadAccess)
-          .ToArray() ?? Array.Empty<JsonObject>();
+          .ToArray() ?? [];
       var parameters = callInfo?.Elements().Where(x => x.Name.LocalName == "Parameter").Select(x =>
         new JsonObject
         {
           ["name"] = x.Attribute("Name")?.Value ?? "",
           ["section"] = x.Attribute("Section")?.Value ?? "",
           ["type"] = x.Attribute("Type")?.Value ?? "",
-        }).ToArray() ?? Array.Empty<JsonObject>();
+        }).ToArray() ?? [];
 
       root["ok"] = flgNet != null && callInfo != null;
       root["callName"] = callInfo?.Attribute("Name")?.Value ?? "";
@@ -263,8 +263,11 @@ public static class FlgNetCallXmlBuilder
 
   private static string[] NormalizeArray(JsonObject root, string name)
   {
-    return (root[name] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
-      .Select(x => string.Join("|", x.Select(kv => kv.Key + "=" + kv.Value))).ToArray();
+    return
+    [
+      .. (root[name] as JsonArray ?? []).OfType<JsonObject>()
+      .Select(x => string.Join("|", x.Select(kv => $"{kv.Key}={kv.Value}"))),
+    ];
   }
 
   private static string BuildProbeMarkdown(JsonObject root, string jsonPath)
@@ -272,22 +275,22 @@ public static class FlgNetCallXmlBuilder
     var md = new StringBuilder();
     md.AppendLine("# FlgNet Call Builder Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线生成和解析 FlgNet XML，不连接 TIA Portal，不导入 PLC 块。");
     md.AppendLine("- 只写 reports 目录下的生成样本和探针报告，不修改 TMP_EXPORT 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Semantic equal to golden: " + root["semanticEqual"]);
-    md.AppendLine("- Golden: " + root["goldenPath"]);
-    md.AppendLine("- Generated: " + root["generatedPath"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Semantic equal to golden: {root["semanticEqual"]}");
+    md.AppendLine($"- Golden: {root["goldenPath"]}");
+    md.AppendLine($"- Generated: {root["generatedPath"]}");
     if (root["generated"] is JsonObject generated)
     {
-      md.AppendLine("- Call: " + generated["callName"]);
-      md.AppendLine("- Wires: " + generated["wireCount"]);
+      md.AppendLine($"- Call: {generated["callName"]}");
+      md.AppendLine($"- Wires: {generated["wireCount"]}");
     }
 
     return md.ToString();
@@ -299,7 +302,7 @@ public static class FlgNetCallXmlBuilder
       .Where(x => x.Count() > 1).Select(x => x.Key).ToArray();
     if (duplicateNames.Length > 0)
     {
-      throw new ArgumentException("FlgNet 参数名重复: " + string.Join(", ", duplicateNames));
+      throw new ArgumentException($"FlgNet 参数名重复: {string.Join(", ", duplicateNames)}");
     }
 
     foreach (var parameter in parameters)
@@ -311,24 +314,22 @@ public static class FlgNetCallXmlBuilder
 
       if (string.IsNullOrWhiteSpace(parameter.Section))
       {
-        throw new ArgumentException("FlgNet 参数 Section 不能为空: " + parameter.ParameterName);
+        throw new ArgumentException($"FlgNet 参数 Section 不能为空: {parameter.ParameterName}");
       }
 
       if (string.IsNullOrWhiteSpace(parameter.DataType))
       {
-        throw new ArgumentException("FlgNet 参数 Type 不能为空: " + parameter.ParameterName);
+        throw new ArgumentException($"FlgNet 参数 Type 不能为空: {parameter.ParameterName}");
       }
 
-      if (parameter.SourceKind == FlgNetSourceKind.GlobalVariable && parameter.SymbolPath.Length == 0)
+      throw parameter.SourceKind switch
       {
-        throw new ArgumentException("FlgNet 全局变量参数必须提供符号路径: " + parameter.ParameterName);
-      }
-
-      if (parameter.SourceKind == FlgNetSourceKind.LiteralConstant &&
-        string.IsNullOrWhiteSpace(parameter.ConstantValue))
-      {
-        throw new ArgumentException("FlgNet 常量参数必须提供常量值: " + parameter.ParameterName);
-      }
+        FlgNetSourceKind.GlobalVariable when parameter.SymbolPath.Length == 0 => new ArgumentException(
+          $"FlgNet 全局变量参数必须提供符号路径: {parameter.ParameterName}"),
+        FlgNetSourceKind.LiteralConstant when string.IsNullOrWhiteSpace(parameter.ConstantValue) =>
+          new ArgumentException($"FlgNet 常量参数必须提供常量值: {parameter.ParameterName}"),
+        _ => new ArgumentOutOfRangeException(),
+      };
     }
   }
 
@@ -364,7 +365,7 @@ public sealed class FlgNetCallParameter
     new(parameterName, section, dataType, FlgNetSourceKind.GlobalVariable, "", symbolPath);
 
   public static FlgNetCallParameter Constant(string parameterName, string section, string dataType, string value) =>
-    new(parameterName, section, dataType, FlgNetSourceKind.LiteralConstant, value, Array.Empty<string>());
+    new(parameterName, section, dataType, FlgNetSourceKind.LiteralConstant, value, []);
 }
 
 public enum FlgNetSourceKind { GlobalVariable, LiteralConstant, }

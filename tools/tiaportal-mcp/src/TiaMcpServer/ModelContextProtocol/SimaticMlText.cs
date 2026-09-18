@@ -139,7 +139,7 @@ internal static class SimaticMlText
 
   // 标识符判据与 SymbolPath 保持一致（字母/下划线开头，字母数字下划线组成）。
   private static bool IsIdentifier(string value) => Regex.IsMatch(value, @"^[\p{L}_][\p{L}\p{N}_]*$");
-  private static string Quote(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
+  private static string Quote(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 
   private static string MemberName(string value) =>
     SimaticMlText.IsIdentifier(value)
@@ -149,9 +149,9 @@ internal static class SimaticMlText
   private static string RootName(string value, bool global, bool hasQuotes = false) =>
     global
       ? SimaticMlText.Quote(value)
-      : "#" + (hasQuotes
+      : $"#{(hasQuotes
         ? SimaticMlText.Quote(value)
-        : SimaticMlText.MemberName(value));
+        : SimaticMlText.MemberName(value))}";
 
   private static void AppendTokens(XElement parent, StringBuilder sb)
   {
@@ -219,7 +219,7 @@ internal static class SimaticMlText
           var ct = node.Descendants("Text").FirstOrDefault()?.Value;
           if (!string.IsNullOrEmpty(ct))
           {
-            sb.Append("//" + ct);
+            sb.Append($"//{ct}");
           }
 
           break;

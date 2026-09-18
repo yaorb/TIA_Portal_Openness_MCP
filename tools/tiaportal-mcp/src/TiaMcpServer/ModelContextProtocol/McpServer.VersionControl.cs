@@ -51,7 +51,7 @@ public static partial class McpServer
   // Let an intermediate (WorkspaceGroup, or the service itself) get collected and every object
   // reached through it dies with it — "Access to a disposed object of type Workspace". So every
   // intermediate stays rooted here for as long as the project is open. Observed, not theoretical.
-  private static readonly List<object> _vciKeepAlive = new();
+  private static readonly List<object> _vciKeepAlive = [];
 
   private static VersionControlInterface RequireVci()
   {
@@ -70,7 +70,7 @@ public static partial class McpServer
       return McpServer._vciCached;
     }
 
-    var vci = (project as IEngineeringServiceProvider)?.GetService<VersionControlInterface>();
+    var vci = (project as IEngineeringServiceProvider).GetService<VersionControlInterface>();
     if (vci == null)
     {
       throw new InvalidOperationException(
@@ -84,7 +84,7 @@ public static partial class McpServer
     return vci;
   }
 
-  private static T Keep<T>(T o) where T : class
+  private static T Keep<T>(T? o) where T : class
   {
     if (o != null)
     {
@@ -138,8 +138,8 @@ public static partial class McpServer
     var hit = all.FirstOrDefault(w => string.Equals(w.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
     if (hit == null)
     {
-      throw new InvalidOperationException("No workspace named '" + name + "'. Available: " +
-        string.Join(", ", all.Select(w => w.Name)));
+      throw new InvalidOperationException(
+        $"No workspace named '{name}'. Available: {string.Join(", ", all.Select(w => w.Name))}");
     }
 
     return hit;
@@ -166,6 +166,7 @@ public static partial class McpServer
         }
         catch
         {
+          // ignored
         }
 
         var root = "";
@@ -175,6 +176,7 @@ public static partial class McpServer
         }
         catch
         {
+          // ignored
         }
 
         lines.Add(string.Format("{0} | folder={1} | mappedObjects={2} | language={3}",
@@ -189,7 +191,7 @@ public static partial class McpServer
         Message = n == 0
           ? "No version control workspace exists in this project yet. Create one with " +
           "CreateVersionControlWorkspace, then map objects into it in the TIA UI."
-          : n + " version control workspace(s).",
+          : $"{n} version control workspace(s).",
         Items = lines,
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
       };
@@ -198,7 +200,7 @@ public static partial class McpServer
     {
       return new ResponseStringList
       {
-        Message = "GetVersionControlWorkspaces failed: " + ex.Message,
+        Message = $"GetVersionControlWorkspaces failed: {ex.Message}",
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
       };
     }
@@ -242,8 +244,8 @@ public static partial class McpServer
       var dir = new DirectoryInfo(folderPath.Trim());
       if (!dir.Exists)
       {
-        throw new DirectoryNotFoundException("folderPath does not exist: " + dir.FullName +
-          ". Create the folder (or clone the repo) first.");
+        throw new DirectoryNotFoundException(
+          $"folderPath does not exist: {dir.FullName}. Create the folder (or clone the repo) first.");
       }
 
       var vci = McpServer.RequireVci();
@@ -253,8 +255,8 @@ public static partial class McpServer
       {
         return new ResponseMessage
         {
-          Message = "A workspace named '" + workspaceName + "' already exists. " +
-            "Use GetVersionControlWorkspaces to inspect it.",
+          Message =
+            $"A workspace named '{workspaceName}' already exists. Use GetVersionControlWorkspaces to inspect it.",
           Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
         };
       }
@@ -263,9 +265,8 @@ public static partial class McpServer
       var ws = McpServer.Keep(McpServer.Keep(group.Workspaces).Create(workspaceName.Trim(), dir));
       return new ResponseMessage
       {
-        Message = "Created workspace '" + ws.Name + "' at " + dir.FullName +
-          ". Next: ConnectProjectToWorkspace to map the project's objects into it, " +
-          "then SyncVersionControlWorkspace to write them out.",
+        Message =
+          $"Created workspace '{ws.Name}' at {dir.FullName}. Next: ConnectProjectToWorkspace to map the project's objects into it, then SyncVersionControlWorkspace to write them out.",
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
       };
     }
@@ -273,7 +274,7 @@ public static partial class McpServer
     {
       return new ResponseMessage
       {
-        Message = "CreateVersionControlWorkspace failed: " + ex.Message,
+        Message = $"CreateVersionControlWorkspace failed: {ex.Message}",
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
       };
     }
@@ -309,7 +310,7 @@ public static partial class McpServer
         }
         catch (Exception ex)
         {
-          status = "Unknown(" + ex.Message + ")";
+          status = $"Unknown({ex.Message})";
         }
 
         var inSync = string.Equals(status, "Equal", StringComparison.OrdinalIgnoreCase);
@@ -347,7 +348,7 @@ public static partial class McpServer
     {
       return new ResponseStringList
       {
-        Message = "GetVersionControlStatus failed: " + ex.Message,
+        Message = $"GetVersionControlStatus failed: {ex.Message}",
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
       };
     }
@@ -376,12 +377,13 @@ public static partial class McpServer
       }
       catch
       {
+        // ignored
       }
 
       var f = mo.FileNameWithoutExtension ?? "";
       return string.IsNullOrEmpty(d)
         ? f
-        : d.TrimEnd('\\', '/') + "\\" + f;
+        : $"{d.TrimEnd('\\', '/')}\\{f}";
     }
     catch
     {
@@ -393,7 +395,7 @@ public static partial class McpServer
   {
     try
     {
-      return " | format=" + mo.FileFormat;
+      return $" | format={mo.FileFormat}";
     }
     catch
     {
@@ -411,7 +413,7 @@ public static partial class McpServer
   public static ResponseStringList SyncVersionControlWorkspace(
     [Description(
       "direction: 'ProjectToWorkspace' (export, for committing) or 'WorkspaceToProject' (import, for restoring).")]
-    string direction = "ProjectToWorkspace",
+    string? direction = "ProjectToWorkspace",
     [Description("workspaceName: which workspace. Empty = the first one in the project.")] string workspaceName = "",
     [Description("dryRun: DEFAULT true — only reports what would change. Pass false to actually synchronize.")]
     bool dryRun = true,
@@ -435,8 +437,8 @@ public static partial class McpServer
       {
         return new ResponseStringList
         {
-          Message = "direction must be 'ProjectToWorkspace' (export for commit) or " +
-            "'WorkspaceToProject' (import to restore); got '" + direction + "'.",
+          Message =
+            $"direction must be 'ProjectToWorkspace' (export for commit) or 'WorkspaceToProject' (import to restore); got '{direction}'.",
           Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
         };
       }
@@ -449,7 +451,6 @@ public static partial class McpServer
                     && !Licensing.Entitlement.IsProTier()
 #endif
       )
-      {
         return new ResponseStringList
         {
           Message = "direction='WorkspaceToProject' (restoring a Git version back INTO the project) " +
@@ -460,7 +461,6 @@ public static partial class McpServer
             "export it as text and commit it.",
           Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
         };
-      }
 
       var vci = McpServer.RequireVci();
       var ws = McpServer.FindWorkspace(vci, workspaceName);
@@ -502,7 +502,7 @@ public static partial class McpServer
       {
         return new ResponseStringList
         {
-          Message = "Workspace '" + ws.Name + "': nothing to synchronize — every mapped object is already in sync.",
+          Message = $"Workspace '{ws.Name}': nothing to synchronize — every mapped object is already in sync.",
           Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
         };
       }
@@ -512,7 +512,7 @@ public static partial class McpServer
       {
         foreach (var mo in targets)
         {
-          lines.Add(McpServer.SafeName(mo) + " | would sync " + mode);
+          lines.Add($"{McpServer.SafeName(mo)} | would sync {mode}");
         }
 
         return new ResponseStringList
@@ -536,12 +536,12 @@ public static partial class McpServer
         {
           mo.Synchronize(mode);
           ok++;
-          lines.Add(McpServer.SafeName(mo) + " | synchronized");
+          lines.Add($"{McpServer.SafeName(mo)} | synchronized");
         }
         catch (Exception ex)
         {
           failed++;
-          lines.Add(McpServer.SafeName(mo) + " | FAILED: " + ex.Message);
+          lines.Add($"{McpServer.SafeName(mo)} | FAILED: {ex.Message}");
         }
       }
 
@@ -566,13 +566,13 @@ public static partial class McpServer
     {
       return new ResponseStringList
       {
-        Message = "SyncVersionControlWorkspace failed: " + ex.Message,
+        Message = $"SyncVersionControlWorkspace failed: {ex.Message}",
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
       };
     }
   }
 
-  private static string Flatten(string s) => (s ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim();
+  private static string Flatten(string? s) => (s ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim();
 
   private static string ObjName(IEngineeringObject o)
   {
@@ -587,6 +587,7 @@ public static partial class McpServer
     }
     catch
     {
+      // ignored
     }
 
     return o.GetType().Name;
@@ -600,9 +601,11 @@ public static partial class McpServer
     }
 
     var bad = Path.GetInvalidFileNameChars();
-    return new string(s.Trim().Select(c => bad.Contains(c)
-      ? '_'
-      : c).ToArray());
+    return new string([
+      .. s.Trim().Select(c => bad.Contains(c)
+        ? '_'
+        : c),
+    ]);
   }
 
   /// <summary>Pick the most Git-friendly of the formats VCI offers for an object.</summary>
@@ -631,7 +634,7 @@ public static partial class McpServer
       var nm = McpServer.ObjName(o);
       kids.Add(new VcNode
       {
-        Obj = o, Label = node.Label + "/" + nm, RelDir = subDir, Descendable = descendable,
+        Obj = o, Label = $"{node.Label}/{nm}", RelDir = subDir, Descendable = descendable,
       });
     }
 
@@ -695,8 +698,7 @@ public static partial class McpServer
         }
 
         var sc = di2.GetService<SoftwareContainer>();
-        var sw = sc?.Software as IEngineeringObject;
-        if (sw != null)
+        if (sc?.Software is IEngineeringObject sw)
         {
           Add(sw, dir, true);
         }
@@ -818,7 +820,7 @@ public static partial class McpServer
 
         if (walkTrace)
         {
-          Console.Error.WriteLine("[VCI-walk] #" + visited + " " + node.Obj.GetType().Name + " :: " + node.Label);
+          Console.Error.WriteLine($"[VCI-walk] #{visited} {node.Obj.GetType().Name} :: {node.Label}");
         }
 
         if (!string.IsNullOrWhiteSpace(deviceFilter) && node.Obj is Device &&
@@ -840,7 +842,7 @@ public static partial class McpServer
           formats = new List<string>();
           if (walkTrace)
           {
-            Console.Error.WriteLine("[VCI-walk]     query threw: " + ex.Message.Split('\n')[0]);
+            Console.Error.WriteLine($"[VCI-walk]     query threw: {ex.Message.Split('\n')[0]}");
           }
 
           ws = ReAcquire(); // the throw killed the handle
@@ -848,8 +850,8 @@ public static partial class McpServer
 
         if (walkTrace)
         {
-          Console.Error.WriteLine("[VCI-walk]     formats=[" + string.Join(",", formats) + "] descendable=" +
-            node.Descendable);
+          Console.Error.WriteLine(
+            $"[VCI-walk]     formats=[{string.Join(",", formats)}] descendable={node.Descendable}");
         }
 
         if (formats.Count > 0)
@@ -870,16 +872,16 @@ public static partial class McpServer
           if (existing != null)
           {
             already++;
-            lines.Add(node.Label + " | already mapped");
+            lines.Add($"{node.Label} | already mapped");
             continue;
           }
 
           if (dryRun)
           {
             mapped++;
-            lines.Add(node.Label + " | would map | format=" + fmt + " | dir=" + (string.IsNullOrEmpty(node.RelDir)
+            lines.Add($"{node.Label} | would map | format={fmt} | dir={(string.IsNullOrEmpty(node.RelDir)
               ? "<root>"
-              : node.RelDir));
+              : node.RelDir)}");
           }
           else
           {
@@ -892,7 +894,7 @@ public static partial class McpServer
               // Sub-folders are refused on this build ("Relative Directory Path is Invalid"),
               // so fall back to a flat layout at the workspace root, folding the project path
               // into the file name so nothing collides.
-              var rel = node.RelDir ?? "";
+              var rel = node.RelDir;
               var flat = false;
               if (!string.IsNullOrEmpty(rel))
               {
@@ -906,8 +908,8 @@ public static partial class McpServer
                 {
                   if (walkTrace)
                   {
-                    Console.Error.WriteLine("[VCI-walk]     subdir refused (" + McpServer.Flatten(subEx.Message) +
-                      ") -> flat");
+                    Console.Error.WriteLine(
+                      $"[VCI-walk]     subdir refused ({McpServer.Flatten(subEx.Message)}) -> flat");
                   }
 
                   ws = ReAcquire();
@@ -923,10 +925,10 @@ public static partial class McpServer
               {
                 var flatName = McpServer.SanitizePathPart((string.IsNullOrEmpty(rel)
                   ? ""
-                  : rel.Replace(Path.DirectorySeparatorChar, '_') + "_") + McpServer.ObjName(node.Obj));
+                  : $"{rel.Replace(Path.DirectorySeparatorChar, '_')}_") + McpServer.ObjName(node.Obj));
                 if (walkTrace)
                 {
-                  Console.Error.WriteLine("[VCI-walk]     ExportObject root name='" + flatName + "' fmt='" + fmt + "'");
+                  Console.Error.WriteLine($"[VCI-walk]     ExportObject root name='{flatName}' fmt='{fmt}'");
                 }
 
                 ws.ExportObject(node.Obj, new DirectoryInfo(wsRootPath), flatName, fmt);
@@ -934,16 +936,16 @@ public static partial class McpServer
               }
 
               mapped++;
-              lines.Add(node.Label + " | mapped | format=" + fmt + " | dir=" + (string.IsNullOrEmpty(node.RelDir)
+              lines.Add($"{node.Label} | mapped | format={fmt} | dir={(string.IsNullOrEmpty(node.RelDir)
                 ? "<root>"
-                : node.RelDir));
+                : node.RelDir)}");
             }
             catch (Exception ex)
             {
               failed++;
-              lines.Add(node.Label + " | FAILED: " + McpServer.Flatten(ex.Message) + (ex.InnerException != null
-                ? " || inner: " + McpServer.Flatten(ex.InnerException.Message)
-                : ""));
+              lines.Add($"{node.Label} | FAILED: {McpServer.Flatten(ex.Message)}{(ex.InnerException != null
+                ? $" || inner: {McpServer.Flatten(ex.InnerException.Message)}"
+                : "")}");
               ws = ReAcquire();
             }
           }
@@ -954,7 +956,7 @@ public static partial class McpServer
         if (!node.Descendable)
         {
           unsupported++;
-          lines.Add(node.Label + " | not supported by VCI (" + node.Obj.GetType().Name + ")");
+          lines.Add($"{node.Label} | not supported by VCI ({node.Obj.GetType().Name})");
           continue;
         }
 
@@ -965,13 +967,13 @@ public static partial class McpServer
         }
         catch (Exception ex)
         {
-          kids = new List<VcNode>();
-          lines.Add(node.Label + " | could not enumerate children: " + ex.Message.Split('\n')[0]);
+          kids = [];
+          lines.Add($"{node.Label} | could not enumerate children: {ex.Message.Split('\n')[0]}");
         }
 
         if (walkTrace)
         {
-          Console.Error.WriteLine("[VCI-walk]     children=" + kids.Count);
+          Console.Error.WriteLine($"[VCI-walk]     children={kids.Count}");
         }
 
         foreach (var kid in kids)
@@ -1019,7 +1021,7 @@ public static partial class McpServer
     {
       return new ResponseStringList
       {
-        Message = "ConnectProjectToWorkspace failed: " + ex.Message,
+        Message = $"ConnectProjectToWorkspace failed: {ex.Message}",
         Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = false, },
       };
     }

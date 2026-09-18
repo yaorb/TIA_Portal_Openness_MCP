@@ -28,7 +28,7 @@ public static partial class McpServer
     [Description("softwarePath: PLC software path, e.g. '5T车' or 'PLC_1' (from GetProjectTree)")] string softwarePath,
     [Description("blockPath: fully qualified 'Group/Subgroup/Name' from GetSoftwareTree")] string blockPath)
   {
-    var tempDir = Path.Combine(Path.GetTempPath(), "TiaMcpLogic_" + Guid.NewGuid().ToString("N"));
+    var tempDir = Path.Combine(Path.GetTempPath(), $"TiaMcpLogic_{Guid.NewGuid():N}");
     try
     {
       Directory.CreateDirectory(tempDir);
@@ -83,6 +83,7 @@ public static partial class McpServer
       }
       catch
       {
+        // ignored
       }
     }
   }

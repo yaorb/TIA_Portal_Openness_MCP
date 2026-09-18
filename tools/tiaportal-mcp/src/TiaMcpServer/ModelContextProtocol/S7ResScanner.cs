@@ -33,10 +33,10 @@ internal static class S7ResScanner
   /// </summary>
   public static List<string> GetMissingEnUsIds(string directory, string baseName)
   {
-    var path = Path.Combine(directory, baseName + ".s7res");
+    var path = Path.Combine(directory, $"{baseName}.s7res");
     if (!File.Exists(path))
     {
-      return new List<string>();
+      return [];
     }
 
     return S7ResScanner.GetMissingEnUsIdsFromLines(File.ReadAllLines(path));
@@ -49,17 +49,6 @@ internal static class S7ResScanner
     var sawContainer = false;
     string? currentId = null;
     var currentHasEnUs = false;
-
-    void Flush()
-    {
-      if (currentId != null && !currentHasEnUs)
-      {
-        missing.Add(currentId);
-      }
-
-      currentId = null;
-      currentHasEnUs = false;
-    }
 
     foreach (var raw in lines)
     {
@@ -80,7 +69,7 @@ internal static class S7ResScanner
       // New list item: "- id: MLC_xxx"
       if (trimmed.StartsWith("-", StringComparison.Ordinal))
       {
-        var item = trimmed.Substring(1).TrimStart();
+        var item = trimmed[1..].TrimStart();
         if (S7ResScanner.TryReadValue(item, "id", out var id))
         {
           Flush();
@@ -102,7 +91,18 @@ internal static class S7ResScanner
 
     return sawContainer
       ? missing
-      : new List<string>();
+      : [];
+
+    void Flush()
+    {
+      if (currentId != null && !currentHasEnUs)
+      {
+        missing.Add(currentId);
+      }
+
+      currentId = null;
+      currentHasEnUs = false;
+    }
   }
 
   /// <summary>Matches "key: value" case-insensitively on the key; unquotes the value.</summary>
@@ -114,13 +114,13 @@ internal static class S7ResScanner
       return false;
     }
 
-    var rest = text.Substring(key.Length).TrimStart();
+    var rest = text[key.Length..].TrimStart();
     if (rest.Length == 0 || rest[0] != ':')
     {
       return false;
     }
 
-    value = rest.Substring(1).Trim().Trim('"', '\'');
+    value = rest[1..].Trim().Trim('"', '\'');
     return true;
   }
 }

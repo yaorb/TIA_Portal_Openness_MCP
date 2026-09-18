@@ -79,12 +79,18 @@ public static class McpConfigInstaller
   {
     try
     {
-      return Process.GetCurrentProcess().MainModule.FileName;
+      var processModule = Process.GetCurrentProcess().MainModule;
+      if (processModule != null)
+      {
+        return processModule.FileName;
+      }
     }
     catch
     {
       return Assembly.GetExecutingAssembly().Location;
     }
+
+    throw new InvalidOperationException();
   }
 
   /// <summary>
@@ -152,7 +158,7 @@ public static class McpConfigInstaller
   public static string Apply(string configPath, string exePath, int tiaMajorVersion,
     HostStyle style = HostStyle.McpServers, bool full = false)
   {
-    Directory.CreateDirectory(Path.GetDirectoryName(configPath));
+    Directory.CreateDirectory(Path.GetDirectoryName(configPath) ?? "");
     if (style == HostStyle.CodexToml)
     {
       return McpConfigInstaller.ApplyCodexToml(configPath, exePath, tiaMajorVersion, full);
@@ -370,21 +376,15 @@ public static class McpConfigInstaller
       }
       catch
       {
+        // ignored
       }
     }
   }
 
-  public class Host
+  public class Host(string name, string path, HostStyle style)
   {
-    public string ConfigPath;
-    public string Name;
-    public HostStyle Style;
-
-    public Host(string name, string path, HostStyle style)
-    {
-      this.Name = name;
-      this.ConfigPath = path;
-      this.Style = style;
-    }
+    public readonly string ConfigPath = path;
+    public readonly string Name = name;
+    public readonly HostStyle Style = style;
   }
 }

@@ -101,14 +101,19 @@ public static class EngineRouter
       $"EngineRouter: TIA V{version} requested but this exe is built for V{EngineRouter.CompiledTiaMajorVersion}; rerouting to {sibling}");
     var psi = new ProcessStartInfo
     {
-      FileName = sibling, Arguments = EngineRouter.QuoteArgs(args), UseShellExecute = false,
+      FileName = sibling, Arguments = EngineRouter.QuoteArgs(args), UseShellExecute = false, EnvironmentVariables =
+      {
+        [EngineRouter.RedirectGuardVar] = "1",
+      },
     };
-    psi.EnvironmentVariables[EngineRouter.RedirectGuardVar] = "1";
-    using (var p = Process.Start(psi))
+    using var p = Process.Start(psi);
+    if (p == null)
     {
-      p.WaitForExit();
-      exitCode = p.ExitCode;
+      return true;
     }
+
+    p.WaitForExit();
+    exitCode = p.ExitCode;
 
     return true;
   }
@@ -124,7 +129,7 @@ public static class EngineRouter
         sb.Append(' ');
       }
 
-      if (a.Length > 0 && a.IndexOfAny(new[] { ' ', '\t', '"', }) < 0)
+      if (a.Length > 0 && a.IndexOfAny([' ', '\t', '"',]) < 0)
       {
         sb.Append(a);
         continue;

@@ -56,7 +56,7 @@ public partial class Portal
     }
 
     var tables = Portal.EnumeratePlcWatchTables(group);
-    data["availableWatchTables"] = new JsonArray(tables.Select(x => JsonValue.Create(x.Name)).ToArray());
+    data["availableWatchTables"] = new JsonArray([.. tables.Select(x => JsonValue.Create(x.Name)),]);
     var table = tables.FirstOrDefault(x =>
       string.Equals(x.Path, watchTableName, StringComparison.OrdinalIgnoreCase) ||
       string.Equals(x.Name, watchTableName, StringComparison.OrdinalIgnoreCase)).Table;
@@ -210,7 +210,7 @@ public partial class Portal
       {
         try
         {
-          var v = getAttr.Invoke(entry, new object[] { n, });
+          var v = getAttr.Invoke(entry, [n,]);
           if (v != null)
           {
             return v.ToString() ?? "";
@@ -218,6 +218,7 @@ public partial class Portal
         }
         catch
         {
+          // ignored
         }
       }
     }

@@ -43,7 +43,7 @@ public partial class Portal
       var result = provider.Export(new FileInfo(exportPath));
       var state = result?.GetType().GetProperty("State")?.GetValue(result)?.ToString() ?? "Unknown";
       var errCount = (int)(result?.GetType().GetProperty("ErrorCount")?.GetValue(result) ?? 0);
-      var ok = state == "Success" || state == "Warning";
+      var ok = state is "Success" or "Warning";
       return new ResponseMessage
       {
         Message = ok
@@ -173,19 +173,19 @@ public partial class Portal
 
       var parms = importMethod.GetParameters();
       object?[] args;
-      if (parms.Length == 2 && parms[1].ParameterType.IsEnum)
+      if (parms is [_, { ParameterType.IsEnum: true, },])
       {
         // ImportOptions enum — use value 0 (None/Default)
-        args = new[] { new FileInfo(importPath), Enum.ToObject(parms[1].ParameterType, 0), };
+        args = [new FileInfo(importPath), Enum.ToObject(parms[1].ParameterType, 0),];
       }
       else
       {
-        args = new object?[] { new FileInfo(importPath), };
+        args = [new FileInfo(importPath),];
       }
 
       var result = importMethod.Invoke(textListGroup, args);
       var state = result?.GetType().GetProperty("State")?.GetValue(result)?.ToString() ?? "Unknown";
-      var ok = state == "OK" || state == "Warning";
+      var ok = state is "OK" or "Warning";
       return new ResponseMessage
       {
         Message = ok
@@ -238,7 +238,7 @@ public partial class Portal
       var parms = exportMethod.GetParameters();
       // Build options flags value: All = typically 7 (IncludeInfoText|IncludeAdditionalTexts|IncludeAlarmClass)
       object optionsValue;
-      if (parms.Length >= 3 && parms[2].ParameterType.IsEnum)
+      if (parms is [_, _, { ParameterType.IsEnum: true, }, ..,])
       {
         var flags = 0;
         if (includeInfoText)
@@ -270,7 +270,7 @@ public partial class Portal
 
       var result = exportMethod.Invoke(provider, args);
       var state = result?.GetType().GetProperty("State")?.GetValue(result)?.ToString() ?? "Unknown";
-      var ok = state == "OK" || state == "Warning";
+      var ok = state is "OK" or "Warning";
       return new ResponseMessage
       {
         Message = ok

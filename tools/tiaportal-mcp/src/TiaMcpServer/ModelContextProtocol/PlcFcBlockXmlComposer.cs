@@ -25,8 +25,8 @@ public static class PlcFcBlockXmlComposer
   private static readonly XNamespace StructuredTextNs =
     "http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4";
 
-  public static XDocument Compose(string blockName, int blockNumber, IEnumerable<PlcBlockMemberDefinition> inputMembers,
-    IEnumerable<PlcBlockMemberDefinition> outputMembers, string structuredTextInnerXml, string blockCommentZhCn = "",
+  public static XDocument Compose(string blockName, int blockNumber, IEnumerable<PlcBlockMemberDefinition>? inputMembers,
+    IEnumerable<PlcBlockMemberDefinition>? outputMembers, string structuredTextInnerXml, string blockCommentZhCn = "",
     string blockTitleZhCn = "", string networkCommentZhCn = "", string networkTitleZhCn = "")
   {
     if (string.IsNullOrWhiteSpace(blockName))
@@ -49,10 +49,10 @@ public static class PlcFcBlockXmlComposer
 
     var inputs = inputMembers?.ToArray() ?? throw new ArgumentNullException(nameof(inputMembers));
     var outputs = outputMembers?.ToArray() ?? throw new ArgumentNullException(nameof(outputMembers));
-    PlcFcBlockXmlComposer.ValidateMembers(inputs.Concat(outputs).ToArray());
+    PlcFcBlockXmlComposer.ValidateMembers([.. inputs, .. outputs,]);
 
-    var st = XElement.Parse("<StructuredText xmlns=\"" + PlcFcBlockXmlComposer.StructuredTextNs + "\">" +
-      structuredTextInnerXml + "</StructuredText>");
+    var st = XElement.Parse(
+      $"<StructuredText xmlns=\"{PlcFcBlockXmlComposer.StructuredTextNs}\">{structuredTextInnerXml}</StructuredText>");
 
     // CompileUnit ObjectList: 网络级 Comment + Title
     var compileUnitObjList = new XElement("ObjectList",
@@ -83,11 +83,10 @@ public static class PlcFcBlockXmlComposer
               new XElement(PlcFcBlockXmlComposer.InterfaceNs + "Sections",
                 PlcFcBlockXmlComposer.BuildSection("Input", inputs),
                 PlcFcBlockXmlComposer.BuildSection("Output", outputs),
-                PlcFcBlockXmlComposer.BuildSection("InOut", Array.Empty<PlcBlockMemberDefinition>()),
-                PlcFcBlockXmlComposer.BuildSection("Temp", Array.Empty<PlcBlockMemberDefinition>()),
-                PlcFcBlockXmlComposer.BuildSection("Constant", Array.Empty<PlcBlockMemberDefinition>()),
-                PlcFcBlockXmlComposer.BuildSection("Return",
-                  new[] { new PlcBlockMemberDefinition("Ret_Val", "Void"), }))),
+                PlcFcBlockXmlComposer.BuildSection("InOut", []),
+                PlcFcBlockXmlComposer.BuildSection("Temp", []),
+                PlcFcBlockXmlComposer.BuildSection("Constant", []),
+                PlcFcBlockXmlComposer.BuildSection("Return", [new PlcBlockMemberDefinition("Ret_Val", "Void"),]))),
             new XElement("MemoryLayout", "Optimized"),
             new XElement("Name", blockName),
             new XElement("Namespace"),
@@ -120,9 +119,9 @@ public static class PlcFcBlockXmlComposer
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
     var goldenPath = Path.Combine(fixtureDirectory, "FC_StartStop.xml");
-    var generatedPath = Path.Combine(reportDirectory, "FC_StartStop.composed_" + stamp + ".xml");
-    var jsonPath = Path.Combine(reportDirectory, "plc_fc_block_composer_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "plc_fc_block_composer_probe_" + stamp + ".md");
+    var generatedPath = Path.Combine(reportDirectory, $"FC_StartStop.composed_{stamp}.xml");
+    var jsonPath = Path.Combine(reportDirectory, $"plc_fc_block_composer_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"plc_fc_block_composer_probe_{stamp}.md");
 
     var st = new StructuredTextXmlBuilder().IfHeader("EStop").Assignment("Run", "FALSE", 2).ElseLine()
       .IfHeader("Stop", 2).Assignment("Run", "FALSE", 4).EndIf(2).IfHeader("Start", 2).Assignment("Run", "TRUE", 4)
@@ -130,12 +129,11 @@ public static class PlcFcBlockXmlComposer
 
     var xml = PlcFcBlockXmlComposer.ComposeXml("FC_StartStop",
       1,
-      new[]
-      {
+      [
         new PlcBlockMemberDefinition("Start", "Bool"), new PlcBlockMemberDefinition("Stop", "Bool"),
         new PlcBlockMemberDefinition("EStop", "Bool"),
-      },
-      new[] { new PlcBlockMemberDefinition("Run", "Bool"), },
+      ],
+      [new PlcBlockMemberDefinition("Run", "Bool"),],
       st);
     File.WriteAllText(generatedPath, xml, Encoding.UTF8);
 
@@ -259,14 +257,20 @@ public static class PlcFcBlockXmlComposer
 
   private static string[] NormalizeMembers(JsonObject root)
   {
-    return (root["members"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
-      .Select(x => x["section"] + "|" + x["name"] + "|" + x["datatype"]).ToArray();
+    return
+    [
+      .. (root["members"] as JsonArray ?? []).OfType<JsonObject>()
+      .Select(x => $"{x["section"]}|{x["name"]}|{x["datatype"]}"),
+    ];
   }
 
   private static string[] NormalizeArray(JsonObject root, string name)
   {
-    return (root[name] as JsonArray ?? new JsonArray()).Select(x => x?.ToString() ?? "")
-      .Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+    return
+    [
+      .. (root[name] as JsonArray ?? []).Select(x => x?.ToString() ?? "")
+      .Where(x => !string.IsNullOrWhiteSpace(x)),
+    ];
   }
 
   private static string BuildProbeMarkdown(JsonObject root, string jsonPath)
@@ -274,26 +278,26 @@ public static class PlcFcBlockXmlComposer
     var md = new StringBuilder();
     md.AppendLine("# PLC FC Block Composer Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线生成和解析 FC XML，不连接 TIA Portal，不导入 PLC 块。");
     md.AppendLine("- 只写 reports 目录下的生成样本和探针报告，不修改 TMP_EXPORT 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Semantic equal to golden: " + root["semanticEqual"]);
-    md.AppendLine("- Golden: " + root["goldenPath"]);
-    md.AppendLine("- Generated: " + root["generatedPath"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Semantic equal to golden: {root["semanticEqual"]}");
+    md.AppendLine($"- Golden: {root["goldenPath"]}");
+    md.AppendLine($"- Generated: {root["generatedPath"]}");
     md.AppendLine();
     if (root["generated"] is JsonObject generated)
     {
       md.AppendLine("## Generated Block");
-      md.AppendLine("- Name: " + generated["blockName"]);
-      md.AppendLine("- Number: " + generated["number"]);
-      md.AppendLine("- Language: " + generated["programmingLanguage"]);
-      md.AppendLine("- Compile units: " + generated["compileUnitCount"]);
+      md.AppendLine($"- Name: {generated["blockName"]}");
+      md.AppendLine($"- Number: {generated["number"]}");
+      md.AppendLine($"- Language: {generated["programmingLanguage"]}");
+      md.AppendLine($"- Compile units: {generated["compileUnitCount"]}");
     }
 
     return md.ToString();
@@ -305,7 +309,7 @@ public static class PlcFcBlockXmlComposer
       .Select(x => x.Key).ToArray();
     if (duplicates.Length > 0)
     {
-      throw new ArgumentException("FC 接口成员名重复: " + string.Join(", ", duplicates));
+      throw new ArgumentException($"FC 接口成员名重复: {string.Join(", ", duplicates)}");
     }
 
     foreach (var member in members)
@@ -317,7 +321,7 @@ public static class PlcFcBlockXmlComposer
 
       if (string.IsNullOrWhiteSpace(member.Datatype))
       {
-        throw new ArgumentException("FC 接口成员数据类型不能为空: " + member.Name);
+        throw new ArgumentException($"FC 接口成员数据类型不能为空: {member.Name}");
       }
     }
   }
@@ -330,7 +334,7 @@ public static class PlcFcBlockXmlComposer
 
 public sealed class PlcBlockMemberDefinition
 {
-  public PlcBlockMemberDefinition(string name, string datatype, string commentZhCn = "")
+  public PlcBlockMemberDefinition(string name, string datatype, string? commentZhCn = "")
   {
     this.Name = name;
     this.Datatype = datatype;
@@ -364,7 +368,7 @@ internal static class PlcBlockXmlHelpers
   }
 
   // 构造 ObjectList 里的块/网络级 MultilingualText 节点（CompositionName=Comment / Title）
-  public static XElement BuildMultilingualText(string id, string itemId, string compositionName, string textZhCn) =>
+  public static XElement BuildMultilingualText(string id, string itemId, string compositionName, string? textZhCn) =>
     new("MultilingualText",
       new XAttribute("ID", id),
       new XAttribute("CompositionName", compositionName),

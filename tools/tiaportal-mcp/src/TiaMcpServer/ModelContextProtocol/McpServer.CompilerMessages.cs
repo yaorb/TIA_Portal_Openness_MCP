@@ -23,31 +23,33 @@ namespace TiaMcpServer.ModelContextProtocol;
 // ========================================================================
 public static partial class McpServer
 {
-  internal static CompilerMessageCollectResult CollectCompilerMessages(object? messagesRoot)
+  private static CompilerMessageCollectResult CollectCompilerMessages(object? messagesRoot)
   {
     var collected = new CompilerMessageCollectResult();
-    if (messagesRoot is IEnumerable enumerable && messagesRoot is not string)
+    if (messagesRoot is not (IEnumerable enumerable and not string))
     {
-      // 逐条兜：一条消息炸了不该把已经收到的其他条一起丢掉。
-      // 枚举器本身也可能在 MoveNext 上炸，所以连 foreach 一起兜在外面。
-      try
+      return collected;
+    }
+
+    // 逐条兜：一条消息炸了不该把已经收到的其他条一起丢掉。
+    // 枚举器本身也可能在 MoveNext 上炸，所以连 foreach 一起兜在外面。
+    try
+    {
+      foreach (var message in enumerable)
       {
-        foreach (var message in enumerable)
+        try
         {
-          try
-          {
-            McpServer.WalkCompilerMessageNode(message, collected);
-          }
-          catch (Exception ex)
-          {
-            collected.CollectFailures.Add($"读一条编译消息时出错（其余照常收集）：{ex.GetType().Name}: {ex.Message}");
-          }
+          McpServer.WalkCompilerMessageNode(message, collected);
+        }
+        catch (Exception ex)
+        {
+          collected.CollectFailures.Add($"读一条编译消息时出错（其余照常收集）：{ex.GetType().Name}: {ex.Message}");
         }
       }
-      catch (Exception ex)
-      {
-        collected.CollectFailures.Add($"遍历编译消息列表时中断，返回的是已收到的部分：{ex.GetType().Name}: {ex.Message}");
-      }
+    }
+    catch (Exception ex)
+    {
+      collected.CollectFailures.Add($"遍历编译消息列表时中断，返回的是已收到的部分：{ex.GetType().Name}: {ex.Message}");
     }
 
     return collected;
@@ -120,19 +122,13 @@ public static partial class McpServer
 
   private static bool TryGetCompilerMessageChildren(object message, out List<object> children)
   {
-    children = new List<object>();
+    children = [];
     try
     {
       var messagesValue = message.GetType().GetProperty("Messages")?.GetValue(message);
-      if (messagesValue is IEnumerable enumerable && messagesValue is not string)
+      if (messagesValue is IEnumerable enumerable and not string)
       {
-        foreach (var child in enumerable)
-        {
-          if (child != null)
-          {
-            children.Add(child);
-          }
-        }
+        children.AddRange(enumerable.OfType<object>());
       }
     }
     catch
@@ -207,7 +203,7 @@ public static partial class McpServer
     var getAttribute = message.GetType().GetMethod("GetAttribute",
       BindingFlags.Public | BindingFlags.Instance,
       null,
-      new[] { typeof(string), },
+      [typeof(string),],
       null);
     if (getAttribute == null)
     {
@@ -219,14 +215,14 @@ public static partial class McpServer
         "Line", "Column", "BlockName", "Severity", "ErrorCode", "Message", "Text", "ObjectPath",
       })
     {
-      if (parts.Any(p => p.StartsWith(attrName + "=", StringComparison.OrdinalIgnoreCase)))
+      if (parts.Any(p => p.StartsWith($"{attrName}=", StringComparison.OrdinalIgnoreCase)))
       {
         continue;
       }
 
       try
       {
-        var value = getAttribute.Invoke(message, new object[] { attrName, });
+        var value = getAttribute.Invoke(message, [attrName,]);
         if (value == null)
         {
           continue;
@@ -276,6 +272,7 @@ public static partial class McpServer
         }
         catch
         {
+          // ignored
         }
 
         if (value == null)
@@ -292,40 +289,45 @@ public static partial class McpServer
 
       McpServer.AppendCompilerEngineeringAttributes(message, parts);
 
-      if (parts.Count == 0)
+      if (parts.Count != 0)
       {
-        foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        return parts.Count > 0
+          ? string.Join("; ", parts)
+          : message.ToString();
+      }
+
+      foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+      {
+        if (p.GetIndexParameters().Length != 0)
         {
-          if (p.GetIndexParameters().Length != 0)
-          {
-            continue;
-          }
+          continue;
+        }
 
-          if (string.Equals(p.Name, "Messages", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(p.Name, "Parent", StringComparison.OrdinalIgnoreCase))
-          {
-            continue;
-          }
+        if (string.Equals(p.Name, "Messages", StringComparison.OrdinalIgnoreCase) ||
+          string.Equals(p.Name, "Parent", StringComparison.OrdinalIgnoreCase))
+        {
+          continue;
+        }
 
-          object? value = null;
-          try
-          {
-            value = p.GetValue(message);
-          }
-          catch
-          {
-          }
+        object? value = null;
+        try
+        {
+          value = p.GetValue(message);
+        }
+        catch
+        {
+          // ignored
+        }
 
-          if (value == null)
-          {
-            continue;
-          }
+        if (value == null)
+        {
+          continue;
+        }
 
-          var s = value.ToString();
-          if (!string.IsNullOrWhiteSpace(s) && s != t.FullName)
-          {
-            parts.Add($"{p.Name}={s}");
-          }
+        var s = value.ToString();
+        if (!string.IsNullOrWhiteSpace(s) && s != t.FullName)
+        {
+          parts.Add($"{p.Name}={s}");
         }
       }
 
@@ -341,10 +343,10 @@ public static partial class McpServer
 
   internal sealed class CompilerMessageCollectResult
   {
-    public List<string> Raw { get; } = new();
-    public List<string> Errors { get; } = new();
-    public List<string> Warnings { get; } = new();
-    public List<string> Info { get; } = new();
+    public List<string> Raw { get; } = [];
+    public List<string> Errors { get; } = [];
+    public List<string> Warnings { get; } = [];
+    public List<string> Info { get; } = [];
 
     /// <summary>
     ///   遍历途中出的岔子（每条一句）。空 = 全程顺利。
@@ -354,6 +356,6 @@ public static partial class McpServer
     ///   ErrorCount 照样是真值 —— 调用方拿到的是「有 5 个错、errors: []」，
     ///   而且没有任何迹象表明是收集炸了而不是本来就没有明细。
     /// </summary>
-    public List<string> CollectFailures { get; } = new();
+    public List<string> CollectFailures { get; } = [];
   }
 }

@@ -14,7 +14,7 @@ using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 // SDK 2.x 里 IMcpServer 接口已由抽象类 McpServer 取代；本命名空间下另有同名静态类（本服务器自身），裸写会解析到它，故起别名。
-using McpServerHost = global::ModelContextProtocol.Server.McpServer;
+using McpServerHost = ModelContextProtocol.Server.McpServer;
 using Siemens.Engineering.SW;
 using Siemens.Engineering.SW.Blocks;
 using TiaMcpServer.Siemens;
@@ -32,7 +32,7 @@ public static partial class McpServer
   ///   扫描到了 .s7dcl 但一份都没导进去时附给调用方的自救步骤。
   ///   只引用本版本真实存在的工具，别指向不存在的东西再把人带偏一次。
   /// </summary>
-  internal const string DocumentImportHelp = "\r\n按这个顺序处理，别改语法瞎猜：\r\n" +
+  private const string DocumentImportHelp = "\r\n按这个顺序处理，别改语法瞎猜：\r\n" +
     "1) GetAuthoringGuide(topic:'lad')（SCL 用 'scl'）—— 拿到本引擎验证过的语法与编码规则，" + "把你的文件逐条对齐；只改名字和操作数，别改结构。\r\n" +
     "2) .s7dcl 是**原子失败**：整份文档任何一处不合法都整份不导入，Openness 不给行号。" + "所以一次只放一个 NETWORK，导入→编译通过→再加下一段。整份写完再导，出错时没有任何定位信息。\r\n" +
     "3) 一个 NETWORK = 一个程序段；同一个 NETWORK 里的多条 RUNG 是同一段的并联分支。" + "要 12 段就写 12 个 NETWORK。\r\n" +
@@ -52,7 +52,8 @@ public static partial class McpServer
     {
       if (Engineering.TiaMajorVersion < 20)
       {
-        throw new McpProtocolException("ExportAsDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
+        throw new McpProtocolException("ExportAsDocuments requires TIA Portal V20 or newer",
+          McpErrorCode.InvalidParams);
       }
 
       if (McpServer.WithAutoOffline(() =>
@@ -95,7 +96,8 @@ public static partial class McpServer
     {
       if (Engineering.TiaMajorVersion < 20)
       {
-        throw new McpProtocolException("ExportBlocksAsDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
+        throw new McpProtocolException("ExportBlocksAsDocuments requires TIA Portal V20 or newer",
+          McpErrorCode.InvalidParams);
       }
 
       // First, get the list of blocks to determine total count
@@ -149,9 +151,10 @@ public static partial class McpServer
         McpServer.Portal.ExportBlocksAsDocuments(softwarePath, exportPath, regexName, preservePath));
 
       // Send progress update after export completion
+      var engineeringObjects = exportedBlocks?.ToList() ?? [];//  as PlcBlock[] ?? exportedBlocks?.ToArray();
       if (exportedBlocks != null && progressToken != null)
       {
-        var exportedCount = exportedBlocks.Count();
+        var exportedCount = engineeringObjects.Count();
         await server.SendNotificationAsync("notifications/progress",
           new
           {
@@ -162,90 +165,93 @@ public static partial class McpServer
           });
       }
 
-      if (exportedBlocks != null)
+      if (exportedBlocks == null)
       {
-        var responseList = new List<ResponseBlockInfo>();
-        var processedCount = 0;
+        throw new McpProtocolException($"Failed exporting documents to '{exportPath}'", McpErrorCode.InternalError);
+      }
 
-        foreach (var block in exportedBlocks)
+      var responseList = new List<ResponseBlockInfo>();
+      var processedCount = 0;
+
+      foreach (var block in engineeringObjects)
+      {
+        if (block != null)
         {
-          if (block != null)
+          var attributes = Helper.GetAttributeList(block);
+
+          responseList.Add(new ResponseBlockInfo
           {
-            var attributes = Helper.GetAttributeList(block);
-
-            responseList.Add(new ResponseBlockInfo
-            {
-              Name = block.Name,
-              TypeName = block.GetType().Name,
-              Namespace = block.Namespace,
-              ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
-              MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
-              IsConsistent = block.IsConsistent,
-              HeaderName = block.HeaderName,
-              ModifiedDate = block.ModifiedDate,
-              IsKnowHowProtected = block.IsKnowHowProtected,
-              Attributes = attributes,
-              Description = block.ToString(),
-            });
-          }
-
-          processedCount++;
+            Name = block.Name,
+            TypeName = block.GetType().Name,
+            Namespace = block.Namespace,
+            ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
+            MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
+            IsConsistent = block.IsConsistent,
+            HeaderName = block.HeaderName,
+            ModifiedDate = block.ModifiedDate,
+            IsKnowHowProtected = block.IsKnowHowProtected,
+            Attributes = attributes,
+            Description = block.ToString(),
+          });
         }
 
-        // Send final progress notification
-        if (progressToken != null)
-        {
-          await server.SendNotificationAsync("notifications/progress",
-            new
-            {
-              Progress = processedCount,
-              Total = totalBlocks,
-              Message = $"Document export completed: {processedCount} blocks exported successfully",
-              progressToken,
-            });
-        }
+        processedCount++;
+      }
 
-        var duration = (DateTime.Now - startTime).TotalSeconds;
-        McpServer.Logger?.LogInformation(
-          $"Document export completed: {processedCount} blocks exported in {duration:F2} seconds");
-
-        // Surface per-block skip/failure reasons so a "matched N but exported 0" is never silent.
-        var failures = McpServer.Portal.LastExportAsDocumentsFailures;
-        var skipped = totalBlocks - processedCount;
-        var msg =
-          $"Document export completed: {processedCount}/{totalBlocks} blocks (regex '{regexName}') from '{softwarePath}' to '{exportPath}'";
-        if (skipped > 0)
-        {
-          var reason = failures != null && failures.Count > 0
-            ? string.Join("; ", failures)
-            : "no reason captured (inconsistent block? compile first, or the block type/language may not support SIMATIC SD export — try ExportBlock for XML)";
-          msg += $". {skipped} not exported: {reason}";
-        }
-
-        var meta = new JsonObject
-        {
-          ["timestamp"] = DateTime.Now,
-          ["success"] = processedCount > 0 || totalBlocks == 0,
-          ["totalBlocks"] = totalBlocks,
-          ["exportedBlocks"] = processedCount,
-          ["skippedBlocks"] = skipped,
-          ["duration"] = duration,
-        };
-        if (failures != null && failures.Count > 0)
-        {
-          var arr = new JsonArray();
-          foreach (var f in failures)
+      // Send final progress notification
+      if (progressToken != null)
+      {
+        await server.SendNotificationAsync("notifications/progress",
+          new
           {
-            arr.Add(f);
-          }
+            Progress = processedCount,
+            Total = totalBlocks,
+            Message = $"Document export completed: {processedCount} blocks exported successfully",
+            progressToken,
+          });
+      }
 
-          meta["failures"] = arr;
-        }
+      var duration = (DateTime.Now - startTime).TotalSeconds;
+      McpServer.Logger?.LogInformation(
+        $"Document export completed: {processedCount} blocks exported in {duration:F2} seconds");
 
+      // Surface per-block skip/failure reasons so a "matched N but exported 0" is never silent.
+      var failures = McpServer.Portal.LastExportAsDocumentsFailures;
+      var skipped = totalBlocks - processedCount;
+      var msg =
+        $"Document export completed: {processedCount}/{totalBlocks} blocks (regex '{regexName}') from '{softwarePath}' to '{exportPath}'";
+      if (skipped > 0)
+      {
+        var reason = failures is { Count: > 0, }
+          ? string.Join("; ", failures)
+          : "no reason captured (inconsistent block? compile first, or the block type/language may not support SIMATIC SD export — try ExportBlock for XML)";
+        msg += $". {skipped} not exported: {reason}";
+      }
+
+      var meta = new JsonObject
+      {
+        ["timestamp"] = DateTime.Now,
+        ["success"] = processedCount > 0,
+        ["totalBlocks"] = totalBlocks,
+        ["exportedBlocks"] = processedCount,
+        ["skippedBlocks"] = skipped,
+        ["duration"] = duration,
+      };
+      if (failures is not { Count: > 0, })
+      {
         return new ResponseExportBlocksAsDocuments { Message = msg, Items = responseList, Meta = meta, };
       }
 
-      throw new McpProtocolException($"Failed exporting documents to '{exportPath}'", McpErrorCode.InternalError);
+      var arr = new JsonArray();
+      foreach (var f in failures)
+      {
+        arr.Add(f);
+      }
+
+      meta["failures"] = arr;
+
+      return new ResponseExportBlocksAsDocuments { Message = msg, Items = responseList, Meta = meta, };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -295,7 +301,8 @@ public static partial class McpServer
     {
       if (Engineering.TiaMajorVersion < 20)
       {
-        throw new McpProtocolException("ImportFromDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
+        throw new McpProtocolException("ImportFromDocuments requires TIA Portal V20 or newer",
+          McpErrorCode.InvalidParams);
       }
 
       var option = McpServer.ParseImportDocumentOption(importOption);
@@ -305,7 +312,7 @@ public static partial class McpServer
       try
       {
         var missingIds = McpServer.GetResMissingEnUsIds(importPath, fileNameWithoutExtension);
-        if (missingIds != null && missingIds.Count > 0)
+        if (missingIds is { Count: > 0, })
         {
           McpServer.Logger?.LogWarning(
             $".s7res for '{fileNameWithoutExtension}' missing en-US tags for {missingIds.Count} items: {string.Join(", ", missingIds)}");
@@ -326,49 +333,49 @@ public static partial class McpServer
 
       var ok = McpServer.WithAutoOffline(() =>
         McpServer.Portal.ImportFromDocuments(softwarePath, groupPath, importPath, fileNameWithoutExtension, option));
-      if (ok)
+      if (!ok)
       {
-        // Read-back verification: confirm the block is actually present after import.
-        // Wrapped so a verification hiccup never masks a successful import.
-        var verified = false;
-        string verifyDetail;
-        try
-        {
-          var escaped = Regex.Escape(fileNameWithoutExtension);
-          var found = McpServer.Portal.GetBlocks(softwarePath, $"^{escaped}$");
-          if (found == null || found.Count == 0)
-          {
-            found = McpServer.Portal.GetBlocks(softwarePath, escaped);
-          }
-
-          verified = found != null && found.Count > 0;
-          verifyDetail = verified
-            ? $"block '{fileNameWithoutExtension}' present after import"
-            : $"block '{fileNameWithoutExtension}' NOT found after import — check name/group";
-        }
-        catch (Exception vex)
-        {
-          verifyDetail = "readback skipped: " + vex.Message;
-        }
-
-        return new ResponseImportFromDocuments
-        {
-          Message = $"Imported '{fileNameWithoutExtension}' from '{importPath}'" + (verified
-            ? " (verified)"
-            : ""),
-          Meta = new JsonObject
-          {
-            ["timestamp"] = DateTime.Now,
-            ["success"] = true,
-            ["verified"] = verified,
-            ["verifyDetail"] = verifyDetail,
-            ["warnings"] = warnings,
-          },
-        };
+        throw new McpProtocolException($"Failed importing '{fileNameWithoutExtension}' from '{importPath}'",
+          McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException($"Failed importing '{fileNameWithoutExtension}' from '{importPath}'",
-        McpErrorCode.InternalError);
+      // Read-back verification: confirm the block is actually present after import.
+      // Wrapped so a verification hiccup never masks a successful import.
+      var verified = false;
+      string verifyDetail;
+      try
+      {
+        var escaped = Regex.Escape(fileNameWithoutExtension);
+        var found = McpServer.Portal.GetBlocks(softwarePath, $"^{escaped}$");
+        if (found == null || found.Count == 0)
+        {
+          found = McpServer.Portal.GetBlocks(softwarePath, escaped);
+        }
+
+        verified = found is { Count: > 0, };
+        verifyDetail = verified
+          ? $"block '{fileNameWithoutExtension}' present after import"
+          : $"block '{fileNameWithoutExtension}' NOT found after import — check name/group";
+      }
+      catch (Exception vex)
+      {
+        verifyDetail = $"readback skipped: {vex.Message}";
+      }
+
+      return new ResponseImportFromDocuments
+      {
+        Message = $"Imported '{fileNameWithoutExtension}' from '{importPath}'{(verified
+          ? " (verified)"
+          : "")}",
+        Meta = new JsonObject
+        {
+          ["timestamp"] = DateTime.Now,
+          ["success"] = true,
+          ["verified"] = verified,
+          ["verifyDetail"] = verifyDetail,
+          ["warnings"] = warnings,
+        },
+      };
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -393,7 +400,7 @@ public static partial class McpServer
     string importOption = "Override")
   {
     var startTime = DateTime.Now;
-    var progressToken = context.Params?.ProgressToken;
+    var progressToken = context.Params.ProgressToken;
 
     try
     {
@@ -427,7 +434,7 @@ public static partial class McpServer
             try
             {
               var missingIds = McpServer.GetResMissingEnUsIds(importPath, name);
-              if (missingIds != null && missingIds.Count > 0)
+              if (missingIds is { Count: > 0, })
               {
                 scanWarnings.Add(new JsonObject
                 {
@@ -464,7 +471,7 @@ public static partial class McpServer
 
       var option = McpServer.ParseImportDocumentOption(importOption);
       var imported = await Task.Run(() =>
-        McpServer.Portal.ImportBlocksFromDocuments(softwarePath, groupPath, importPath, regexName, option));
+        McpServer.Portal.ImportBlocksFromDocuments(softwarePath, groupPath, importPath, regexName, option)).ConfigureAwait(false);
 
       var responseList = new List<ResponseBlockInfo>();
       var processed = 0;
@@ -528,9 +535,9 @@ public static partial class McpServer
       bool ok;
       if (processed > 0)
       {
-        msg = $"Document import completed: {processed} blocks imported from '{importPath}'" + (failures.Count > 0
+        msg = $"Document import completed: {processed} blocks imported from '{importPath}'{(failures.Count > 0
           ? $"；另有 {failures.Count} 个文件失败（见 meta.failures）"
-          : "");
+          : "")}";
         ok = true;
       }
       else if (imported == null)
@@ -547,13 +554,13 @@ public static partial class McpServer
       }
       else if (scanned == 0)
       {
-        msg = $"目录 '{importPath}' 里一个 .s7dcl 文件都没有，所以没有东西可导。" +
-          "检查文件扩展名是否为 .s7dcl（.scl 走 GenerateBlocksFromExternalSource）。";
+        msg =
+          $"目录 '{importPath}' 里一个 .s7dcl 文件都没有，所以没有东西可导。检查文件扩展名是否为 .s7dcl（.scl 走 GenerateBlocksFromExternalSource）。";
         ok = false;
       }
       else
       {
-        msg = $"扫描到 {scanned} 个 .s7dcl，**一个都没导进去**。逐份原因见 meta.failures。" + McpServer.DocumentImportHelp;
+        msg = $"扫描到 {scanned} 个 .s7dcl，**一个都没导进去**。逐份原因见 meta.failures。{McpServer.DocumentImportHelp}";
         ok = false;
       }
 
@@ -593,6 +600,7 @@ public static partial class McpServer
         }
         catch
         {
+          // ignored
         }
       }
 
@@ -839,31 +847,18 @@ public static partial class McpServer
     }
 
     // Aliases and common misspellings
-    switch (normalized.ToLowerInvariant())
+    return normalized.ToLowerInvariant() switch
     {
-      case "override":
-        return ImportDocumentOptions.Override;
-
-      case "none":
-        return ImportDocumentOptions.None;
-
-      case "skipinactiveculture":
-      case "skipinactivecultures":
-      case "skipinactive":
-      case "skipinactivecult":
-        return ImportDocumentOptions.SkipInactiveCultures;
-
-      case "activeinactiveculture":
-      case "activateinactivecultures":
-      case "activeinactivecultures":
-      case "activateinactive":
-        return ImportDocumentOptions.ActivateInactiveCultures;
-
-      default:
-        throw new McpProtocolException(
-          $"Invalid importOption '{option}'. Allowed: None, Override, SkipInactiveCultures, ActivateInactiveCultures",
-          McpErrorCode.InvalidParams);
-    }
+      "override" => ImportDocumentOptions.Override,
+      "none"     => ImportDocumentOptions.None,
+      "skipinactiveculture" or "skipinactivecultures" or "skipinactive" or "skipinactivecult" => ImportDocumentOptions
+        .SkipInactiveCultures,
+      "activeinactiveculture" or "activateinactivecultures" or "activeinactivecultures" or "activateinactive" =>
+        ImportDocumentOptions.ActivateInactiveCultures,
+      _ => throw new McpProtocolException(
+        $"Invalid importOption '{option}'. Allowed: None, Override, SkipInactiveCultures, ActivateInactiveCultures",
+        McpErrorCode.InvalidParams),
+    };
   }
 
   // .s7res is YAML, not XML — see S7ResScanner for why the old XDocument-based

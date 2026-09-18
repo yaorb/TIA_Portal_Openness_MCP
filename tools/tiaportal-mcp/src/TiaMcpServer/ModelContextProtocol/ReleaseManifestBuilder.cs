@@ -32,10 +32,10 @@ public static class ReleaseManifestBuilder
       throw new ArgumentNullException(nameof(runbook));
     }
 
-    var reportIndex = diagnostics["reportIndex"] as JsonArray ?? new JsonArray();
-    var knownBlocks = runbook["currentKnownBlocks"] as JsonArray ?? new JsonArray();
+    var reportIndex = diagnostics["reportIndex"] as JsonArray ?? [];
+    var knownBlocks = runbook["currentKnownBlocks"] as JsonArray ?? [];
     var suiteOk = suiteRoot["ok"]?.GetValue<bool>() == true;
-    var noFailedItems = (diagnostics["failedItems"] as JsonArray ?? new JsonArray()).Count == 0;
+    var noFailedItems = (diagnostics["failedItems"] as JsonArray ?? []).Count == 0;
     var hasKnownBlocks = knownBlocks.Count > 0;
 
     var manifest = new JsonObject
@@ -61,14 +61,16 @@ public static class ReleaseManifestBuilder
           ["runbookJson"] = runbook["jsonPath"]?.ToString() ?? suiteRoot["runbookJsonPath"]?.ToString() ?? "",
         },
       ["verifiedCapabilities"] =
-        new JsonArray(reportIndex.OfType<JsonObject>().Where(x => x["ok"]?.GetValue<bool>() == true).Select(x =>
-          new JsonObject
-          {
-            ["id"] = x["id"]?.ToString() ?? "",
-            ["title"] = x["title"]?.ToString() ?? "",
-            ["summary"] = x["summary"]?.ToString() ?? "",
-            ["report"] = x["markdownPath"]?.ToString() ?? "",
-          }).ToArray()),
+        new JsonArray([
+          .. reportIndex.OfType<JsonObject>().Where(x => x["ok"]?.GetValue<bool>() == true).Select(x =>
+            new JsonObject
+            {
+              ["id"] = x["id"]?.ToString() ?? "",
+              ["title"] = x["title"]?.ToString() ?? "",
+              ["summary"] = x["summary"]?.ToString() ?? "",
+              ["report"] = x["markdownPath"]?.ToString() ?? "",
+            }),
+        ]),
       ["knownBlocks"] = knownBlocks.DeepClone(),
       ["safetyRedlines"] = diagnostics["safetyRedlines"]?.DeepClone() ?? new JsonArray(),
       ["requiredBeforeDeliveryPackageSync"] = new JsonArray
@@ -92,39 +94,39 @@ public static class ReleaseManifestBuilder
     var md = new StringBuilder();
     md.AppendLine("# TIA MCP Release Manifest");
     md.AppendLine();
-    md.AppendLine("Generated: " + manifest["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {manifest["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Readiness");
-    md.AppendLine("- Suite OK: " + manifest["suiteOk"]);
-    md.AppendLine("- Release ready: " + manifest["releaseReady"]);
-    md.AppendLine("- Reason: " + manifest["releaseReadinessReason"]);
+    md.AppendLine($"- Suite OK: {manifest["suiteOk"]}");
+    md.AppendLine($"- Release ready: {manifest["releaseReady"]}");
+    md.AppendLine($"- Reason: {manifest["releaseReadinessReason"]}");
     if (manifest["releaseReadinessGate"] is JsonObject gate)
     {
-      md.AppendLine("- Readiness gate failed: " + gate["failedGateCount"]);
+      md.AppendLine($"- Readiness gate failed: {gate["failedGateCount"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Reports");
     var reports = manifest["reports"] as JsonObject ?? new JsonObject();
-    md.AppendLine("- Main: " + reports["main"]);
-    md.AppendLine("- Diagnostics: " + reports["diagnostics"]);
-    md.AppendLine("- Runbook: " + reports["runbook"]);
+    md.AppendLine($"- Main: {reports["main"]}");
+    md.AppendLine($"- Diagnostics: {reports["diagnostics"]}");
+    md.AppendLine($"- Runbook: {reports["runbook"]}");
     md.AppendLine();
     md.AppendLine("## Verified Capabilities");
-    foreach (var node in manifest["verifiedCapabilities"] as JsonArray ?? new JsonArray())
+    foreach (var node in manifest["verifiedCapabilities"] as JsonArray ?? [])
     {
       if (node is not JsonObject item)
       {
         continue;
       }
 
-      md.AppendLine("- " + item["id"] + ": " + item["summary"]);
+      md.AppendLine($"- {item["id"]}: {item["summary"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Known Blocks");
-    var blocks = manifest["knownBlocks"] as JsonArray ?? new JsonArray();
+    var blocks = manifest["knownBlocks"] as JsonArray ?? [];
     if (blocks.Count == 0)
     {
       md.AppendLine("- None.");
@@ -137,12 +139,12 @@ public static class ReleaseManifestBuilder
         continue;
       }
 
-      md.AppendLine("- " + block["id"] + ": " + block["status"] + " - " + block["detail"]);
+      md.AppendLine($"- {block["id"]}: {block["status"]} - {block["detail"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Release Readiness Gaps");
-    var gaps = manifest["releaseReadinessGate"]?["gaps"] as JsonArray ?? new JsonArray();
+    var gaps = manifest["releaseReadinessGate"]?["gaps"] as JsonArray ?? [];
     if (gaps.Count == 0)
     {
       md.AppendLine("- None.");
@@ -155,14 +157,14 @@ public static class ReleaseManifestBuilder
         continue;
       }
 
-      md.AppendLine("- " + gap["id"] + ": " + gap["nextAction"]);
+      md.AppendLine($"- {gap["id"]}: {gap["nextAction"]}");
     }
 
     md.AppendLine();
     md.AppendLine("## Before Delivery Package Sync");
-    foreach (var item in manifest["requiredBeforeDeliveryPackageSync"] as JsonArray ?? new JsonArray())
+    foreach (var item in manifest["requiredBeforeDeliveryPackageSync"] as JsonArray ?? [])
     {
-      md.AppendLine("- " + item);
+      md.AppendLine($"- {item}");
     }
 
     return md.ToString();

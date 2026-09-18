@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -21,7 +22,7 @@ namespace TiaMcpServer.ModelContextProtocol;
 /// </summary>
 internal static class HmiScreenWalk
 {
-  private static readonly string[] ChildFolderProperties = { "ScreenGroups", "Folders", "Groups", };
+  private static readonly string[] ChildFolderProperties = ["ScreenGroups", "Folders", "Groups",];
 
   /// <summary>Names of all screens, depth-first. Best-effort: a failing walk returns what it got so far.</summary>
   public static List<string> ListNames(object? hmiRoot)
@@ -29,14 +30,8 @@ internal static class HmiScreenWalk
     var result = new List<string>();
     try
     {
-      foreach (var screen in HmiScreenWalk.EnumerateScreens(hmiRoot))
-      {
-        var name = HmiScreenWalk.GetName(screen);
-        if (!string.IsNullOrWhiteSpace(name))
-        {
-          result.Add(name!);
-        }
-      }
+      result.AddRange(HmiScreenWalk.EnumerateScreens(hmiRoot).Select(HmiScreenWalk.GetName)
+        .Where(name => !string.IsNullOrWhiteSpace(name)).Select(name => name!));
     }
     catch
     {
@@ -145,7 +140,7 @@ internal static class HmiScreenWalk
   private sealed class ReferenceComparer : IEqualityComparer<object>
   {
     public static readonly ReferenceComparer Instance = new();
-    public new bool Equals(object? x, object? y) => object.ReferenceEquals(x, y);
+    bool IEqualityComparer<object>.Equals(object? x, object? y) => object.ReferenceEquals(x, y);
     public int GetHashCode(object obj) => RuntimeHelpers.GetHashCode(obj);
   }
 }

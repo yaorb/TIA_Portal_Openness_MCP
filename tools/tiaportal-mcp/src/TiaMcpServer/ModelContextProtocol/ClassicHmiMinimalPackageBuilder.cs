@@ -77,9 +77,9 @@ public static class ClassicHmiMinimalPackageBuilder
     var packageName =
       ClassicHmiMinimalPackageBuilder.SanitizeFileName(package["packageName"]?.ToString() ??
         "Classic_HMI_Minimal_Package");
-    var tagTablePath = Path.Combine(outputDirectory, packageName + "_TagTable.xml");
-    var screenPath = Path.Combine(outputDirectory, packageName + "_Screen.xml");
-    var manifestPath = Path.Combine(outputDirectory, packageName + "_manifest.json");
+    var tagTablePath = Path.Combine(outputDirectory, $"{packageName}_TagTable.xml");
+    var screenPath = Path.Combine(outputDirectory, $"{packageName}_Screen.xml");
+    var manifestPath = Path.Combine(outputDirectory, $"{packageName}_manifest.json");
 
     var tagXml = package["tagTable"]?["xml"]?.ToString() ?? "";
     var screenXml = package["screen"]?["xml"]?.ToString() ?? "";
@@ -153,7 +153,7 @@ public static class ClassicHmiMinimalPackageBuilder
         ["ok"] = false,
         ["inputPath"] = path,
         ["manifestPath"] = manifestPath ?? "",
-        ["errors"] = new JsonArray("manifest-not-found: " + path),
+        ["errors"] = new JsonArray($"manifest-not-found: {path}"),
         ["warnings"] = new JsonArray(),
       };
     }
@@ -168,7 +168,7 @@ public static class ClassicHmiMinimalPackageBuilder
     }
     catch (Exception ex)
     {
-      errors.Add("manifest-parse-error: " + ex.Message);
+      errors.Add($"manifest-parse-error: {ex.Message}");
       return ClassicHmiMinimalPackageBuilder.BuildValidationResult(path,
         manifestPath,
         "",
@@ -177,8 +177,8 @@ public static class ClassicHmiMinimalPackageBuilder
         warnings,
         null,
         null,
-        Array.Empty<string>(),
-        Array.Empty<string>());
+        [],
+        []);
     }
 
     var baseDir = Path.GetDirectoryName(manifestPath) ?? Directory.GetCurrentDirectory();
@@ -192,7 +192,7 @@ public static class ClassicHmiMinimalPackageBuilder
     }
     else if (!File.Exists(tagPath))
     {
-      errors.Add("tag-table-file-not-found: " + tagPath);
+      errors.Add($"tag-table-file-not-found: {tagPath}");
     }
 
     if (string.IsNullOrWhiteSpace(screenPath))
@@ -201,7 +201,7 @@ public static class ClassicHmiMinimalPackageBuilder
     }
     else if (!File.Exists(screenPath))
     {
-      errors.Add("screen-file-not-found: " + screenPath);
+      errors.Add($"screen-file-not-found: {screenPath}");
     }
 
     JsonObject? tagAnalysis = null;
@@ -235,7 +235,7 @@ public static class ClassicHmiMinimalPackageBuilder
       .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
     foreach (var tag in missingTags)
     {
-      errors.Add("missing-referenced-hmi-tag: " + tag);
+      errors.Add($"missing-referenced-hmi-tag: {tag}");
     }
 
     var referencedSet = referencedTags.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -243,7 +243,7 @@ public static class ClassicHmiMinimalPackageBuilder
       .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
     foreach (var tag in unusedTags)
     {
-      warnings.Add("unused-hmi-tag: " + tag);
+      warnings.Add($"unused-hmi-tag: {tag}");
     }
 
     return ClassicHmiMinimalPackageBuilder.BuildValidationResult(path,
@@ -276,13 +276,13 @@ public static class ClassicHmiMinimalPackageBuilder
 
     var controllerTags = File.Exists(tagPath)
       ? ClassicHmiMinimalPackageBuilder.ExtractControllerTagsFromTagTableXml(File.ReadAllText(tagPath, Encoding.UTF8))
-      : Array.Empty<string>();
+      : [];
     var plcSet = plcSymbols.ToHashSet(StringComparer.OrdinalIgnoreCase);
     var missingPlcSymbols = controllerTags.Where(x => !plcSet.Contains(x))
       .OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
     foreach (var symbol in missingPlcSymbols)
     {
-      errors.Add("missing-plc-symbol: " + symbol);
+      errors.Add($"missing-plc-symbol: {symbol}");
     }
 
     var usedSet = controllerTags.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -290,7 +290,7 @@ public static class ClassicHmiMinimalPackageBuilder
       .ToArray();
     foreach (var symbol in unusedPlcSymbols)
     {
-      warnings.Add("unused-plc-symbol: " + symbol);
+      warnings.Add($"unused-plc-symbol: {symbol}");
     }
 
     return new JsonObject
@@ -315,10 +315,10 @@ public static class ClassicHmiMinimalPackageBuilder
       ["plcSymbolCount"] = plcSymbols.Count,
       ["missingPlcSymbolCount"] = missingPlcSymbols.Length,
       ["unusedPlcSymbolCount"] = unusedPlcSymbols.Length,
-      ["controllerTags"] = new JsonArray(controllerTags.Select(x => JsonValue.Create(x)).ToArray()),
-      ["plcSymbols"] = new JsonArray(plcSymbols.Select(x => JsonValue.Create(x)).ToArray()),
-      ["missingPlcSymbols"] = new JsonArray(missingPlcSymbols.Select(x => JsonValue.Create(x)).ToArray()),
-      ["unusedPlcSymbols"] = new JsonArray(unusedPlcSymbols.Select(x => JsonValue.Create(x)).ToArray()),
+      ["controllerTags"] = new JsonArray([.. controllerTags.Select(x => JsonValue.Create(x)),]),
+      ["plcSymbols"] = new JsonArray([.. plcSymbols.Select(x => JsonValue.Create(x)),]),
+      ["missingPlcSymbols"] = new JsonArray([.. missingPlcSymbols.Select(x => JsonValue.Create(x)),]),
+      ["unusedPlcSymbols"] = new JsonArray([.. unusedPlcSymbols.Select(x => JsonValue.Create(x)),]),
       ["fileValidation"] = fileValidation,
       ["errors"] = errors,
       ["warnings"] = warnings,
@@ -350,8 +350,8 @@ public static class ClassicHmiMinimalPackageBuilder
       ["referencedTagCount"] = referencedTags.Count,
       ["missingTagCount"] = missing.Length,
       ["unusedTagCount"] = unused.Length,
-      ["missingTags"] = new JsonArray(missing.Select(x => JsonValue.Create(x)).ToArray()),
-      ["unusedTags"] = new JsonArray(unused.Select(x => JsonValue.Create(x)).ToArray()),
+      ["missingTags"] = new JsonArray([.. missing.Select(x => JsonValue.Create(x)),]),
+      ["unusedTags"] = new JsonArray([.. unused.Select(x => JsonValue.Create(x)),]),
       ["recommendedNextAction"] = ok
         ? "Import tag table and screen XML into a temporary Classic/Basic HMI project, then read back tags/items and compile/diagnose."
         : "Fix screen XML, tag table XML, or missing HMI tag declarations before attempting a temporary-project import.",
@@ -360,7 +360,7 @@ public static class ClassicHmiMinimalPackageBuilder
 
   private static HashSet<string> GetDeclaredTags(JsonObject tagTable)
   {
-    return (tagTable["Tags"] as JsonArray ?? tagTable["tags"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+    return (tagTable["Tags"] as JsonArray ?? tagTable["tags"] as JsonArray ?? []).OfType<JsonObject>()
       .Select(x => x["Name"]?.ToString() ?? x["name"]?.ToString() ?? "").Where(x => !string.IsNullOrWhiteSpace(x))
       .ToHashSet(StringComparer.OrdinalIgnoreCase);
   }
@@ -368,7 +368,7 @@ public static class ClassicHmiMinimalPackageBuilder
   private static HashSet<string> GetReferencedTags(JsonObject screenDesign)
   {
     var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    foreach (var item in screenDesign["Items"] as JsonArray ?? screenDesign["items"] as JsonArray ?? new JsonArray())
+    foreach (var item in screenDesign["Items"] as JsonArray ?? screenDesign["items"] as JsonArray ?? [])
     {
       if (item is not JsonObject obj)
       {
@@ -385,7 +385,7 @@ public static class ClassicHmiMinimalPackageBuilder
           props["HmiTag"] ?? props["hmiTag"] ?? props["ProcessValueTag"] ?? props["processValueTag"]);
       }
 
-      foreach (var action in obj["Actions"] as JsonArray ?? obj["actions"] as JsonArray ?? new JsonArray())
+      foreach (var action in obj["Actions"] as JsonArray ?? obj["actions"] as JsonArray ?? [])
       {
         if (action is not JsonObject actionObj)
         {
@@ -409,7 +409,7 @@ public static class ClassicHmiMinimalPackageBuilder
     }
   }
 
-  private static string SanitizeFileName(string name)
+  private static string SanitizeFileName(string? name)
   {
     var invalid = Path.GetInvalidFileNameChars().ToHashSet();
     var chars = (name ?? "Classic_HMI_Minimal_Package").Select(ch => invalid.Contains(ch)
@@ -460,10 +460,10 @@ public static class ClassicHmiMinimalPackageBuilder
       ["referencedTagCount"] = referencedTags.Length,
       ["missingTagCount"] = missingTags.Length,
       ["unusedTagCount"] = unusedTags.Length,
-      ["declaredTags"] = new JsonArray(declaredTags.Select(x => JsonValue.Create(x)).ToArray()),
-      ["referencedTags"] = new JsonArray(referencedTags.Select(x => JsonValue.Create(x)).ToArray()),
-      ["missingTags"] = new JsonArray(missingTags.Select(x => JsonValue.Create(x)).ToArray()),
-      ["unusedTags"] = new JsonArray(unusedTags.Select(x => JsonValue.Create(x)).ToArray()),
+      ["declaredTags"] = new JsonArray([.. declaredTags.Select(x => JsonValue.Create(x)),]),
+      ["referencedTags"] = new JsonArray([.. referencedTags.Select(x => JsonValue.Create(x)),]),
+      ["missingTags"] = new JsonArray([.. missingTags.Select(x => JsonValue.Create(x)),]),
+      ["unusedTags"] = new JsonArray([.. unusedTags.Select(x => JsonValue.Create(x)),]),
       ["tagTableAnalysis"] = tagAnalysis?.DeepClone(),
       ["screenAnalysis"] = screenAnalysis?.DeepClone(),
       ["errors"] = errors,
@@ -489,18 +489,24 @@ public static class ClassicHmiMinimalPackageBuilder
   private static string[] ExtractDeclaredTags(string tagXml)
   {
     var doc = XDocument.Parse(tagXml, LoadOptions.PreserveWhitespace);
-    return doc.Descendants("Hmi.Tag.Tag").Select(x => x.Element("AttributeList")?.Element("Name")?.Value ?? "")
-      .Select(ClassicHmiMinimalPackageBuilder.CleanClassicTagName).Where(x => !string.IsNullOrWhiteSpace(x))
-      .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+    return
+    [
+      .. doc.Descendants("Hmi.Tag.Tag").Select(x => x.Element("AttributeList")?.Element("Name")?.Value ?? "")
+        .Select(ClassicHmiMinimalPackageBuilder.CleanClassicTagName).Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+    ];
   }
 
   private static string[] ExtractControllerTagsFromTagTableXml(string tagXml)
   {
     var doc = XDocument.Parse(tagXml, LoadOptions.PreserveWhitespace);
-    return doc.Descendants("Hmi.Tag.Tag")
-      .Select(x => x.Element("LinkList")?.Element("ControllerTag")?.Element("Name")?.Value ?? "")
-      .Select(ClassicHmiMinimalPackageBuilder.CleanClassicTagName).Where(x => !string.IsNullOrWhiteSpace(x))
-      .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+    return
+    [
+      .. doc.Descendants("Hmi.Tag.Tag")
+        .Select(x => x.Element("LinkList")?.Element("ControllerTag")?.Element("Name")?.Value ?? "")
+        .Select(ClassicHmiMinimalPackageBuilder.CleanClassicTagName).Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
+    ];
   }
 
   private static string[] ExtractReferencedTagsFromScreenXml(string screenXml)
@@ -508,13 +514,13 @@ public static class ClassicHmiMinimalPackageBuilder
     var doc = XDocument.Parse(screenXml, LoadOptions.PreserveWhitespace);
     var names = doc.Descendants()
       .Where(x => x.Name.LocalName == "Name" &&
-        (x.Parent?.Name.LocalName == "Tag" || x.Parent?.Name.LocalName == "Value"))
+        x.Parent?.Name.LocalName is "Tag" or "Value")
       .Select(x => ClassicHmiMinimalPackageBuilder.CleanClassicTagName(x.Value))
       .Where(x => !string.IsNullOrWhiteSpace(x));
-    return names.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+    return [.. names.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase),];
   }
 
-  private static string CleanClassicTagName(string value)
+  private static string CleanClassicTagName(string? value)
   {
     value = (value ?? "").Trim();
     if (value.Length >= 2 && value.StartsWith("\"", StringComparison.Ordinal) &&
@@ -535,27 +541,35 @@ public static class ClassicHmiMinimalPackageBuilder
     }
 
     var node = JsonNode.Parse(plcSymbolsJson);
-    if (node is JsonArray array)
+    switch (node)
     {
-      foreach (var item in array)
+      case JsonArray array:
       {
-        ClassicHmiMinimalPackageBuilder.AddPlcSymbol(result, item);
-      }
-    }
-    else if (node is JsonObject obj)
-    {
-      var symbols = obj["Symbols"] as JsonArray ?? obj["symbols"] as JsonArray ??
-        obj["PlcSymbols"] as JsonArray ?? obj["plcSymbols"] as JsonArray;
-      if (symbols != null)
-      {
-        foreach (var item in symbols)
+        foreach (var item in array)
         {
           ClassicHmiMinimalPackageBuilder.AddPlcSymbol(result, item);
         }
+
+        break;
       }
-      else
+
+      case JsonObject obj:
       {
-        ClassicHmiMinimalPackageBuilder.AddPlcSymbol(result, obj);
+        var symbols = obj["Symbols"] as JsonArray ?? obj["symbols"] as JsonArray ??
+          obj["PlcSymbols"] as JsonArray ?? obj["plcSymbols"] as JsonArray;
+        if (symbols != null)
+        {
+          foreach (var item in symbols)
+          {
+            ClassicHmiMinimalPackageBuilder.AddPlcSymbol(result, item);
+          }
+        }
+        else
+        {
+          ClassicHmiMinimalPackageBuilder.AddPlcSymbol(result, obj);
+        }
+
+        break;
       }
     }
 
@@ -564,7 +578,7 @@ public static class ClassicHmiMinimalPackageBuilder
 
   private static void AddPlcSymbol(HashSet<string> result, JsonNode? node)
   {
-    var value = "";
+    string value;
     if (node is JsonObject obj)
     {
       value = obj["Symbol"]?.ToString() ?? obj["symbol"]?.ToString() ?? obj["Name"]?.ToString() ??
@@ -584,11 +598,8 @@ public static class ClassicHmiMinimalPackageBuilder
 
   private static JsonArray CloneJsonArray(JsonArray? source)
   {
-    if (source == null)
-    {
-      return new JsonArray();
-    }
-
-    return new JsonArray(source.Select(x => x?.DeepClone()).ToArray());
+    return source == null
+      ? []
+      : new JsonArray(source.Select(x => x?.DeepClone()).ToArray());
   }
 }

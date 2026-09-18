@@ -179,11 +179,13 @@ public partial class Portal
     Address? target = null;
     foreach (var a in addresses)
     {
-      if (a != null && a.IoType == wanted)
+      if (a == null || a.IoType != wanted)
       {
-        target = a;
-        break;
+        continue;
       }
+
+      target = a;
+      break;
     }
 
     if (target == null)

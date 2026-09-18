@@ -21,7 +21,7 @@ public static class HmiTemplateLayoutAnalyzer
     public static bool ExecutionJsonBuilds(string templateFile)
   {
     var templateRoot = JsonNode.Parse(File.ReadAllText(templateFile)) as JsonObject;
-    var expectedItems = (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? new JsonArray())
+    var expectedItems = (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? [])
       .Count;
     var screen = templateRoot?["Screen"] as JsonObject ?? templateRoot?["screen"] as JsonObject ?? new JsonObject();
     // 回退宽高与 Program.ReportBuilders 的 TemplateExecutionJsonBuilds 保持一致，避免同一模板两处判定不同。
@@ -44,8 +44,9 @@ public static class HmiTemplateLayoutAnalyzer
         .Where(path => Path.GetFileName(path).StartsWith("unified_", StringComparison.OrdinalIgnoreCase))
         .OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray()
       : Array.Empty<string>();
-    var results = new JsonArray(files.Select(path => HmiTemplateLayoutAnalyzer.AnalyzeFile(path, executionJsonCheck))
-      .ToArray());
+    var results = new JsonArray([
+      .. files.Select(path => HmiTemplateLayoutAnalyzer.AnalyzeFile(path, executionJsonCheck)),
+    ]);
     var failed = results.OfType<JsonObject>()
       .Count(x => !string.Equals(x["status"]?.ToString(), "pass", StringComparison.OrdinalIgnoreCase));
     var warningCount = results.OfType<JsonObject>().Sum(x => (x["warnings"] as JsonArray)?.Count ?? 0);
@@ -110,7 +111,7 @@ public static class HmiTemplateLayoutAnalyzer
     }
     catch (Exception ex)
     {
-      errors.Add("json-parse-error: " + ex.Message);
+      errors.Add($"json-parse-error: {ex.Message}");
       row["status"] = "fail";
       return row;
     }
@@ -157,7 +158,7 @@ public static class HmiTemplateLayoutAnalyzer
       errors.Add("invalid-size: screen must be at least 320x240.");
     }
 
-    var items = (root["Items"] as JsonArray ?? root["items"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+    var items = (root["Items"] as JsonArray ?? root["items"] as JsonArray ?? []).OfType<JsonObject>()
       .ToArray();
     row["itemCount"] = items.Length;
     if (items.Length == 0)
@@ -178,32 +179,32 @@ public static class HmiTemplateLayoutAnalyzer
       var height = HmiTemplateLayoutAnalyzer.GetJsonInt(item["Height"] ?? item["height"], 0);
       if (string.IsNullOrWhiteSpace(name))
       {
-        warnings.Add("unnamed-item: " + type + " at " + left + "," + top);
+        warnings.Add($"unnamed-item: {type} at {left},{top}");
       }
       else if (!names.Add(name))
       {
-        errors.Add("duplicate-item-name: " + name);
+        errors.Add($"duplicate-item-name: {name}");
       }
 
       if (width <= 0 || height <= 0)
       {
-        errors.Add("invalid-size: " + name + " has non-positive width/height.");
+        errors.Add($"invalid-size: {name} has non-positive width/height.");
         continue;
       }
 
       if (left < 0 || top < 0 || left + width > screenWidth || top + height > screenHeight)
       {
-        errors.Add("item-out-of-screen: " + name + " bounds=" + left + "," + top + "," + width + "," + height);
+        errors.Add($"item-out-of-screen: {name} bounds={left},{top},{width},{height}");
       }
 
       if (type.IndexOf("Button", StringComparison.OrdinalIgnoreCase) >= 0 && (width < 72 || height < 40))
       {
-        warnings.Add("small-button: " + name + " is smaller than 72x40.");
+        warnings.Add($"small-button: {name} is smaller than 72x40.");
       }
 
       if (type.IndexOf("IOField", StringComparison.OrdinalIgnoreCase) >= 0 && height < 28)
       {
-        warnings.Add("small-iofield: " + name + " height is smaller than 28.");
+        warnings.Add($"small-iofield: {name} height is smaller than 28.");
       }
 
       var props = item["Properties"] as JsonObject ?? item["properties"] as JsonObject ?? new JsonObject();
@@ -212,13 +213,13 @@ public static class HmiTemplateLayoutAnalyzer
         width,
         HmiTemplateLayoutAnalyzer.GetJsonInt(props["FontSize"] ?? props["fontSize"], 16)))
       {
-        warnings.Add("text-may-overflow: " + name + " text length may exceed width.");
+        warnings.Add($"text-may-overflow: {name} text length may exceed width.");
       }
 
       boxes.Add(new Dictionary<string, object>
       {
         ["name"] = string.IsNullOrWhiteSpace(name)
-          ? type + "@" + left + "," + top
+          ? $"{type}@{left},{top}"
           : name,
         ["type"] = type,
         ["left"] = left,
@@ -246,13 +247,15 @@ public static class HmiTemplateLayoutAnalyzer
 
         var smaller = Math.Min((int)boxes[i]["width"] * (int)boxes[i]["height"],
           (int)boxes[j]["width"] * (int)boxes[j]["height"]);
-        if (smaller > 0 && overlap >= smaller * 0.55)
+        if (smaller <= 0 || !(overlap >= smaller * 0.55))
         {
-          severeOverlapCount++;
-          if (severeOverlapCount <= 20)
-          {
-            warnings.Add("layout-overlap: " + boxes[i]["name"] + " overlaps " + boxes[j]["name"]);
-          }
+          continue;
+        }
+
+        severeOverlapCount++;
+        if (severeOverlapCount <= 20)
+        {
+          warnings.Add($"layout-overlap: {boxes[i]["name"]} overlaps {boxes[j]["name"]}");
         }
       }
     }
@@ -277,7 +280,7 @@ public static class HmiTemplateLayoutAnalyzer
     }
     catch (Exception ex)
     {
-      errors.Add("execution-json-build-failed: " + ex.Message);
+      errors.Add($"execution-json-build-failed: {ex.Message}");
     }
 
     row["status"] = errors.Count == 0
@@ -313,43 +316,28 @@ public static class HmiTemplateLayoutAnalyzer
       return "Rectangle";
     }
 
-    if (type.StartsWith("Hmi", StringComparison.OrdinalIgnoreCase))
-    {
-      return type.Substring(3);
-    }
-
-    return type;
+    return type.StartsWith("Hmi", StringComparison.OrdinalIgnoreCase)
+      ? type[3..]
+      : type;
   }
 
   private static string ExtractTemplateText(JsonNode? node)
   {
-    if (node == null)
+    return node switch
     {
-      return "";
-    }
-
-    if (node is JsonValue value)
-    {
-      return HmiTemplateLayoutAnalyzer.StripHtmlText(value.ToString());
-    }
-
-    if (node is JsonObject obj)
-    {
-      return HmiTemplateLayoutAnalyzer.StripHtmlText(obj["zh-CN"]?.ToString() ??
-        obj["zh"]?.ToString() ?? obj.FirstOrDefault().Value?.ToString() ?? "");
-    }
-
-    return HmiTemplateLayoutAnalyzer.StripHtmlText(node.ToString());
+      null            => "",
+      JsonValue value => HmiTemplateLayoutAnalyzer.StripHtmlText(value.ToString()),
+      JsonObject obj => HmiTemplateLayoutAnalyzer.StripHtmlText(obj["zh-CN"]?.ToString() ??
+        obj["zh"]?.ToString() ?? obj.FirstOrDefault().Value?.ToString() ?? ""),
+      _ => HmiTemplateLayoutAnalyzer.StripHtmlText(node.ToString()),
+    };
   }
 
   private static string StripHtmlText(string text)
   {
-    if (string.IsNullOrWhiteSpace(text))
-    {
-      return "";
-    }
-
-    return Regex.Replace(text, "<[^>]+>", "").Replace("\\n", Environment.NewLine);
+    return string.IsNullOrWhiteSpace(text)
+      ? ""
+      : Regex.Replace(text, "<[^>]+>", "").Replace("\\n", Environment.NewLine);
   }
 
   private static bool LooksTextTooWide(string text, int width, int fontSize)

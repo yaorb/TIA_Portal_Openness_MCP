@@ -39,10 +39,7 @@ public static partial class McpServer
         return McpServer._services.GetRequiredService<Portal>();
       }
 
-      if (McpServer._portal == null)
-      {
-        McpServer._portal = new Portal();
-      }
+      McpServer._portal ??= new Portal();
 
       return McpServer._portal;
     }
@@ -122,9 +119,9 @@ public static partial class McpServer
       try
       {
         var st = McpServer.Portal.GetState();
-        portalDto.Connected = st?.IsConnected;
-        portalDto.ProjectName = st?.Project;
-        portalDto.SessionName = st?.Session;
+        portalDto.Connected = st.IsConnected;
+        portalDto.ProjectName = st.Project;
+        portalDto.SessionName = st.Session;
       }
       catch
       {
@@ -165,13 +162,13 @@ public static partial class McpServer
 
       var layers = new BootstrapToolLayers
       {
-        L0 = new[] { "Bootstrap", "GetState", "RunCapabilitySelfTest", },
-        L1 = new[]
-        {
+        L0 = ["Bootstrap", "GetState", "RunCapabilitySelfTest",],
+        L1 =
+        [
           "Connect", "Disconnect", "AttachToOpenProject", "OpenProject", "CreateProject", "SaveProject",
           "CloseProject", "GetProjectTree", "GetSoftwareTree", "PlcBuildAndImport", "CompileSoftware",
           "DownloadToPlc", "GoOnline", "GoOffline",
-        },
+        ],
         L2Count = McpServer.GetMcpToolNames().Count(),
       };
 
@@ -200,10 +197,12 @@ public static partial class McpServer
       // the unlisted tools do not exist.
       {
         var total = McpServer.GetMcpToolNames().Count();
-        rules = rules.Concat(McpServer.IsLiteProfile()
+        rules =
+        [
+          .. rules, McpServer.IsLiteProfile()
             ? $"TOOL ROSTER: this session lists ~{McpServer.LiteToolNames.Count} core tools of {total} total (profile=lite, the default — it keeps the tool list inside what VS Code/Copilot and Windsurf accept and saves ~30k tokens per turn). To use ANY unlisted tool: FindTools('plain words for what you need') → CallTool(name, argumentsJson). Never report a capability as missing without running FindTools first."
-            : $"TOOL ROSTER: profile=full — all {total} tools are listed. Note that VS Code/Copilot (128) and Windsurf (100) refuse rosters this large; use the default lite profile there.")
-          .ToArray();
+            : $"TOOL ROSTER: profile=full — all {total} tools are listed. Note that VS Code/Copilot (128) and Windsurf (100) refuse rosters this large; use the default lite profile there.",
+        ];
       }
 
       var ready = env.OpennessGroupOk == true && (env.TiaVersionInUse != null || env.TiaVersionDetected != null);
@@ -325,7 +324,8 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpProtocolException($"Unexpected error listing TIA Portal processes: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException(
+        $"Unexpected error listing TIA Portal processes: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -349,7 +349,8 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpProtocolException($"Unexpected error ensuring Openness user group: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException(
+        $"Unexpected error ensuring Openness user group: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -375,7 +376,8 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpProtocolException($"Unexpected error disconnecting from TIA-Portal: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException(
+        $"Unexpected error disconnecting from TIA-Portal: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -413,10 +415,9 @@ public static partial class McpServer
 
     try
     {
-      bool opennessOk;
       try
       {
-        opennessOk = await Openness.IsUserInGroup();
+        var opennessOk = await Openness.IsUserInGroup();
         Add("openness.user-group",
           "Siemens TIA Openness user group",
           opennessOk
@@ -428,7 +429,7 @@ public static partial class McpServer
       }
       catch (Exception ex)
       {
-        opennessOk = false;
+        // opennessOk = false;
         Add("openness.user-group", "Siemens TIA Openness user group", "fail", ex.Message);
       }
 
@@ -531,7 +532,7 @@ public static partial class McpServer
           "No open project or local session is attached. Project-specific checks were skipped.");
       }
 
-      var ok = items.All(i => i.Status == "pass" || i.Status == "warn" || i.Status == "skip");
+      var ok = items.All(i => i.Status is "pass" or "warn" or "skip");
       return new ResponseCapabilitySelfTest
       {
         Ok = ok,
@@ -552,7 +553,8 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpProtocolException($"Unexpected error running capability self-test: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException(
+        $"Unexpected error running capability self-test: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -593,7 +595,7 @@ public static partial class McpServer
         forbiddenToolNames.Count == 0,
         forbiddenToolNames.Count == 0
           ? $"Checked {toolNameList.Count} MCP tools; no force-write tool exposed (read-only force-table getters allowed)."
-          : "Forbidden force-write tool names: " + string.Join(", ", forbiddenToolNames));
+          : $"Forbidden force-write tool names: {string.Join(", ", forbiddenToolNames)}");
 
       var requiredTools = new[]
       {
@@ -606,7 +608,7 @@ public static partial class McpServer
         missingTools.Count == 0,
         missingTools.Count == 0
           ? "Read-only watch-table discovery/export/probe/self-test tools are present."
-          : "Missing required tools: " + string.Join(", ", missingTools));
+          : $"Missing required tools: {string.Join(", ", missingTools)}");
 
       var portalType = typeof(Portal);
       var guardMethod =
@@ -685,6 +687,11 @@ public static partial class McpServer
           continue;
         }
 
+        if (attribute.NamedArguments == null)
+        {
+          continue;
+        }
+
         var name = attribute.NamedArguments
           .FirstOrDefault(x => string.Equals(x.MemberName, "Name", StringComparison.Ordinal)).TypedValue.Value
           ?.ToString();
@@ -700,7 +707,7 @@ public static partial class McpServer
   private static string? InvokeReflectionDenyGuard(MethodInfo guardMethod, string resultKind, string resultPath,
     string methodName)
   {
-    return guardMethod.Invoke(null, new[] { new object(), resultKind, resultPath, methodName, }) as string;
+    return guardMethod.Invoke(null, [new object(), resultKind, resultPath, methodName,]) as string;
   }
 
   private static string DescribeGuardResult(string? result) =>
@@ -710,11 +717,11 @@ public static partial class McpServer
 
   private static IReadOnlyList<string> GetOnlineMonitoringSafetyPolicy()
   {
-    return new[]
-    {
+    return
+    [
       "在线监视只允许读取变量当前状态/当前值。", "在线模式不允许修改监控表、监视表或表内对象。", "不允许通过 MCP 暴露、调用或绕过任何强制表/强制相关操作。",
       "通用反射入口必须拦截强制相关服务，并拦截在线/监视/监控表面的写入、创建、删除、下载、启停和上下线切换动作。", "新增监视能力必须先探测 API 形状，再用最小实例读回验证；未验证前只能标记为探测能力。",
-    };
+    ];
   }
 
   #endregion
@@ -780,7 +787,8 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpProtocolException($"Unexpected error generating acceptance report: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException(
+        $"Unexpected error generating acceptance report: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -790,24 +798,24 @@ public static partial class McpServer
     ResponseCapabilitySelfTest selfTest, ResponseSafetySelfTest safetySelfTest)
   {
     var sb = new StringBuilder();
-    sb.AppendLine("# " + (string.IsNullOrWhiteSpace(title)
+    sb.AppendLine($"# {(string.IsNullOrWhiteSpace(title)
       ? "TIA MCP Acceptance Report"
-      : title));
+      : title)}");
     sb.AppendLine();
-    sb.AppendLine("- OperationId: `" + operationId + "`");
-    sb.AppendLine("- GeneratedAt: `" + DateTime.Now.ToString("O") + "`");
-    sb.AppendLine("- Overall: `" + (selfTest.Ok == true && safetySelfTest.Ok == true
+    sb.AppendLine($"- OperationId: `{operationId}`");
+    sb.AppendLine($"- GeneratedAt: `{DateTime.Now:O}`");
+    sb.AppendLine($"- Overall: `{(selfTest.Ok == true && safetySelfTest.Ok == true
       ? "PASS"
-      : "CHECK") + "`");
+      : "CHECK")}`");
     sb.AppendLine();
     sb.AppendLine("## Self Test");
     sb.AppendLine();
     sb.AppendLine("| Id | Status | Detail |");
     sb.AppendLine("|---|---|---|");
-    foreach (var item in selfTest.Items ?? Array.Empty<CapabilitySelfTestItem>())
+    foreach (var item in selfTest.Items ?? [])
     {
-      sb.AppendLine("| " + McpServer.EscapeMarkdownTable(item.Id) + " | " + McpServer.EscapeMarkdownTable(item.Status) +
-        " | " + McpServer.EscapeMarkdownTable(item.Detail) + " |");
+      sb.AppendLine(
+        $"| {McpServer.EscapeMarkdownTable(item.Id)} | {McpServer.EscapeMarkdownTable(item.Status)} | {McpServer.EscapeMarkdownTable(item.Detail)} |");
     }
 
     sb.AppendLine();
@@ -815,18 +823,18 @@ public static partial class McpServer
     sb.AppendLine();
     sb.AppendLine("| Id | Status | Detail |");
     sb.AppendLine("|---|---|---|");
-    foreach (var item in safetySelfTest.Items ?? Array.Empty<CapabilitySelfTestItem>())
+    foreach (var item in safetySelfTest.Items ?? [])
     {
-      sb.AppendLine("| " + McpServer.EscapeMarkdownTable(item.Id) + " | " + McpServer.EscapeMarkdownTable(item.Status) +
-        " | " + McpServer.EscapeMarkdownTable(item.Detail) + " |");
+      sb.AppendLine(
+        $"| {McpServer.EscapeMarkdownTable(item.Id)} | {McpServer.EscapeMarkdownTable(item.Status)} | {McpServer.EscapeMarkdownTable(item.Detail)} |");
     }
 
     sb.AppendLine();
     sb.AppendLine("### Safety Policy");
     sb.AppendLine();
-    foreach (var policy in safetySelfTest.Policy ?? Array.Empty<string>())
+    foreach (var policy in safetySelfTest.Policy ?? [])
     {
-      sb.AppendLine("- " + policy);
+      sb.AppendLine($"- {policy}");
     }
 
     if (!string.IsNullOrWhiteSpace(selfTest.ProjectTree))
@@ -938,153 +946,108 @@ public static partial class McpServer
   {
     if (string.IsNullOrWhiteSpace(recommendedNextActions))
     {
-      return new List<string>();
+      return [];
     }
 
-    return recommendedNextActions.Split(new[] { '\n', ';', ',', }, StringSplitOptions.RemoveEmptyEntries)
-      .Select(x => x.Trim()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+    return
+    [
+      .. recommendedNextActions.Split(['\n', ';', ',',], StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim())
+        .Where(x => !string.IsNullOrWhiteSpace(x)),
+    ];
   }
 
   private static List<string> GetDefaultRecommendedActions(string? errorCode)
   {
-    switch ((errorCode ?? string.Empty).Trim().ToLowerInvariant())
+    return (errorCode ?? string.Empty).Trim().ToLowerInvariant() switch
     {
-      case "invalidparams":
-        return new List<string>
-        {
-          "Check required parameters and path spelling.",
-          "Read live project tree before retrying.",
-          "Use a resolver tool when the target path is ambiguous.",
-        };
-
-      case "notconnected":
-        return new List<string>
-        {
-          "Run Connect.",
-          "Check TIA Portal is installed and accessible.",
-          "Run RunCapabilitySelfTest in minimal mode.",
-        };
-
-      case "projectnotopen":
-        return new List<string>
-        {
-          "AttachToOpenProject or OpenProject before writing.",
-          "Run GetState and GetProjectTree.",
-          "Avoid opening a project already opened by another session.",
-        };
-
-      case "preconditionfailed":
-        return new List<string>
-        {
-          "Run the required preflight sequence.",
-          "Read back the target object before writing.",
-          "Use dry-run where available.",
-        };
-
-      case "notfound":
-        return new List<string>
-        {
-          "Search the live project tree for the target.",
-          "Use full qualified paths for blocks/types.",
-          "Report candidate matches instead of guessing.",
-        };
-
-      case "ambiguouspath":
-        return new List<string>
-        {
-          "List candidates and choose one exact path.",
-          "Avoid single block names when groups may contain duplicates.",
-          "Use GetBlocksWithHierarchy before exporting/importing blocks.",
-        };
-
-      case "unsupportedtiaversion":
-        return new List<string>
-        {
-          "Confirm TIA Portal V21 is installed.",
-          "Restart the server with --tia-major-version 21.",
-          "Check installed Openness assemblies.",
-        };
-
-      case "opennesspermissiondenied":
-        return new List<string>
-        {
-          "Add the user to Siemens TIA Openness group.",
-          "Sign out or restart after changing group membership.",
-          "Run scripts/check-environment.ps1.",
-        };
-
-      case "hardwarecatalognotfound":
-        return new List<string>
-        {
-          "Run SearchHardwareCatalog or SearchInstalledGsdDevices.",
-          "Use MLFB/order number and installed catalog version.",
-          "Do not fall back from third-party hardware to Siemens devices.",
-        };
-
-      case "importschemaerror":
-        return new List<string>
-        {
-          "Validate XML is well formed.",
-          "Compare against a same-version TIA export.",
-          "Do not mix SCL source syntax with Openness XML syntax.",
-        };
-
-      case "compileerror":
-        return new List<string>
-        {
-          "Export the failed block/type for inspection.",
-          "Search existing tags, DBs, UDTs, and block interfaces before adding variables.",
-          "Fix the smallest object and run CompileAndDiagnosePlc again.",
-        };
-
-      case "hmibindingerror":
-        return new List<string>
-        {
-          "Read HMI screens, tag tables, tags, and connections.",
-          "Verify the HMI tag is PLC-backed, not only internal.",
-          "Read back dynamization and button script properties after binding.",
-        };
-
-      case "reflectionriskblocked":
-        return new List<string>
-        {
-          "Describe the object/service first.",
-          "Confirm method signature and parameter types.",
-          "Use allowWrite only after read-only discovery and backup/export.",
-        };
-
-      case "saveblocked":
-        return new List<string>
-        {
-          "Compile or validate before saving.",
-          "Review warnings/failures in the report.",
-          "Save only after readback succeeds unless the user explicitly asks otherwise.",
-        };
-
-      case "tiasessioncontention":
-        return new List<string>
-        {
-          "Do not run write-capable CLI probes in parallel with an active MCP session.",
-          "Use the already-running MCP server or restart it cleanly.",
-          "Stop only the probe process you launched.",
-        };
-
-      case "unexpectedopennesserror":
-        return new List<string>
-        {
-          "Capture the native exception details.",
-          "Classify the failure before retrying.",
-          "Prefer a small sacrificial project probe before touching a real project.",
-        };
-
-      default:
-        return new List<string>
-        {
-          "Capture the exact tool, parameters, and native error.",
-          "Run readback diagnostics before retrying.",
-          "Generate an acceptance or environment report if the failure may be machine-specific.",
-        };
-    }
+      "invalidparams" =>
+      [
+        "Check required parameters and path spelling.", "Read live project tree before retrying.",
+        "Use a resolver tool when the target path is ambiguous.",
+      ],
+      "notconnected" =>
+      [
+        "Run Connect.", "Check TIA Portal is installed and accessible.", "Run RunCapabilitySelfTest in minimal mode.",
+      ],
+      "projectnotopen" =>
+      [
+        "AttachToOpenProject or OpenProject before writing.", "Run GetState and GetProjectTree.",
+        "Avoid opening a project already opened by another session.",
+      ],
+      "preconditionfailed" =>
+      [
+        "Run the required preflight sequence.", "Read back the target object before writing.",
+        "Use dry-run where available.",
+      ],
+      "notfound" =>
+      [
+        "Search the live project tree for the target.", "Use full qualified paths for blocks/types.",
+        "Report candidate matches instead of guessing.",
+      ],
+      "ambiguouspath" =>
+      [
+        "List candidates and choose one exact path.", "Avoid single block names when groups may contain duplicates.",
+        "Use GetBlocksWithHierarchy before exporting/importing blocks.",
+      ],
+      "unsupportedtiaversion" =>
+      [
+        "Confirm TIA Portal V21 is installed.", "Restart the server with --tia-major-version 21.",
+        "Check installed Openness assemblies.",
+      ],
+      "opennesspermissiondenied" =>
+      [
+        "Add the user to Siemens TIA Openness group.", "Sign out or restart after changing group membership.",
+        "Run scripts/check-environment.ps1.",
+      ],
+      "hardwarecatalognotfound" =>
+      [
+        "Run SearchHardwareCatalog or SearchInstalledGsdDevices.",
+        "Use MLFB/order number and installed catalog version.",
+        "Do not fall back from third-party hardware to Siemens devices.",
+      ],
+      "importschemaerror" =>
+      [
+        "Validate XML is well formed.", "Compare against a same-version TIA export.",
+        "Do not mix SCL source syntax with Openness XML syntax.",
+      ],
+      "compileerror" =>
+      [
+        "Export the failed block/type for inspection.",
+        "Search existing tags, DBs, UDTs, and block interfaces before adding variables.",
+        "Fix the smallest object and run CompileAndDiagnosePlc again.",
+      ],
+      "hmibindingerror" =>
+      [
+        "Read HMI screens, tag tables, tags, and connections.",
+        "Verify the HMI tag is PLC-backed, not only internal.",
+        "Read back dynamization and button script properties after binding.",
+      ],
+      "reflectionriskblocked" =>
+      [
+        "Describe the object/service first.", "Confirm method signature and parameter types.",
+        "Use allowWrite only after read-only discovery and backup/export.",
+      ],
+      "saveblocked" =>
+      [
+        "Compile or validate before saving.", "Review warnings/failures in the report.",
+        "Save only after readback succeeds unless the user explicitly asks otherwise.",
+      ],
+      "tiasessioncontention" =>
+      [
+        "Do not run write-capable CLI probes in parallel with an active MCP session.",
+        "Use the already-running MCP server or restart it cleanly.", "Stop only the probe process you launched.",
+      ],
+      "unexpectedopennesserror" =>
+      [
+        "Capture the native exception details.", "Classify the failure before retrying.",
+        "Prefer a small sacrificial project probe before touching a real project.",
+      ],
+      _ =>
+      [
+        "Capture the exact tool, parameters, and native error.", "Run readback diagnostics before retrying.",
+        "Generate an acceptance or environment report if the failure may be machine-specific.",
+      ],
+    };
   }
 
   // Best-effort "Did you mean …?" suffix for a not-found block name. Only fires for a
@@ -1105,7 +1068,7 @@ public static partial class McpServer
         blocks = McpServer.Portal.GetBlocks(softwarePath, escaped);
       }
 
-      var candidates = blocks.Take(10).Select(b => McpServer.Portal.GetBlockPath(b))
+      var candidates = blocks?.Take(10).Select(b => McpServer.Portal.GetBlockPath(b))
         .Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
       return Guard.DidYouMean(candidates);
@@ -1133,7 +1096,7 @@ public static partial class McpServer
         types = McpServer.Portal.GetTypes(softwarePath, escaped);
       }
 
-      var candidates = types.Take(10).Select(t => t.Name).Where(n => !string.IsNullOrWhiteSpace(n))
+      var candidates = types?.Take(10).Select(t => t.Name).Where(n => !string.IsNullOrWhiteSpace(n))
         .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
       return Guard.DidYouMean(candidates);
@@ -1144,18 +1107,18 @@ public static partial class McpServer
     }
   }
 
-  private static string BuildErrorReportMarkdown(ResponseErrorReport report, string detail)
+  private static string BuildErrorReportMarkdown(ResponseErrorReport report, string? detail)
   {
     var sb = new StringBuilder();
     sb.AppendLine("# TIA MCP Error Report");
     sb.AppendLine();
-    sb.AppendLine("- OperationId: `" + report.OperationId + "`");
-    sb.AppendLine("- GeneratedAt: `" + DateTime.Now.ToString("O") + "`");
-    sb.AppendLine("- ErrorCode: `" + report.ErrorCode + "`");
-    sb.AppendLine("- Severity: `" + report.Severity + "`");
-    sb.AppendLine("- Summary: " + (string.IsNullOrWhiteSpace(report.Summary)
+    sb.AppendLine($"- OperationId: `{report.OperationId}`");
+    sb.AppendLine($"- GeneratedAt: `{DateTime.Now:O}`");
+    sb.AppendLine($"- ErrorCode: `{report.ErrorCode}`");
+    sb.AppendLine($"- Severity: `{report.Severity}`");
+    sb.AppendLine($"- Summary: {(string.IsNullOrWhiteSpace(report.Summary)
       ? "(none)"
-      : report.Summary));
+      : report.Summary)}");
     sb.AppendLine();
     sb.AppendLine("## Detail");
     sb.AppendLine();
@@ -1165,7 +1128,7 @@ public static partial class McpServer
     sb.AppendLine();
     sb.AppendLine("## Recommended Next Actions");
     sb.AppendLine();
-    var actions = report.RecommendedNextActions?.ToList() ?? new List<string>();
+    var actions = report.RecommendedNextActions?.ToList() ?? [];
     if (actions.Count == 0)
     {
       sb.AppendLine("- No recommended action was provided.");
@@ -1174,7 +1137,7 @@ public static partial class McpServer
     {
       foreach (var action in actions)
       {
-        sb.AppendLine("- " + action);
+        sb.AppendLine($"- {action}");
       }
     }
 

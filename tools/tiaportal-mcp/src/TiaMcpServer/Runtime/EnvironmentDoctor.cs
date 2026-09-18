@@ -131,6 +131,7 @@ public static class EnvironmentDoctor
     }
     catch
     {
+      // ignored
     }
 
     // 528040 = .NET Framework 4.8 RTM; anything at or above it satisfies net48.
@@ -190,6 +191,7 @@ public static class EnvironmentDoctor
     }
     catch
     {
+      // ignored
     }
 
     var ok = blocked.Count == 0;

@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -21,17 +21,18 @@ namespace TiaMcpServer.ModelContextProtocol;
 /// </summary>
 public static class ArgDiagnostics
 {
-    /// <summary>
-    ///   没什么可抱怨的就返回 ""；否则返回一句话，说清问题 + 正确签名。
-    /// </summary>
-    /// <param name="known">
-    ///   工具接受的全部参数名。空 = 「schema 读不出来」，此时这层完全让路
-    ///   —— 判不了的调用绝不拦。
-    /// </param>
-    /// <param name="required">必须提供的参数名。</param>
-    /// <param name="supplied">调用方实际送来的参数名。</param>
-    /// <param name="typeOf">可选的 名字 -> JSON 类型，只用来渲染签名。</param>
-    public static string Check(string toolName, IReadOnlyList<string>? known, IReadOnlyList<string>? required,
+  /// <summary>
+  ///   没什么可抱怨的就返回 ""；否则返回一句话，说清问题 + 正确签名。
+  /// </summary>
+  /// <param name="toolName"></param>
+  /// <param name="known">
+  ///   工具接受的全部参数名。空 = 「schema 读不出来」，此时这层完全让路
+  ///   —— 判不了的调用绝不拦。
+  /// </param>
+  /// <param name="required">必须提供的参数名。</param>
+  /// <param name="supplied">调用方实际送来的参数名。</param>
+  /// <param name="typeOf">可选的 名字 -> JSON 类型，只用来渲染签名。</param>
+  public static string Check(string toolName, IReadOnlyList<string>? known, IReadOnlyList<string>? required,
     IReadOnlyList<string>? supplied, IReadOnlyDictionary<string, string>? typeOf = null)
   {
     if (known == null || known.Count == 0)
@@ -39,8 +40,8 @@ public static class ArgDiagnostics
       return "";
     }
 
-    var req = required ?? Array.Empty<string>();
-    var got = supplied ?? Array.Empty<string>();
+    var req = required ?? [];
+    var got = supplied ?? [];
 
     var unknown = got.Where(g => !string.IsNullOrEmpty(g))
       .Where(g => !known.Any(k => string.Equals(k, g, StringComparison.OrdinalIgnoreCase))).ToList();
@@ -69,7 +70,7 @@ public static class ArgDiagnostics
       sb.Append("unknown argument(s) that would have been SILENTLY IGNORED: ").Append(string.Join(", ", unknown))
         .Append('.');
       var hints = unknown.Select(u => new { u, near = ArgDiagnostics.NearestName(u, known), })
-        .Where(x => x.near != null).Select(x => x.u + " -> " + x.near).ToList();
+        .Where(x => x.near != null).Select(x => $"{x.u} -> {x.near}").ToList();
       if (hints.Count > 0)
       {
         sb.Append(" Did you mean: ").Append(string.Join(", ", hints)).Append('?');
@@ -84,7 +85,7 @@ public static class ArgDiagnostics
   }
 
   /// <summary>'Tool(a: string, b?: integer)' —— 改法直接写在报错里，别让人再去翻文档。</summary>
-  public static string RenderSignature(string toolName, IReadOnlyList<string> known, IReadOnlyList<string> required,
+  private static string RenderSignature(string toolName, IReadOnlyList<string> known, IReadOnlyList<string> required,
     IReadOnlyDictionary<string, string>? typeOf = null)
   {
     var parts = new List<string>(known.Count);
@@ -100,18 +101,19 @@ public static class ArgDiagnostics
       parts.Add(k + (isReq
         ? ""
         : "?") + (type.Length > 0
-        ? ": " + type
+        ? $": {type}"
         : ""));
     }
 
-    return toolName + "(" + string.Join(", ", parts) + ")";
+    return $"{toolName}({string.Join(", ", parts)})";
   }
 
   /// <summary>
   ///   给拼错的名字找最接近的已知名，够不着就返回 null。
   ///   故意保守：一个自信但错误的建议会把调用方带进另一条死胡同，比不给建议更糟。
   /// </summary>
-  public static string? NearestName(string candidate, IReadOnlyList<string> known)
+  // 不能收窄成 private：离线单测工程直接链接本文件，并在用例里直接调它。
+  public static string? NearestName(string candidate, IReadOnlyList<string>? known)
   {
     if (string.IsNullOrEmpty(candidate) || known == null || known.Count == 0)
     {
@@ -123,11 +125,13 @@ public static class ArgDiagnostics
     foreach (var k in known)
     {
       var d = ArgDiagnostics.Distance(candidate.ToLowerInvariant(), (k ?? "").ToLowerInvariant());
-      if (d < bestScore)
+      if (d >= bestScore)
       {
-        bestScore = d;
-        best = k ?? "";
+        continue;
       }
+
+      bestScore = d;
+      best = k ?? "";
     }
 
     if (best.Length == 0)
@@ -143,7 +147,7 @@ public static class ArgDiagnostics
   }
 
   /// <summary>Levenshtein 编辑距离。</summary>
-  public static int Distance(string a, string b)
+  private static int Distance(string? a, string? b)
   {
     a ??= "";
     b ??= "";

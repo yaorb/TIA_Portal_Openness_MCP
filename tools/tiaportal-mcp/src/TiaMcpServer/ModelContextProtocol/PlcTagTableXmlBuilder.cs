@@ -20,7 +20,7 @@ namespace TiaMcpServer.ModelContextProtocol;
 /// </summary>
 public static class PlcTagTableXmlBuilder
 {
-  public static XDocument BuildDocument(string tableName, IEnumerable<PlcTagDefinition> tags)
+  public static XDocument BuildDocument(string tableName, IEnumerable<PlcTagDefinition>? tags)
   {
     if (string.IsNullOrWhiteSpace(tableName))
     {
@@ -66,9 +66,9 @@ public static class PlcTagTableXmlBuilder
   {
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var generatedPath = Path.Combine(reportDirectory, "TagTable_StartStop.generated_" + stamp + ".xml");
-    var jsonPath = Path.Combine(reportDirectory, "plc_tag_table_builder_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "plc_tag_table_builder_probe_" + stamp + ".md");
+    var generatedPath = Path.Combine(reportDirectory, $"TagTable_StartStop.generated_{stamp}.xml");
+    var jsonPath = Path.Combine(reportDirectory, $"plc_tag_table_builder_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"plc_tag_table_builder_probe_{stamp}.md");
     var goldenPath = Path.Combine(fixtureDirectory, "TagTable_StartStop.xml");
 
     var tags = new[]
@@ -175,8 +175,8 @@ public static class PlcTagTableXmlBuilder
 
   private static IEnumerable<string> NormalizeTags(JsonObject table)
   {
-    return (table["tags"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
-      .Select(x => x["name"] + "|" + x["dataTypeName"] + "|" + x["logicalAddress"])
+    return (table["tags"] as JsonArray ?? []).OfType<JsonObject>()
+      .Select(x => $"{x["name"]}|{x["dataTypeName"]}|{x["logicalAddress"]}")
       .OrderBy(x => x, StringComparer.Ordinal);
   }
 
@@ -185,25 +185,25 @@ public static class PlcTagTableXmlBuilder
     var md = new StringBuilder();
     md.AppendLine("# PLC Tag Table Builder Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线生成和解析 XML，不连接 TIA Portal，不导入 PLC 变量表。");
     md.AppendLine("- 只写 reports 目录下的生成样本和探针报告，不修改 TMP_EXPORT 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Semantic equal to golden: " + root["semanticEqual"]);
-    md.AppendLine("- Golden: " + root["goldenPath"]);
-    md.AppendLine("- Generated: " + root["generatedPath"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Semantic equal to golden: {root["semanticEqual"]}");
+    md.AppendLine($"- Golden: {root["goldenPath"]}");
+    md.AppendLine($"- Generated: {root["generatedPath"]}");
     md.AppendLine();
     md.AppendLine("## Generated Tags");
     if (root["generated"] is JsonObject generated && generated["tags"] is JsonArray tags)
     {
       foreach (var tag in tags.OfType<JsonObject>())
       {
-        md.AppendLine("- " + tag["name"] + ": " + tag["dataTypeName"] + " @ " + tag["logicalAddress"]);
+        md.AppendLine($"- {tag["name"]}: {tag["dataTypeName"]} @ {tag["logicalAddress"]}");
       }
     }
 
@@ -216,7 +216,7 @@ public static class PlcTagTableXmlBuilder
       .Select(x => x.Key).ToArray();
     if (duplicates.Length > 0)
     {
-      throw new ArgumentException("PLC 变量名重复: " + string.Join(", ", duplicates));
+      throw new ArgumentException($"PLC 变量名重复: {string.Join(", ", duplicates)}");
     }
 
     foreach (var tag in tags)
@@ -228,17 +228,17 @@ public static class PlcTagTableXmlBuilder
 
       if (string.IsNullOrWhiteSpace(tag.DataTypeName))
       {
-        throw new ArgumentException("PLC 变量数据类型不能为空: " + tag.Name);
+        throw new ArgumentException($"PLC 变量数据类型不能为空: {tag.Name}");
       }
 
       if (string.IsNullOrWhiteSpace(tag.LogicalAddress))
       {
-        throw new ArgumentException("PLC 变量地址不能为空: " + tag.Name);
+        throw new ArgumentException($"PLC 变量地址不能为空: {tag.Name}");
       }
 
       if (!tag.LogicalAddress.StartsWith("%", StringComparison.Ordinal))
       {
-        throw new ArgumentException("PLC 变量地址必须使用 TIA 绝对地址格式，例如 %I0.0、%Q0.0: " + tag.Name);
+        throw new ArgumentException($"PLC 变量地址必须使用 TIA 绝对地址格式，例如 %I0.0、%Q0.0: {tag.Name}");
       }
     }
   }

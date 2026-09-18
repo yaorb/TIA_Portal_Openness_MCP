@@ -14,7 +14,7 @@ using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 // SDK 2.x 里 IMcpServer 接口已由抽象类 McpServer 取代；本命名空间下另有同名静态类（本服务器自身），裸写会解析到它，故起别名。
-using McpServerHost = global::ModelContextProtocol.Server.McpServer;
+using McpServerHost = ModelContextProtocol.Server.McpServer;
 using Siemens.Engineering.SW.Blocks;
 using TiaMcpServer.Siemens;
 
@@ -37,29 +37,31 @@ public static partial class McpServer
     try
     {
       var block = McpServer.Portal.GetBlock(softwarePath, blockPath);
-      if (block != null)
+      if (block == null)
       {
-        var attributes = Helper.GetAttributeList(block);
-
-        return new ResponseBlockInfo
-        {
-          Message = $"Block info retrieved from '{blockPath}' in '{softwarePath}'",
-          Name = block.Name,
-          TypeName = block.GetType().Name,
-          Namespace = block.Namespace,
-          ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
-          MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
-          IsConsistent = block.IsConsistent,
-          HeaderName = block.HeaderName,
-          ModifiedDate = block.ModifiedDate,
-          IsKnowHowProtected = block.IsKnowHowProtected,
-          Attributes = attributes,
-          Description = block.ToString(),
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+        throw new McpProtocolException($"Block not found at '{blockPath}' in '{softwarePath}'",
+          McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException($"Block not found at '{blockPath}' in '{softwarePath}'", McpErrorCode.InternalError);
+      var attributes = Helper.GetAttributeList(block);
+
+      return new ResponseBlockInfo
+      {
+        Message = $"Block info retrieved from '{blockPath}' in '{softwarePath}'",
+        Name = block.Name,
+        TypeName = block.GetType().Name,
+        Namespace = block.Namespace,
+        ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
+        MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
+        IsConsistent = block.IsConsistent,
+        HeaderName = block.HeaderName,
+        ModifiedDate = block.ModifiedDate,
+        IsKnowHowProtected = block.IsKnowHowProtected,
+        Attributes = attributes,
+        Description = block.ToString(),
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -89,47 +91,45 @@ public static partial class McpServer
       if (list == null)
       {
         throw new McpProtocolException(
-          $"No TIA project is open, cannot list blocks of '{softwarePath}'. " +
-          "Call Connect / OpenProject (or AttachToOpenProject) first. " + "This does NOT mean the PLC has no blocks.",
+          $"No TIA project is open, cannot list blocks of '{softwarePath}'. Call Connect / OpenProject (or AttachToOpenProject) first. This does NOT mean the PLC has no blocks.",
           McpErrorCode.InvalidParams);
       }
 
       var responseList = new List<ResponseBlockInfo>();
       foreach (var block in list)
       {
-        if (block != null)
+        if (block == null)
         {
-          var attributes = Helper.GetAttributeList(block);
-
-          responseList.Add(new ResponseBlockInfo
-          {
-            Name = block.Name,
-            TypeName = block.GetType().Name,
-            Namespace = block.Namespace,
-            ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
-            MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
-            IsConsistent = block.IsConsistent,
-            HeaderName = block.HeaderName,
-            ModifiedDate = block.ModifiedDate,
-            IsKnowHowProtected = block.IsKnowHowProtected,
-            Attributes = attributes,
-            Description = block.ToString(),
-          });
+          continue;
         }
-      }
 
-      if (list != null)
-      {
-        return new ResponseBlocks
+        var attributes = Helper.GetAttributeList(block);
+
+        responseList.Add(new ResponseBlockInfo
         {
-          Message = $"Blocks with regex '{regexName}' retrieved from '{softwarePath}'",
-          Items = responseList,
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+          Name = block.Name,
+          TypeName = block.GetType().Name,
+          Namespace = block.Namespace,
+          ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
+          MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
+          IsConsistent = block.IsConsistent,
+          HeaderName = block.HeaderName,
+          ModifiedDate = block.ModifiedDate,
+          IsKnowHowProtected = block.IsKnowHowProtected,
+          Attributes = attributes,
+          Description = block.ToString(),
+        });
       }
 
-      throw new McpProtocolException($"Failed retrieving blocks with regex '{regexName}' in '{softwarePath}'",
-        McpErrorCode.InternalError);
+      return new ResponseBlocks
+      {
+        Message = $"Blocks with regex '{regexName}' retrieved from '{softwarePath}'",
+        Items = responseList,
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
+      // throw new McpProtocolException($"Failed retrieving blocks with regex '{regexName}' in '{softwarePath}'",
+      //   McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -148,19 +148,20 @@ public static partial class McpServer
     try
     {
       var rootGroup = McpServer.Portal.GetBlockRootGroup(softwarePath);
-      if (rootGroup != null)
+      if (rootGroup == null)
       {
-        var hierarchy = Helper.BuildBlockHierarchy(rootGroup);
-        return new ResponseBlocksWithHierarchy
-        {
-          Message = $"Block hierarchy retrieved from '{softwarePath}'",
-          Root = hierarchy,
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+        throw new McpProtocolException($"Block root group not found for '{softwarePath}'", McpErrorCode.InternalError);
       }
 
+      var hierarchy = Helper.BuildBlockHierarchy(rootGroup);
+      return new ResponseBlocksWithHierarchy
+      {
+        Message = $"Block hierarchy retrieved from '{softwarePath}'",
+        Root = hierarchy,
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
       // Specific failure: root group could not be resolved
-      throw new McpProtocolException($"Block root group not found for '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -222,9 +223,9 @@ public static partial class McpServer
 
           McpServer.Logger?.LogError(pex,
             "MCP ExportBlock failed for {SoftwarePath} {BlockPath} -> {ExportPath}",
-            pex.Data?["softwarePath"],
-            pex.Data?["blockPath"],
-            pex.Data?["exportPath"]);
+            pex.Data["softwarePath"],
+            pex.Data["blockPath"],
+            pex.Data["exportPath"]);
 
           throw new McpProtocolException(msg, McpErrorCode.InternalError);
         }
@@ -234,6 +235,16 @@ public static partial class McpServer
         {
           throw new McpProtocolException(pex.Message, McpErrorCode.InvalidParams);
         }
+
+        case PortalErrorCode.ImportFailed:
+
+        case PortalErrorCode.OpennessError:
+
+        case PortalErrorCode.NotSupportedOnVersion:
+          break;
+
+        default:
+          throw new ArgumentOutOfRangeException();
       }
 
       // Fallback
@@ -295,7 +306,7 @@ public static partial class McpServer
         blocks = McpServer.Portal.GetBlocks(softwarePath, escaped);
       }
 
-      var candidates = blocks.Take(10).Select(b =>
+      var candidates = blocks?.Take(10).Select(b =>
       {
         var name = b.Name;
         var parts = new List<string> { name, };
@@ -326,7 +337,7 @@ public static partial class McpServer
         return string.Join("/", parts);
       }).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-      return candidates.Count > 0
+      return candidates?.Count > 0
         ? $" Did you mean: {string.Join(", ", candidates)}?"
         : string.Empty;
     }
@@ -418,9 +429,8 @@ public static partial class McpServer
       {
         // 确知不符：块进去了，但和 XML 声明的不是同一个东西。
         // 这是**可判定的失败**，不能返回一条带 ⚠ 的正常响应了事。
-        throw new McpProtocolException($"ImportBlock: the block was imported from '{importPath}' into '{groupPath}', " +
-          $"but read-back does NOT match what the XML declares: {outcome.Detail}. " +
-          "⚠ The project HAS been modified — inspect it in TIA before retrying.",
+        throw new McpProtocolException(
+          $"ImportBlock: the block was imported from '{importPath}' into '{groupPath}', but read-back does NOT match what the XML declares: {outcome.Detail}. ⚠ The project HAS been modified — inspect it in TIA before retrying.",
           McpErrorCode.InternalError);
       }
 
@@ -430,9 +440,7 @@ public static partial class McpServer
       {
         Message = verified
           ? $"Block imported from '{importPath}' to '{groupPath}' (verified)"
-          : $"⚠ 未验证：block imported from '{importPath}' to '{groupPath}', but the read-back " +
-          $"could not confirm it ({outcome.Detail}). Confirm with GetBlocks / GetBlockInfo " +
-          "before treating this as done.",
+          : $"⚠ 未验证：block imported from '{importPath}' to '{groupPath}', but the read-back could not confirm it ({outcome.Detail}). Confirm with GetBlocks / GetBlockInfo before treating this as done.",
         Meta = new JsonObject
         {
           ["timestamp"] = DateTime.Now,
@@ -521,10 +529,10 @@ public static partial class McpServer
         failed.Add(new ImportFailure { Path = sourceDir, Error = "Directory not found", });
         return McpServer.BuildPlcProgramImportResponse(sourceDir,
           dryRun,
-          new List<string>(),
-          new List<string>(),
-          new List<string>(),
-          new List<string>(),
+          [],
+          [],
+          [],
+          [],
           importedTypes,
           importedTagTables,
           importedTechnologyObjects,
@@ -652,7 +660,22 @@ public static partial class McpServer
         }
       }
 
-      if (compileAfter && !(stopOnImportFailure && failed.Any()))
+      if (!compileAfter || stopOnImportFailure && failed.Any())
+      {
+        return McpServer.BuildPlcProgramImportResponse(sourceDir,
+          false,
+          discoveredTypes,
+          discoveredTagTables,
+          discoveredTechnologyObjects,
+          discoveredBlocks,
+          importedTypes,
+          importedTagTables,
+          importedTechnologyObjects,
+          importedBlocks,
+          failed,
+          compile);
+      }
+
       {
         try
         {
@@ -699,10 +722,10 @@ public static partial class McpServer
       failed.Add(new ImportFailure { Path = sourceDir, Error = ex.ToString(), });
       return McpServer.BuildPlcProgramImportResponse(sourceDir,
         dryRun,
-        new List<string>(),
-        new List<string>(),
-        new List<string>(),
-        new List<string>(),
+        [],
+        [],
+        [],
+        [],
         importedTypes,
         importedTagTables,
         importedTechnologyObjects,
@@ -744,11 +767,7 @@ public static partial class McpServer
       if (collected.CollectFailures.Count > 0)
       {
         // 放进 info 让人/模型直接看见，别只藏在 meta 里。
-        info = new List<string>(info);
-        foreach (var f in collected.CollectFailures)
-        {
-          info.Add("State=Information; Description=[诊断收集不完整] " + f);
-        }
+        info = [.. info, .. collected.CollectFailures.Select(f => $"State=Information; Description=[诊断收集不完整] {f}"),];
       }
 
       return new ResponseCompileDiagnose
@@ -805,16 +824,44 @@ public static partial class McpServer
       McpServer.Portal.ImportBlock(softwarePath, groupPath, importPath);
 
       ResponseCompileDiagnose? compile = null;
-      if (compileAfter)
+      if (!compileAfter)
       {
-        compile = McpServer.CompileAndDiagnosePlc(softwarePath);
-        if (compile.Meta?["success"]?.GetValue<bool>() == false)
+        return new ResponseRepairAndCompile
         {
-          suggestions.Add("If errors mention missing symbols, ensure PLC tag table/UDTs are imported before blocks.");
-          suggestions.Add(
-            "If block/type is inconsistent, compile PLC software once to update consistency before exporting.");
-        }
+          Message = "Imported (best-effort) and compiled.",
+          Imported = true,
+          ImportError = null,
+          Compile = compile,
+          Suggestions = suggestions,
+          Meta = new JsonObject
+          {
+            ["timestamp"] = DateTime.Now,
+            ["success"] = compile == null || (compile.Meta?["success"]?.GetValue<bool>() ?? false),
+          },
+        };
       }
+
+      compile = McpServer.CompileAndDiagnosePlc(softwarePath);
+      if (compile.Meta?["success"]?.GetValue<bool>() != false)
+      {
+        return new ResponseRepairAndCompile
+        {
+          Message = "Imported (best-effort) and compiled.",
+          Imported = true,
+          ImportError = null,
+          Compile = compile,
+          Suggestions = suggestions,
+          Meta = new JsonObject
+          {
+            ["timestamp"] = DateTime.Now,
+            ["success"] = (compile.Meta?["success"]?.GetValue<bool>() ?? false),
+          },
+        };
+      }
+
+      suggestions.Add("If errors mention missing symbols, ensure PLC tag table/UDTs are imported before blocks.");
+      suggestions.Add(
+        "If block/type is inconsistent, compile PLC software once to update consistency before exporting.");
 
       return new ResponseRepairAndCompile
       {
@@ -826,7 +873,7 @@ public static partial class McpServer
         Meta = new JsonObject
         {
           ["timestamp"] = DateTime.Now,
-          ["success"] = compile == null || (compile.Meta?["success"]?.GetValue<bool>() ?? false),
+          ["success"] = (compile.Meta?["success"]?.GetValue<bool>() ?? false),
         },
       };
     }
@@ -956,7 +1003,7 @@ public static partial class McpServer
     [Description("preservePath: preserves the path/structure of the plc software")] bool preservePath = false)
   {
     var startTime = DateTime.Now;
-    var progressToken = context.Params?.ProgressToken;
+    var progressToken = context.Params.ProgressToken;
 
     try
     {
@@ -1012,24 +1059,26 @@ public static partial class McpServer
       {
         foreach (var b in allBlocks)
         {
-          if (b != null && !b.IsConsistent)
+          if (b is not { IsConsistent: false, })
           {
-            var attrs = Helper.GetAttributeList(b);
-            inconsistentInfos.Add(new ResponseBlockInfo
-            {
-              Name = b.Name,
-              TypeName = b.GetType().Name,
-              Namespace = b.Namespace,
-              ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), b.ProgrammingLanguage),
-              MemoryLayout = Enum.GetName(typeof(MemoryLayout), b.MemoryLayout),
-              IsConsistent = b.IsConsistent,
-              HeaderName = b.HeaderName,
-              ModifiedDate = b.ModifiedDate,
-              IsKnowHowProtected = b.IsKnowHowProtected,
-              Attributes = attrs,
-              Description = b.ToString(),
-            });
+            continue;
           }
+
+          var attrs = Helper.GetAttributeList(b);
+          inconsistentInfos.Add(new ResponseBlockInfo
+          {
+            Name = b.Name,
+            TypeName = b.GetType().Name,
+            Namespace = b.Namespace,
+            ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), b.ProgrammingLanguage),
+            MemoryLayout = Enum.GetName(typeof(MemoryLayout), b.MemoryLayout),
+            IsConsistent = b.IsConsistent,
+            HeaderName = b.HeaderName,
+            ModifiedDate = b.ModifiedDate,
+            IsKnowHowProtected = b.IsKnowHowProtected,
+            Attributes = attrs,
+            Description = b.ToString(),
+          });
         }
       }
 
@@ -1047,73 +1096,75 @@ public static partial class McpServer
           });
       }
 
-      if (exportedBlocks != null)
+      if (exportedBlocks == null)
       {
-        var responseList = new List<ResponseBlockInfo>();
-        var processedCount = 0;
-
-        foreach (var block in exportedBlocks)
-        {
-          if (block != null)
-          {
-            var attributes = Helper.GetAttributeList(block);
-
-            responseList.Add(new ResponseBlockInfo
-            {
-              Name = block.Name,
-              TypeName = block.GetType().Name,
-              Namespace = block.Namespace,
-              ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
-              MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
-              IsConsistent = block.IsConsistent,
-              HeaderName = block.HeaderName,
-              ModifiedDate = block.ModifiedDate,
-              IsKnowHowProtected = block.IsKnowHowProtected,
-              Attributes = attributes,
-              Description = block.ToString(),
-            });
-          }
-
-          processedCount++;
-        }
-
-        // Send final progress notification
-        if (progressToken != null)
-        {
-          await server.SendNotificationAsync("notifications/progress",
-            new
-            {
-              Progress = processedCount,
-              Total = totalBlocks,
-              Message = $"Export completed: {processedCount} blocks exported successfully",
-              progressToken,
-            });
-        }
-
-        var duration = (DateTime.Now - startTime).TotalSeconds;
-        McpServer.Logger?.LogInformation(
-          $"Export completed: {processedCount} blocks exported in {duration:F2} seconds");
-
-        return new ResponseExportBlocks
-        {
-          Message =
-            $"Export completed: {processedCount} blocks with regex '{regexName}' exported from '{softwarePath}' to '{exportPath}'",
-          Items = responseList,
-          Inconsistent = inconsistentInfos,
-          Meta = new JsonObject
-          {
-            ["timestamp"] = DateTime.Now,
-            ["success"] = true,
-            ["totalBlocks"] = totalBlocks,
-            ["exportedBlocks"] = processedCount,
-            ["inconsistentBlocks"] = inconsistentInfos.Count,
-            ["duration"] = duration,
-          },
-        };
+        throw new McpProtocolException(
+          $"Failed exporting blocks with '{regexName}' from '{softwarePath}' to {exportPath}",
+          McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException($"Failed exporting blocks with '{regexName}' from '{softwarePath}' to {exportPath}",
-        McpErrorCode.InternalError);
+      var responseList = new List<ResponseBlockInfo>();
+      var processedCount = 0;
+
+      foreach (var block in exportedBlocks)
+      {
+        if (block != null)
+        {
+          var attributes = Helper.GetAttributeList(block);
+
+          responseList.Add(new ResponseBlockInfo
+          {
+            Name = block.Name,
+            TypeName = block.GetType().Name,
+            Namespace = block.Namespace,
+            ProgrammingLanguage = Enum.GetName(typeof(ProgrammingLanguage), block.ProgrammingLanguage),
+            MemoryLayout = Enum.GetName(typeof(MemoryLayout), block.MemoryLayout),
+            IsConsistent = block.IsConsistent,
+            HeaderName = block.HeaderName,
+            ModifiedDate = block.ModifiedDate,
+            IsKnowHowProtected = block.IsKnowHowProtected,
+            Attributes = attributes,
+            Description = block.ToString(),
+          });
+        }
+
+        processedCount++;
+      }
+
+      // Send final progress notification
+      if (progressToken != null)
+      {
+        await server.SendNotificationAsync("notifications/progress",
+          new
+          {
+            Progress = processedCount,
+            Total = totalBlocks,
+            Message = $"Export completed: {processedCount} blocks exported successfully",
+            progressToken,
+          });
+      }
+
+      var duration = (DateTime.Now - startTime).TotalSeconds;
+      McpServer.Logger?.LogInformation(
+        $"Export completed: {processedCount} blocks exported in {duration:F2} seconds");
+
+      return new ResponseExportBlocks
+      {
+        Message =
+          $"Export completed: {processedCount} blocks with regex '{regexName}' exported from '{softwarePath}' to '{exportPath}'",
+        Items = responseList,
+        Inconsistent = inconsistentInfos,
+        Meta = new JsonObject
+        {
+          ["timestamp"] = DateTime.Now,
+          ["success"] = true,
+          ["totalBlocks"] = totalBlocks,
+          ["exportedBlocks"] = processedCount,
+          ["inconsistentBlocks"] = inconsistentInfos.Count,
+          ["duration"] = duration,
+        },
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {

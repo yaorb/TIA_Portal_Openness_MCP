@@ -82,7 +82,7 @@ public partial class Portal
     public IReadOnlyList<PluggedItemInfo>? OccupiedSlots { get; set; }
 
     /// <summary>实际试过的 TypeIdentifier 变体和结论，失败时排障全靠它。</summary>
-    public List<string> Attempts { get; } = new();
+    public List<string> Attempts { get; } = [];
   }
 
   /// <summary>
@@ -135,7 +135,7 @@ public partial class Portal
       logger?.LogWarning(ex, "GetPlugLocations failed; treating as no free slots");
     }
 
-    return list.OrderBy(x => x.PositionNumber).ToList();
+    return [.. list.OrderBy(x => x.PositionNumber),];
   }
 
   private static List<PluggedItemInfo> ReadOccupiedSlots(DeviceItem host)
@@ -157,7 +157,7 @@ public partial class Portal
       list.Add(Portal.DescribeItem(child));
     }
 
-    return list.OrderBy(x => x.PositionNumber).ToList();
+    return [.. list.OrderBy(x => x.PositionNumber),];
   }
 
   private static PluggedItemInfo DescribeItem(DeviceItem item)
@@ -272,7 +272,7 @@ public partial class Portal
         return result;
       }
 
-      slotCandidates = new List<int> { positionNumber, };
+      slotCandidates = [positionNumber,];
     }
     else
     {
@@ -283,7 +283,7 @@ public partial class Portal
         return result;
       }
 
-      slotCandidates = free.Select(x => x.PositionNumber).ToList();
+      slotCandidates = [.. free.Select(x => x.PositionNumber),];
     }
 
     var typeIdentifiers = Portal.BuildPlugTypeIdentifiers(orderNumber, version);
@@ -469,14 +469,14 @@ public partial class Portal
   ///   拼 TypeIdentifier 变体。订货号空格写法（6ES7221... / 6ES7 221...）TIA 只认其中一种，
   ///   而用户两种都会写，所以复用整机添加那套归一化逻辑挨个试。
   /// </summary>
-  private static List<string> BuildPlugTypeIdentifiers(string orderNumber, string version)
+  private static List<string> BuildPlugTypeIdentifiers(string? orderNumber, string? version)
   {
     var raw = (orderNumber ?? "").Trim();
 
     // 用户直接给了完整 TypeIdentifier 就别再拼了，原样用。
     if (raw.StartsWith("OrderNumber:", StringComparison.OrdinalIgnoreCase))
     {
-      return new List<string> { raw, };
+      return [raw,];
     }
 
     var orders = new List<string>
@@ -489,7 +489,7 @@ public partial class Portal
 
     var v = (version ?? "").Trim();
     var vNoV = v.StartsWith("V", StringComparison.OrdinalIgnoreCase)
-      ? v.Substring(1)
+      ? v[1..]
       : v;
 
     var versions = new List<string>();
@@ -504,7 +504,7 @@ public partial class Portal
       }
     }
 
-    versions = versions.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    versions = [.. versions.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase),];
 
     var result = new List<string>();
     foreach (var o in orders)
@@ -518,7 +518,7 @@ public partial class Portal
       result.Add($"OrderNumber:{o}");
     }
 
-    return result.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    return [.. result.Distinct(StringComparer.OrdinalIgnoreCase),];
   }
 
   /// <summary>新模块名：用户没给就自动生成，并且避开同名兄弟（重名 PlugNew 会直接失败）。</summary>
@@ -570,7 +570,7 @@ public partial class Portal
     try
     {
       var hits = this.SearchHardwareCatalog(Portal.NormalizeOrderNumber(orderNumber), 5);
-      if (hits == null || hits.Count == 0)
+      if (hits.Count == 0)
       {
         return (false, "");
       }

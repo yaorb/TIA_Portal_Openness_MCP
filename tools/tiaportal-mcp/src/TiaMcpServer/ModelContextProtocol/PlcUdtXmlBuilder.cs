@@ -22,7 +22,7 @@ public static class PlcUdtXmlBuilder
 {
   private static readonly XNamespace InterfaceNs = "http://www.siemens.com/automation/Openness/SW/Interface/v5";
 
-  public static XDocument BuildDocument(string udtName, IEnumerable<PlcUdtMemberDefinition> members)
+  public static XDocument BuildDocument(string udtName, IEnumerable<PlcUdtMemberDefinition>? members)
   {
     if (string.IsNullOrWhiteSpace(udtName))
     {
@@ -75,9 +75,9 @@ public static class PlcUdtXmlBuilder
     Directory.CreateDirectory(reportDirectory);
     var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
     var goldenPath = Path.Combine(fixtureDirectory, "UDT_Fault.xml");
-    var generatedPath = Path.Combine(reportDirectory, "UDT_Fault.minimal.generated_" + stamp + ".xml");
-    var jsonPath = Path.Combine(reportDirectory, "plc_udt_builder_probe_" + stamp + ".json");
-    var mdPath = Path.Combine(reportDirectory, "plc_udt_builder_probe_" + stamp + ".md");
+    var generatedPath = Path.Combine(reportDirectory, $"UDT_Fault.minimal.generated_{stamp}.xml");
+    var jsonPath = Path.Combine(reportDirectory, $"plc_udt_builder_probe_{stamp}.json");
+    var mdPath = Path.Combine(reportDirectory, $"plc_udt_builder_probe_{stamp}.md");
 
     var golden = PlcUdtXmlBuilder.AnalyzeUdt(goldenPath, 4);
     var probeMembers = PlcUdtXmlBuilder.ReadMembers(goldenPath).Take(4)
@@ -136,7 +136,7 @@ public static class PlcUdtXmlBuilder
       root["ok"] = doc.Descendants().Any(x => x.Name.LocalName == "SW.Types.PlcStruct") && members.Length > 0 &&
         members.All(x => !string.IsNullOrWhiteSpace(x.Name) && !string.IsNullOrWhiteSpace(x.Datatype));
       root["memberCount"] = members.Length;
-      root["members"] = new JsonArray(members.Select(PlcUdtXmlBuilder.MemberToJson).ToArray());
+      root["members"] = new JsonArray([.. members.Select(PlcUdtXmlBuilder.MemberToJson),]);
       return root;
     }
     catch (Exception ex)
@@ -174,12 +174,15 @@ public static class PlcUdtXmlBuilder
   private static PlcUdtMemberFact[] ReadMembers(string path)
   {
     var doc = XDocument.Load(path, LoadOptions.PreserveWhitespace);
-    return doc.Descendants().Where(x => x.Name.LocalName == "Member").Select(x =>
-      new PlcUdtMemberFact(x.Attribute("Name")?.Value ?? "",
-        x.Attribute("Datatype")?.Value ?? "",
-        PlcUdtXmlBuilder.ReadExternalWritable(x),
-        x.Descendants().FirstOrDefault(y => y.Name.LocalName == "MultiLanguageText" &&
-          (y.Attribute("Lang")?.Value ?? "") == "zh-CN")?.Value ?? "")).ToArray();
+    return
+    [
+      .. doc.Descendants().Where(x => x.Name.LocalName == "Member").Select(x =>
+        new PlcUdtMemberFact(x.Attribute("Name")?.Value ?? "",
+          x.Attribute("Datatype")?.Value ?? "",
+          PlcUdtXmlBuilder.ReadExternalWritable(x),
+          x.Descendants().FirstOrDefault(y => y.Name.LocalName == "MultiLanguageText" &&
+            (y.Attribute("Lang")?.Value ?? "") == "zh-CN")?.Value ?? "")),
+    ];
   }
 
   private static bool ReadExternalWritable(XElement member)
@@ -204,8 +207,8 @@ public static class PlcUdtXmlBuilder
 
   private static IEnumerable<string> NormalizeMembers(JsonObject root)
   {
-    return (root["members"] as JsonArray ?? new JsonArray()).OfType<JsonObject>().Select(x =>
-      x["name"] + "|" + x["datatype"] + "|" + x["externalWritable"] + "|" + x["commentZhCn"]);
+    return (root["members"] as JsonArray ?? []).OfType<JsonObject>().Select(x =>
+      $"{x["name"]}|{x["datatype"]}|{x["externalWritable"]}|{x["commentZhCn"]}");
   }
 
   private static string BuildProbeMarkdown(JsonObject root, string jsonPath)
@@ -213,28 +216,28 @@ public static class PlcUdtXmlBuilder
     var md = new StringBuilder();
     md.AppendLine("# PLC UDT Builder Probe");
     md.AppendLine();
-    md.AppendLine("Generated: " + root["timestamp"]);
-    md.AppendLine("JSON: " + jsonPath);
+    md.AppendLine($"Generated: {root["timestamp"]}");
+    md.AppendLine($"JSON: {jsonPath}");
     md.AppendLine();
     md.AppendLine("## Safety");
     md.AppendLine("- 离线生成和解析 XML，不连接 TIA Portal，不导入 PLC 数据类型。");
     md.AppendLine("- 只写 reports 目录下的生成样本和探针报告，不修改 TMP_EXPORT 或交付包。");
     md.AppendLine();
     md.AppendLine("## Summary");
-    md.AppendLine("- OK: " + root["ok"]);
-    md.AppendLine("- Semantic equal to golden first members: " + root["semanticEqual"]);
-    md.AppendLine("- Golden: " + root["goldenPath"]);
-    md.AppendLine("- Generated: " + root["generatedPath"]);
+    md.AppendLine($"- OK: {root["ok"]}");
+    md.AppendLine($"- Semantic equal to golden first members: {root["semanticEqual"]}");
+    md.AppendLine($"- Golden: {root["goldenPath"]}");
+    md.AppendLine($"- Generated: {root["generatedPath"]}");
     md.AppendLine();
     md.AppendLine("## Generated Members");
     if (root["generated"] is JsonObject generated && generated["members"] is JsonArray members)
     {
       foreach (var member in members.OfType<JsonObject>())
       {
-        md.AppendLine("- " + member["name"] + ": " + member["datatype"] + ", ExternalWritable=" +
-          member["externalWritable"] + ", 注释=" + (string.IsNullOrWhiteSpace(member["commentZhCn"]?.ToString())
+        md.AppendLine(
+          $"- {member["name"]}: {member["datatype"]}, ExternalWritable={member["externalWritable"]}, 注释={(string.IsNullOrWhiteSpace(member["commentZhCn"]?.ToString())
             ? "<none>"
-            : member["commentZhCn"]));
+            : member["commentZhCn"])}");
       }
     }
 
@@ -247,7 +250,7 @@ public static class PlcUdtXmlBuilder
       .Select(x => x.Key).ToArray();
     if (duplicates.Length > 0)
     {
-      throw new ArgumentException("UDT 成员名重复: " + string.Join(", ", duplicates));
+      throw new ArgumentException($"UDT 成员名重复: {string.Join(", ", duplicates)}");
     }
 
     foreach (var member in members)
@@ -259,7 +262,7 @@ public static class PlcUdtXmlBuilder
 
       if (string.IsNullOrWhiteSpace(member.Datatype))
       {
-        throw new ArgumentException("UDT 成员数据类型不能为空: " + member.Name);
+        throw new ArgumentException($"UDT 成员数据类型不能为空: {member.Name}");
       }
     }
   }

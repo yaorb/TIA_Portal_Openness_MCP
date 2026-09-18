@@ -29,14 +29,13 @@ public static class SpecLoader
     text = SpecLoader.ResolveBundleToken(text);
     var ext = Path.GetExtension(path).ToLowerInvariant();
 
-    if (ext == ".json")
+    switch (ext)
     {
-      return text; // pass-through, no YAML round-trip
-    }
-
-    if (ext == ".yaml" || ext == ".yml")
-    {
-      return SpecLoader.YamlToJson(text);
+      case ".json":
+        return text; // pass-through, no YAML round-trip
+      case ".yaml":
+      case ".yml":
+        return SpecLoader.YamlToJson(text);
     }
 
     // Unknown extension: sniff. Leading { or [ means JSON, otherwise treat as YAML.
@@ -88,7 +87,7 @@ public static class SpecLoader
     return null;
   }
 
-  public static string YamlToJson(string yaml)
+  private static string YamlToJson(string yaml)
   {
     var graph = new DeserializerBuilder().Build().Deserialize<object?>(yaml);
     return SpecLoader.ToNode(graph)?.ToJsonString() ?? "{}";

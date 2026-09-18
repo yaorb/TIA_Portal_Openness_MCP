@@ -70,12 +70,8 @@ public static partial class McpServer
       var foreign = McpServer.Portal.ForeignOpenProjectName();
       if (foreign != null && !closeForeignProject)
       {
-        throw new McpProtocolException("OpenProject refused: TIA Portal already has the project '" + foreign +
-          "' open and this " +
-          "session did not open it - it belongs to the user. OpenProject closes the current project " +
-          "first, which would discard any unsaved edits. To work on that project call " +
-          "AttachToOpenProject(projectName=\"" + foreign + "\"). To close it anyway pass " +
-          "closeForeignProject=true - ask the user before you do.",
+        throw new McpProtocolException(
+          $"OpenProject refused: TIA Portal already has the project '{foreign}' open and this session did not open it - it belongs to the user. OpenProject closes the current project first, which would discard any unsaved edits. To work on that project call AttachToOpenProject(projectName=\"{foreign}\"). To close it anyway pass closeForeignProject=true - ask the user before you do.",
           McpErrorCode.InvalidRequest);
       }
 
@@ -175,12 +171,8 @@ public static partial class McpServer
       var foreign = McpServer.Portal.ForeignOpenProjectName();
       if (foreign != null && !closeForeignProject)
       {
-        throw new McpProtocolException("CreateProject refused: TIA Portal already has the project '" + foreign +
-          "' open and this " +
-          "session did not open it - it belongs to the user. CreateProject closes the current project " +
-          "first, which would discard any unsaved edits. To work on that project call " +
-          "AttachToOpenProject(projectName=\"" + foreign + "\"). To close it anyway pass " +
-          "closeForeignProject=true - ask the user before you do.",
+        throw new McpProtocolException(
+          $"CreateProject refused: TIA Portal already has the project '{foreign}' open and this session did not open it - it belongs to the user. CreateProject closes the current project first, which would discard any unsaved edits. To work on that project call AttachToOpenProject(projectName=\"{foreign}\"). To close it anyway pass closeForeignProject=true - ask the user before you do.",
           McpErrorCode.InvalidRequest);
       }
 
@@ -224,9 +216,6 @@ public static partial class McpServer
   {
     var resp = new ResponseScaffold { Ok = true, };
 
-    void Step(string name, string status, string? detail = null) =>
-      resp.Steps.Add(new ScaffoldStep { Step = name, Status = status, Detail = detail, });
-
     JsonNode root;
     try
     {
@@ -237,55 +226,17 @@ public static partial class McpServer
       throw new McpProtocolException($"ScaffoldProject: invalid spec JSON: {ex.Message}", McpErrorCode.InvalidParams);
     }
 
-    string S(string key, string def = "")
-    {
-      try
-      {
-        return root[key]?.GetValue<string>() ?? def;
-      }
-      catch
-      {
-        return def;
-      }
-    }
-
     bool B(string key, bool def)
     {
       try
       {
-        return root[key] is JsonNode n
+        return root[key] is { } n
           ? n.GetValue<bool>()
           : def;
       }
       catch
       {
         return def;
-      }
-    }
-
-    JsonArray Arr(string key) => root[key] as JsonArray ?? new JsonArray();
-
-    string IS(JsonNode? n, string key, string def = "")
-    {
-      try
-      {
-        return n?[key]?.GetValue<string>() ?? def;
-      }
-      catch
-      {
-        return def;
-      }
-    }
-
-    uint IU(JsonNode? n, string key)
-    {
-      try
-      {
-        return (uint)(n?[key]?.GetValue<int>() ?? 0);
-      }
-      catch
-      {
-        return 0;
       }
     }
 
@@ -298,7 +249,7 @@ public static partial class McpServer
     var directoryPath = S("directoryPath");
     if (string.IsNullOrWhiteSpace(directoryPath))
     {
-      directoryPath = Path.Combine(Path.GetTempPath(), "tia_mcp_scaffold_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+      directoryPath = Path.Combine(Path.GetTempPath(), $"tia_mcp_scaffold_{DateTime.Now:yyyyMMdd_HHmmss}");
     }
 
     var plcName = S("plcName", "PLC_1");
@@ -362,10 +313,10 @@ public static partial class McpServer
 
       foreach (var item in Arr("ladDocs"))
       {
-        var importPath = IS(item, "importPath");
-        var name = IS(item, "name");
+        var importPath = Is(item, "importPath");
+        var name = Is(item, "name");
         var exists = !string.IsNullOrWhiteSpace(importPath) && !string.IsNullOrWhiteSpace(name) &&
-          File.Exists(Path.Combine(importPath, name + ".s7dcl"));
+          File.Exists(Path.Combine(importPath, $"{name}.s7dcl"));
         Step("lad",
           exists
             ? "ok"
@@ -381,7 +332,7 @@ public static partial class McpServer
 
       foreach (var item in Arr("hmiScreens"))
       {
-        var screenName = IS(item, "screenName");
+        var screenName = Is(item, "screenName");
         var ok = !string.IsNullOrWhiteSpace(screenName) && item?["designJson"] != null;
         Step("hmiScreen",
           ok
@@ -399,10 +350,9 @@ public static partial class McpServer
       var okN = resp.Steps.Count(s => s.Status == "ok");
       var failN = resp.Steps.Count(s => s.Status == "failed");
       resp.Message =
-        $"ScaffoldProject dryRun '{projectName}': {okN} ok, {failN} failed (offline validation, nothing created)." +
-        (failN == 0
+        $"ScaffoldProject dryRun '{projectName}': {okN} ok, {failN} failed (offline validation, nothing created).{(failN == 0
           ? " Spec is valid — call ScaffoldProject again with dryRun=false to actually create the project."
-          : " Fix the failed steps, then re-run.");
+          : " Fix the failed steps, then re-run.")}";
       resp.Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = resp.Ok, ["dryRun"] = true, };
       return resp;
     }
@@ -553,8 +503,8 @@ public static partial class McpServer
     // ---- LAD via S7DCL documents ----
     foreach (var item in Arr("ladDocs"))
     {
-      var importPath = IS(item, "importPath");
-      var name = IS(item, "name");
+      var importPath = Is(item, "importPath");
+      var name = Is(item, "name");
       if (string.IsNullOrWhiteSpace(importPath) || string.IsNullOrWhiteSpace(name))
       {
         Step("lad", "skipped", "missing importPath/name");
@@ -610,8 +560,8 @@ public static partial class McpServer
       {
         hmiSoftwarePathSpec,
         "HMI_RT_1",
-        hmiName + ".HMI_RT_1",
-        hmiName + "_RT_1",
+        $"{hmiName}.HMI_RT_1",
+        $"{hmiName}_RT_1",
         hmiName,
       };
       foreach (var c in candidates)
@@ -629,6 +579,7 @@ public static partial class McpServer
         }
         catch
         {
+          // ignored
         }
       }
 
@@ -656,7 +607,7 @@ public static partial class McpServer
 
         foreach (var item in Arr("hmiScreens"))
         {
-          var screenName = IS(item, "screenName");
+          var screenName = Is(item, "screenName");
           if (string.IsNullOrWhiteSpace(screenName))
           {
             continue;
@@ -664,7 +615,7 @@ public static partial class McpServer
 
           try
           {
-            McpServer.EnsureUnifiedHmiScreen(hmiPath, screenName, IU(item, "width"), IU(item, "height"));
+            McpServer.EnsureUnifiedHmiScreen(hmiPath, screenName, Iu(item, "width"), Iu(item, "height"));
             var design = item?["designJson"];
             if (design != null)
             {
@@ -682,16 +633,16 @@ public static partial class McpServer
 
         foreach (var item in Arr("hmiTags"))
         {
-          var tagName = IS(item, "tagName");
+          var tagName = Is(item, "tagName");
           if (string.IsNullOrWhiteSpace(tagName))
           {
             continue;
           }
 
-          var tagTable = IS(item, "tagTableName", "Default tag table");
-          var dt = IS(item, "hmiDataType", "Bool");
-          var plcTag = IS(item, "plcTag");
-          var address = IS(item, "address");
+          var tagTable = Is(item, "tagTableName", "Default tag table");
+          var dt = Is(item, "hmiDataType", "Bool");
+          var plcTag = Is(item, "plcTag");
+          var address = Is(item, "address");
           try
           {
             McpServer.EnsureUnifiedHmiTag(hmiPath, tagTable, tagName, dt, plcName, plcTag, connectionName, address);
@@ -727,6 +678,47 @@ public static partial class McpServer
       $"ScaffoldProject '{projectName}': {okCount} ok, {failCount} failed; compile state={resp.CompileState ?? "(skipped)"} errors={resp.CompileErrorCount}.";
     resp.Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = resp.Ok, };
     return resp;
+
+    uint Iu(JsonNode? n, string key)
+    {
+      try
+      {
+        return (uint)(n?[key]?.GetValue<int>() ?? 0);
+      }
+      catch
+      {
+        return 0;
+      }
+    }
+
+    JsonArray Arr(string key) => root[key] as JsonArray ?? [];
+
+    string Is(JsonNode? n, string key, string def = "")
+    {
+      try
+      {
+        return n?[key]?.GetValue<string>() ?? def;
+      }
+      catch
+      {
+        return def;
+      }
+    }
+
+    void Step(string name, string status, string? detail = null) =>
+      resp.Steps.Add(new ScaffoldStep { Step = name, Status = status, Detail = detail, });
+
+    string S(string key, string def = "")
+    {
+      try
+      {
+        return root[key]?.GetValue<string>() ?? def;
+      }
+      catch
+      {
+        return def;
+      }
+    }
   }
 
   [McpServerTool(Name = "SaveProject")]

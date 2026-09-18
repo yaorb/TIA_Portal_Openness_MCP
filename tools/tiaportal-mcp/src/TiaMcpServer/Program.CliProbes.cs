@@ -80,7 +80,7 @@ public partial class Program
       ? Array.Empty<ImportFailure>()
       : new List<ImportFailure>(import.Failed).ToArray();
     Program.LogDiag(
-      $"PLC import: importedTags={string.Join(",", import.ImportedTagTables ?? Array.Empty<string>())}, importedBlocks={string.Join(",", import.ImportedBlocks ?? Array.Empty<string>())}, failed={failures.Length}");
+      $"PLC import: importedTags={string.Join(",", import.ImportedTagTables ?? [])}, importedBlocks={string.Join(",", import.ImportedBlocks ?? [])}, failed={failures.Length}");
     if (import.Failed != null)
     {
       foreach (var failure in import.Failed)
@@ -154,7 +154,7 @@ public partial class Program
     var import =
       McpServer.ImportPlcProgramFromDirectory("PLC_1", importDir, compileAfter: true, stopOnImportFailure: false);
     Program.LogDiag(
-      $"PLC import: dryRun={import.DryRun}, importedTags={string.Join(",", import.ImportedTagTables ?? Array.Empty<string>())}, importedBlocks={string.Join(",", import.ImportedBlocks ?? Array.Empty<string>())}, failed={import.Failed?.Count() ?? 0}");
+      $"PLC import: dryRun={import.DryRun}, importedTags={string.Join(",", import.ImportedTagTables ?? [])}, importedBlocks={string.Join(",", import.ImportedBlocks ?? [])}, failed={import.Failed?.Count() ?? 0}");
     if (import.Failed != null)
     {
       foreach (var f in import.Failed)
@@ -171,11 +171,11 @@ public partial class Program
 
     McpServer.EnsureUnifiedHmiTagTable("HMI_RT_1", "FlowLightTags");
     var hmiConnections = McpServer.ListObjectChildren("Software", "HMI_RT_1", "Connections", "", 20);
-    var connectionName = (hmiConnections.Items ?? Array.Empty<string>()).FirstOrDefault() ?? "";
-    Program.LogDiag("HMI connections: " + string.Join(",", hmiConnections.Items ?? Array.Empty<string>()));
+    var connectionName = (hmiConnections.Items ?? []).FirstOrDefault() ?? "";
+    Program.LogDiag("HMI connections: " + string.Join(",", hmiConnections.Items ?? []));
     var connDescription = McpServer.DescribeObjectProperty("Software", "HMI_RT_1", "Connections", "", 160);
     Program.LogDiag("HMI Connections members: " + string.Join(" | ",
-      (connDescription.Members ?? Array.Empty<ObjectMember>()).Select(m =>
+      (connDescription.Members ?? []).Select(m =>
         $"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")));
     if (string.IsNullOrWhiteSpace(connectionName))
     {
@@ -183,7 +183,7 @@ public partial class Program
       var createdConnection = McpServer.EnsureUnifiedHmiConnection("HMI_RT_1", connectionName);
       Program.LogDiag(createdConnection.Message ?? $"Ensured HMI connection {connectionName}");
       Program.LogDiag("HMI connection members: " + string.Join(" | ",
-        (createdConnection.Members ?? Array.Empty<ObjectMember>()).Select(m =>
+        (createdConnection.Members ?? []).Select(m =>
           $"{m.Kind}:{m.Name}:{m.Type}:{m.Signature}")));
     }
 
@@ -204,19 +204,19 @@ public partial class Program
 
     var hmiStep = McpServer.DescribeHmiTag("HMI_RT_1", "FlowLightTags", "Flow_Step", 120);
     Program.LogDiag("HMI Flow_Step members: " + string.Join(" | ",
-      (hmiStep.Members ?? Array.Empty<ObjectMember>()).Select(m => $"{m.Kind}:{m.Name}:{m.Type}")));
+      (hmiStep.Members ?? []).Select(m => $"{m.Kind}:{m.Name}:{m.Type}")));
     LogHmiTagAttributes("Flow_Step");
     LogHmiTagAttributes("Flow_Enable");
 
     var plcCompile = McpServer.CompileAndDiagnosePlc("PLC_1");
     Program.LogDiag(
       $"Final PLC compile: state={plcCompile.State}, errors={Program.CountText(plcCompile.ErrorCount)}, warnings={Program.CountText(plcCompile.WarningCount)}");
-    foreach (var e in plcCompile.Errors ?? Array.Empty<string>())
+    foreach (var e in plcCompile.Errors ?? [])
     {
       Program.LogDiag("Final PLC compile error: " + e);
     }
 
-    foreach (var w in plcCompile.Warnings ?? Array.Empty<string>())
+    foreach (var w in plcCompile.Warnings ?? [])
     {
       Program.LogDiag("Final PLC compile warning: " + w);
     }
@@ -307,7 +307,7 @@ public partial class Program
       var res = McpServer.AddDeviceWithFallback(mlfb, version, "PLC_1211C_AC_DC_RLY", "S7-1200");
       Program.LogDiag(
         $"Probe {mlfb} {version}: ok={res.Ok}, used={res.MlfbUsed}, version={res.VersionUsed}, error={res.Error}");
-      foreach (var attempt in res.Attempts ?? Array.Empty<string>())
+      foreach (var attempt in res.Attempts ?? [])
       {
         Program.LogDiag("  attempt: " + attempt);
       }
@@ -346,7 +346,7 @@ public partial class Program
     try
     {
       var existing = McpServer.GetDeviceInfo("PLC_1511C_1");
-      if (existing != null && !string.IsNullOrWhiteSpace(existing.Name))
+      if (!string.IsNullOrWhiteSpace(existing.Name))
       {
         Program.LogDiag("Deleting existing PLC_1511C_1 before exact 1511C insertion.");
         McpServer.InvokeObject("Device", "PLC_1511C_1", "Delete", new JsonArray(), "", true);
@@ -403,7 +403,7 @@ public partial class Program
 
     var res = McpServer.SearchInstalledGsdDevices(keyword, 20);
     Program.LogDiag(res.Message ?? "");
-    foreach (var c in res.Items ?? Array.Empty<GsdDeviceCandidate>())
+    foreach (var c in res.Items ?? [])
     {
       Program.LogDiag(
         $"[{c.Source}] score={c.Score} typeId={c.TypeIdentifier} article={c.ArticleNumber} dap={c.DapId}/{c.DapName} desc={c.Description} path={c.GsdmlPath ?? c.CatalogPath}");
@@ -425,7 +425,7 @@ public partial class Program
       Program.LogDiag("Search error: " + res.Error);
     }
 
-    foreach (var c in res.Items ?? Array.Empty<HardwareCatalogCandidate>())
+    foreach (var c in res.Items ?? [])
     {
       Program.LogDiag(
         $"[{c.Source}] score={c.Score} insertable={c.Insertable} typeId={c.TypeIdentifier} normalized={c.TypeIdentifierNormalized} article={c.ArticleNumber} version={c.Version} type={c.TypeName} desc={c.Description} path={c.CatalogPath}");
@@ -452,7 +452,7 @@ public partial class Program
 
     var search = McpServer.SearchHardwareCatalog("KTP700 Basic PN", 20);
     Program.LogDiag(search.Message ?? "");
-    foreach (var c in search.Items ?? Array.Empty<HardwareCatalogCandidate>())
+    foreach (var c in search.Items ?? [])
     {
       Program.LogDiag(
         $"candidate score={c.Score} typeId={c.TypeIdentifier} article={c.ArticleNumber} version={c.Version} type={c.TypeName} path={c.CatalogPath}");
@@ -462,7 +462,7 @@ public partial class Program
       "HMI_KTP700_1",
       "6AV2 123-2GB03-0AX0 17.0.0.0 PN");
     Program.LogDiag($"KTP700 add: ok={add.Ok}, used={add.CandidateUsed?.TypeIdentifier}, error={add.Error}");
-    foreach (var attempt in add.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in add.Attempts ?? [])
     {
       Program.LogDiag("  KTP700 attempt: " + attempt);
     }
@@ -485,14 +485,14 @@ public partial class Program
     sb.AppendLine("Error: " + add.Error);
     sb.AppendLine();
     sb.AppendLine("Attempts:");
-    foreach (var attempt in add.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in add.Attempts ?? [])
     {
       sb.AppendLine(attempt);
     }
 
     sb.AppendLine();
     sb.AppendLine("Candidates:");
-    foreach (var c in search.Items ?? Array.Empty<HardwareCatalogCandidate>())
+    foreach (var c in search.Items ?? [])
     {
       sb.AppendLine($"{c.TypeIdentifier} | {c.ArticleNumber} | {c.Version} | {c.TypeName} | {c.CatalogPath}");
     }
@@ -532,14 +532,14 @@ public partial class Program
       "HMI_KTP700_1",
       "6AV2 123-2GB03-0AX0 17.0.0.0 PN");
     Program.LogDiag($"KTP700 add: ok={add.Ok}, used={add.CandidateUsed?.TypeIdentifier}, error={add.Error}");
-    foreach (var attempt in add.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in add.Attempts ?? [])
     {
       Program.LogDiag("  KTP700 attempt: " + attempt);
     }
 
     var infoBefore = McpServer.GetHmiProgramInfo("HMI_RT_1");
     Program.LogDiag(
-      $"HMI info before import: name={infoBefore.Name}, type={infoBefore.ProgramType}, screens={string.Join(",", infoBefore.Screens ?? Array.Empty<string>())}");
+      $"HMI info before import: name={infoBefore.Name}, type={infoBefore.ProgramType}, screens={string.Join(",", infoBefore.Screens ?? [])}");
 
     string importMessage;
     bool screenImportOk;
@@ -565,10 +565,10 @@ public partial class Program
       : "Skipped because TIA project may be disposed after import failure.";
     var screens = projectUsable
       ? SafeStringList(() => McpServer.GetHmiScreens("HMI_RT_1"))
-      : new[] { "Skipped because TIA project may be disposed after import failure.", };
+      : ["Skipped because TIA project may be disposed after import failure.",];
     var tagTables = projectUsable
       ? SafeStringList(() => McpServer.GetHmiTagTables("HMI_RT_1"))
-      : new[] { "Skipped because TIA project may be disposed after import failure.", };
+      : ["Skipped because TIA project may be disposed after import failure.",];
     string treeText;
     if (projectUsable)
     {
@@ -607,7 +607,7 @@ public partial class Program
     sb.AppendLine();
     sb.AppendLine("HMI Info Before:");
     sb.AppendLine(
-      $"Name={infoBefore.Name}; Type={infoBefore.ProgramType}; Screens={string.Join(",", infoBefore.Screens ?? Array.Empty<string>())}");
+      $"Name={infoBefore.Name}; Type={infoBefore.ProgramType}; Screens={string.Join(",", infoBefore.Screens ?? [])}");
     sb.AppendLine();
     sb.AppendLine("HMI Info After:");
     sb.AppendLine(infoAfter);
@@ -634,9 +634,8 @@ public partial class Program
     static string PrepareClassicHmiScreenForKtp700(string sourcePath, string outputDir)
     {
       var dest = Path.Combine(outputDir, Path.GetFileName(sourcePath));
-      var doc = new XmlDocument();
-      doc.XmlResolver = null; // 安全：禁用外部实体/DTD 解析，防 XXE
-      doc.PreserveWhitespace = true;
+      var doc = new XmlDocument { XmlResolver = null, // 安全：禁用外部实体/DTD 解析，防 XXE
+        PreserveWhitespace = true, };
       doc.Load(sourcePath);
 
       var screen = doc.GetElementsByTagName("Hmi.Screen.Screen").OfType<XmlElement>().FirstOrDefault();
@@ -654,10 +653,7 @@ public partial class Program
         }
 
         var node = parent.ChildNodes.OfType<XmlElement>().FirstOrDefault(e => e.Name == name);
-        if (node != null)
-        {
-          node.InnerText = value;
-        }
+        node?.InnerText = value;
       }
     }
 
@@ -667,7 +663,7 @@ public partial class Program
       {
         var info = McpServer.GetHmiProgramInfo(softwarePath);
         return
-          $"Name={info.Name}; Type={info.ProgramType}; Screens={string.Join(",", info.Screens ?? Array.Empty<string>())}";
+          $"Name={info.Name}; Type={info.ProgramType}; Screens={string.Join(",", info.Screens ?? [])}";
       }
       catch (Exception ex)
       {
@@ -679,11 +675,11 @@ public partial class Program
     {
       try
       {
-        return fn().Items?.ToArray() ?? Array.Empty<string>();
+        return fn().Items?.ToArray() ?? [];
       }
       catch (Exception ex)
       {
-        return new[] { "ERR: " + (ex.InnerException?.Message ?? ex.Message), };
+        return ["ERR: " + (ex.InnerException?.Message ?? ex.Message),];
       }
     }
   }
@@ -713,10 +709,10 @@ public partial class Program
 
     var info = McpServer.GetHmiProgramInfo("HMI_RT_1");
     Program.LogDiag(
-      $"HMI info: name={info.Name}, type={info.ProgramType}, screens={string.Join(",", info.Screens ?? Array.Empty<string>())}");
+      $"HMI info: name={info.Name}, type={info.ProgramType}, screens={string.Join(",", info.Screens ?? [])}");
 
     var apiHints = SafeClassicTagApiHints();
-    string? importProbeResult = null;
+    string? importProbeResult;
     try
     {
       var sampleImportPath =
@@ -783,7 +779,7 @@ public partial class Program
     sb.AppendLine(apiHints);
     sb.AppendLine();
     sb.AppendLine("Import Probe:");
-    sb.AppendLine(importProbeResult ?? "");
+    sb.AppendLine(importProbeResult);
     sb.AppendLine();
     sb.AppendLine("Ensure Results:");
     foreach (var r in tagResults)
@@ -889,11 +885,11 @@ public partial class Program
     {
       try
       {
-        return fn().Items?.ToArray() ?? Array.Empty<string>();
+        return fn().Items?.ToArray() ?? [];
       }
       catch (Exception ex)
       {
-        return new[] { "ERR: " + (ex.InnerException?.Message ?? ex.Message), };
+        return ["ERR: " + (ex.InnerException?.Message ?? ex.Message),];
       }
     }
 
@@ -934,7 +930,7 @@ public partial class Program
             return marker + " :: not found";
           }
 
-          var lines = text.Substring(idx).Split(new[] { "\r\n", "\n", }, StringSplitOptions.None).Take(take);
+          var lines = text.Substring(idx).Split(["\r\n", "\n",], StringSplitOptions.None).Take(take);
           return string.Join(Environment.NewLine, lines);
         }
 
@@ -950,46 +946,50 @@ public partial class Program
     static void WriteClassicHmiTagTableProbeXml(string path, string tableName)
     {
       File.WriteAllText(path,
-        $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo>
-    <Created>2000-01-01T00:00:00.0000000Z</Created>
-    <ExportSetting>None</ExportSetting>
-    <InstalledProducts />
-  </DocumentInfo>
-  <Hmi.Tag.TagTable ID=""0"">
-    <AttributeList>
-      <Name>{SecurityElement.Escape(tableName)}</Name>
-    </AttributeList>
-    <ObjectList>
-{ClassicHmiTagXml("1", "Motor_Start", "Bool", "1")}
-{ClassicHmiTagXml("2", "Motor_Stop", "Bool", "1")}
-{ClassicHmiTagXml("3", "Motor_Run", "Bool", "1")}
-{ClassicHmiTagXml("4", "Motor_Fault", "Bool", "1")}
-{ClassicHmiTagXml("5", "Counter", "Int", "2")}
-    </ObjectList>
-  </Hmi.Tag.TagTable>
-</Document>
-",
+        $"""
+         <?xml version="1.0" encoding="utf-8"?>
+         <Document>
+           <Engineering version="V21" />
+           <DocumentInfo>
+             <Created>2000-01-01T00:00:00.0000000Z</Created>
+             <ExportSetting>None</ExportSetting>
+             <InstalledProducts />
+           </DocumentInfo>
+           <Hmi.Tag.TagTable ID="0">
+             <AttributeList>
+               <Name>{SecurityElement.Escape(tableName)}</Name>
+             </AttributeList>
+             <ObjectList>
+         {ClassicHmiTagXml("1", "Motor_Start", "Bool", "1")}
+         {ClassicHmiTagXml("2", "Motor_Stop", "Bool", "1")}
+         {ClassicHmiTagXml("3", "Motor_Run", "Bool", "1")}
+         {ClassicHmiTagXml("4", "Motor_Fault", "Bool", "1")}
+         {ClassicHmiTagXml("5", "Counter", "Int", "2")}
+             </ObjectList>
+           </Hmi.Tag.TagTable>
+         </Document>
+
+         """,
         Encoding.UTF8);
     }
 
     static string ClassicHmiTagXml(string id, string name, string dataType, string length) =>
-      $@"      <Hmi.Tag.Tag ID=""{id}"" CompositionName=""Tags"">
-        <AttributeList>
-          <Length>{SecurityElement.Escape(length)}</Length>
-          <Name>{SecurityElement.Escape(name)}</Name>
-        </AttributeList>
-        <LinkList>
-          <DataType TargetID=""@OpenLink"">
-            <Name>{SecurityElement.Escape(dataType)}</Name>
-          </DataType>
-          <HmiDataType TargetID=""@OpenLink"">
-            <Name>{SecurityElement.Escape(dataType)}</Name>
-          </HmiDataType>
-        </LinkList>
-      </Hmi.Tag.Tag>";
+      $"""
+             <Hmi.Tag.Tag ID="{id}" CompositionName="Tags">
+               <AttributeList>
+                 <Length>{SecurityElement.Escape(length)}</Length>
+                 <Name>{SecurityElement.Escape(name)}</Name>
+               </AttributeList>
+               <LinkList>
+                 <DataType TargetID="@OpenLink">
+                   <Name>{SecurityElement.Escape(dataType)}</Name>
+                 </DataType>
+                 <HmiDataType TargetID="@OpenLink">
+                   <Name>{SecurityElement.Escape(dataType)}</Name>
+                 </HmiDataType>
+               </LinkList>
+             </Hmi.Tag.Tag>
+       """;
   }
 
   private static void RunProbeKtp700BasicHmiConnection(CliOptions options)
@@ -1012,6 +1012,7 @@ public partial class Program
       }
       catch
       {
+        // ignored
       }
     }
 
@@ -1030,7 +1031,7 @@ public partial class Program
 
     var addPlc = McpServer.AddDeviceWithFallback("6ES7211-1AE40-0XB0", "V4.7", "PLC_1", "S7-1200");
     Program.LogDiag($"PLC add: ok={addPlc.Ok}, used={addPlc.MlfbUsed}/{addPlc.VersionUsed}, error={addPlc.Error}");
-    foreach (var attempt in addPlc.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in addPlc.Attempts ?? [])
     {
       Program.LogDiag("  PLC attempt: " + attempt);
     }
@@ -1038,14 +1039,14 @@ public partial class Program
     var addHmi =
       McpServer.AddHardwareCatalogDeviceWithProbe("KTP700 Basic PN", "HMI_KTP700_1", "6AV2 123-2GB03-0AX0 17.0.0.0 PN");
     Program.LogDiag($"KTP700 add: ok={addHmi.Ok}, used={addHmi.CandidateUsed?.TypeIdentifier}, error={addHmi.Error}");
-    foreach (var attempt in addHmi.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in addHmi.Attempts ?? [])
     {
       Program.LogDiag("  KTP700 attempt: " + attempt);
     }
 
     var hmiInfo = McpServer.GetHmiProgramInfo("HMI_RT_1");
     Program.LogDiag(
-      $"HMI info: name={hmiInfo.Name}, type={hmiInfo.ProgramType}, screens={string.Join(",", hmiInfo.Screens ?? Array.Empty<string>())}");
+      $"HMI info: name={hmiInfo.Name}, type={hmiInfo.ProgramType}, screens={string.Join(",", hmiInfo.Screens ?? [])}");
     Report($"HMI Info: Name={hmiInfo.Name}; Type={hmiInfo.ProgramType}");
 
     var projectTree = McpServer.GetProjectTree();
@@ -1063,7 +1064,7 @@ public partial class Program
 
     Report("");
     Report("Describe Connections:");
-    foreach (var line in connectionPropertyDescribe.Split(new[] { "\r\n", "\n", }, StringSplitOptions.None))
+    foreach (var line in connectionPropertyDescribe.Split(["\r\n", "\n",], StringSplitOptions.None))
     {
       Report(line);
     }
@@ -1146,11 +1147,11 @@ public partial class Program
     {
       try
       {
-        return fn().Items?.ToArray() ?? Array.Empty<string>();
+        return fn().Items?.ToArray() ?? [];
       }
       catch (Exception ex)
       {
-        return new[] { "ERR: " + (ex.InnerException?.Message ?? ex.Message), };
+        return ["ERR: " + (ex.InnerException?.Message ?? ex.Message),];
       }
     }
 
@@ -1158,11 +1159,11 @@ public partial class Program
     {
       try
       {
-        return fn().Items?.ToArray() ?? Array.Empty<string>();
+        return fn().Items?.ToArray() ?? [];
       }
       catch (Exception ex)
       {
-        return new[] { "ERR: " + (ex.InnerException?.Message ?? ex.Message), };
+        return ["ERR: " + (ex.InnerException?.Message ?? ex.Message),];
       }
     }
 
@@ -1202,7 +1203,7 @@ public partial class Program
 
     var addPlc = McpServer.AddDeviceWithFallback("6ES7211-1AE40-0XB0", "V4.7", "PLC_1", "S7-1200");
     Program.LogDiag($"PLC add: ok={addPlc.Ok}, used={addPlc.MlfbUsed}/{addPlc.VersionUsed}, error={addPlc.Error}");
-    foreach (var attempt in addPlc.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in addPlc.Attempts ?? [])
     {
       Program.LogDiag("  PLC attempt: " + attempt);
     }
@@ -1210,7 +1211,7 @@ public partial class Program
     var addHmi =
       McpServer.AddHardwareCatalogDeviceWithProbe("KTP700 Basic PN", "HMI_KTP700_1", "6AV2 123-2GB03-0AX0 17.0.0.0 PN");
     Program.LogDiag($"KTP700 add: ok={addHmi.Ok}, used={addHmi.CandidateUsed?.TypeIdentifier}, error={addHmi.Error}");
-    foreach (var attempt in addHmi.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in addHmi.Attempts ?? [])
     {
       Program.LogDiag("  KTP700 attempt: " + attempt);
     }
@@ -1284,11 +1285,11 @@ public partial class Program
     {
       try
       {
-        return fn().Items?.ToArray() ?? Array.Empty<string>();
+        return fn().Items?.ToArray() ?? [];
       }
       catch (Exception ex)
       {
-        return new[] { "ERR: " + (ex.InnerException?.Message ?? ex.Message), };
+        return ["ERR: " + (ex.InnerException?.Message ?? ex.Message),];
       }
     }
 
@@ -1300,19 +1301,19 @@ public partial class Program
         "HMI_KTP700_1/HMI_KTP700_1.IE_CP_1/PROFINET Interface_1/Port_1",
       };
 
-      var sb = new StringBuilder();
+      var builder = new StringBuilder();
       foreach (var hmiRoot in attempts)
       {
-        sb.AppendLine("Attempt hmiRoot=" + hmiRoot);
+        builder.AppendLine("Attempt hmiRoot=" + hmiRoot);
         var probe = McpServer.Portal.ProbeConnectDeviceNodesToSubnet("PLC_1", hmiRoot, "PN_IE_1");
-        sb.AppendLine(probe);
+        builder.AppendLine(probe);
         if (probe.IndexOf("HMI ConnectToSubnet: OK", StringComparison.OrdinalIgnoreCase) >= 0)
         {
           break;
         }
       }
 
-      return sb.ToString();
+      return builder.ToString();
     }
   }
 
@@ -1372,11 +1373,11 @@ public partial class Program
     {
       try
       {
-        return fn().Items?.ToArray() ?? Array.Empty<string>();
+        return fn().Items?.ToArray() ?? [];
       }
       catch (Exception ex)
       {
-        return new[] { "ERR: " + (ex.InnerException?.Message ?? ex.Message), };
+        return ["ERR: " + (ex.InnerException?.Message ?? ex.Message),];
       }
     }
   }
@@ -1396,7 +1397,7 @@ public partial class Program
     var reportPath = Path.Combine(projectDirectory, "TIA_PORTAL_PROCESS_PROJECTS_REPORT.txt");
     var sb = new StringBuilder();
     sb.AppendLine("Probe: TIA Portal process/project listing");
-    foreach (var item in list.Items ?? Array.Empty<string>())
+    foreach (var item in list.Items ?? [])
     {
       sb.AppendLine(item);
     }
@@ -1461,7 +1462,7 @@ public partial class Program
     sb.AppendLine("Probe: Hardware HMI connection owner candidates");
     sb.AppendLine("DeepHardwareHmiConnectionScan: " + options.DeepHardwareHmiConnectionScan);
     sb.AppendLine();
-    foreach (var item in list.Items ?? Array.Empty<string>())
+    foreach (var item in list.Items ?? [])
     {
       sb.AppendLine(item);
     }
@@ -1506,7 +1507,7 @@ public partial class Program
     sb.AppendLine("Probe: Hardware HMI connection whitelisted services");
     sb.AppendLine("DeepHardwareHmiConnectionScan: " + options.DeepHardwareHmiConnectionScan);
     sb.AppendLine();
-    foreach (var item in list.Items ?? Array.Empty<string>())
+    foreach (var item in list.Items ?? [])
     {
       sb.AppendLine(item);
     }
@@ -1539,7 +1540,7 @@ public partial class Program
 
     var addPlc = McpServer.AddDeviceWithFallback("6ES7211-1AE40-0XB0", "V4.7", "PLC_1", "S7-1200");
     Program.LogDiag($"PLC add: ok={addPlc.Ok}, used={addPlc.MlfbUsed}/{addPlc.VersionUsed}, error={addPlc.Error}");
-    foreach (var attempt in addPlc.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in addPlc.Attempts ?? [])
     {
       Program.LogDiag("  PLC attempt: " + attempt);
     }
@@ -1547,20 +1548,20 @@ public partial class Program
     var addHmi =
       McpServer.AddHardwareCatalogDeviceWithProbe("KTP700 Basic PN", "HMI_KTP700_1", "6AV2 123-2GB03-0AX0 17.0.0.0 PN");
     Program.LogDiag($"KTP700 add: ok={addHmi.Ok}, used={addHmi.CandidateUsed?.TypeIdentifier}, error={addHmi.Error}");
-    foreach (var attempt in addHmi.Attempts ?? Array.Empty<string>())
+    foreach (var attempt in addHmi.Attempts ?? [])
     {
       Program.LogDiag("  KTP700 attempt: " + attempt);
     }
 
     var hmiInfo = McpServer.GetHmiProgramInfo("HMI_RT_1");
     Program.LogDiag(
-      $"HMI info: name={hmiInfo.Name}, type={hmiInfo.ProgramType}, screens={string.Join(",", hmiInfo.Screens ?? Array.Empty<string>())}");
+      $"HMI info: name={hmiInfo.Name}, type={hmiInfo.ProgramType}, screens={string.Join(",", hmiInfo.Screens ?? [])}");
 
     var plcImport =
       McpServer.ImportPlcProgramFromDirectory("PLC_1", importDir, compileAfter: true, stopOnImportFailure: false);
     Program.LogDiag(
-      $"PLC import: types={string.Join(",", plcImport.ImportedTypes ?? Array.Empty<string>())}, blocks={string.Join(",", plcImport.ImportedBlocks ?? Array.Empty<string>())}, failed={plcImport.Failed?.Count() ?? 0}");
-    foreach (var failure in plcImport.Failed ?? Array.Empty<ImportFailure>())
+      $"PLC import: types={string.Join(",", plcImport.ImportedTypes ?? [])}, blocks={string.Join(",", plcImport.ImportedBlocks ?? [])}, failed={plcImport.Failed?.Count() ?? 0}");
+    foreach (var failure in plcImport.Failed ?? [])
     {
       Program.LogDiag($"PLC import failure: {failure.Path} :: {failure.Error}");
     }
@@ -1655,11 +1656,11 @@ public partial class Program
     {
       try
       {
-        return fn().Items?.ToArray() ?? Array.Empty<string>();
+        return fn().Items?.ToArray() ?? [];
       }
       catch (Exception ex)
       {
-        return new[] { "ERR: " + (ex.InnerException?.Message ?? ex.Message), };
+        return ["ERR: " + (ex.InnerException?.Message ?? ex.Message),];
       }
     }
   }
@@ -1689,8 +1690,8 @@ public partial class Program
     var import =
       McpServer.ImportPlcProgramFromDirectory(softwarePath, importDir, compileAfter: true, stopOnImportFailure: false);
     Program.LogDiag(
-      $"PLC syntax import: blocks={string.Join(",", import.ImportedBlocks ?? Array.Empty<string>())}, failed={import.Failed?.Count() ?? 0}");
-    foreach (var f in import.Failed ?? Array.Empty<ImportFailure>())
+      $"PLC syntax import: blocks={string.Join(",", import.ImportedBlocks ?? [])}, failed={import.Failed?.Count() ?? 0}");
+    foreach (var f in import.Failed ?? [])
     {
       Program.LogDiag($"PLC syntax import failure: {f.Path} :: {f.Error}");
     }
@@ -1732,12 +1733,12 @@ public partial class Program
         var sourceCompile = McpServer.CompileAndDiagnosePlc(softwarePath);
         Program.LogDiag(
           $"PLC SCL source compile: state={sourceCompile.State}, errors={Program.CountText(sourceCompile.ErrorCount)}, warnings={Program.CountText(sourceCompile.WarningCount)}");
-        foreach (var e in sourceCompile.Errors ?? Array.Empty<string>())
+        foreach (var e in sourceCompile.Errors ?? [])
         {
           Program.LogDiag("PLC SCL source error: " + e);
         }
 
-        foreach (var w in sourceCompile.Warnings ?? Array.Empty<string>())
+        foreach (var w in sourceCompile.Warnings ?? [])
         {
           Program.LogDiag("PLC SCL source warning: " + w);
         }
@@ -1747,12 +1748,12 @@ public partial class Program
     var compile = McpServer.CompileAndDiagnosePlc(softwarePath);
     Program.LogDiag(
       $"PLC syntax validation compile: state={compile.State}, errors={Program.CountText(compile.ErrorCount)}, warnings={Program.CountText(compile.WarningCount)}");
-    foreach (var e in compile.Errors ?? Array.Empty<string>())
+    foreach (var e in compile.Errors ?? [])
     {
       Program.LogDiag("PLC syntax validation error: " + e);
     }
 
-    foreach (var w in compile.Warnings ?? Array.Empty<string>())
+    foreach (var w in compile.Warnings ?? [])
     {
       Program.LogDiag("PLC syntax validation warning: " + w);
     }
@@ -1793,14 +1794,10 @@ public partial class Program
     Program.WriteMotorMinimalPlcXml(importDir);
 
     Program.LogDiag($"Motor minimal test: directory={projectDirectory}, project={projectName}, importDir={importDir}");
-    var plcAttempts = Array.Empty<string>();
-    var hmiAttempts = Array.Empty<string>();
-    var hmiReadbackSummary = "";
+    string hmiReadbackSummary;
     var hmiDesignJson = "";
     var hmiConnectionSummary = "";
-    var networkProbeSummary = "";
-    var hardwareDeviation =
-      "Generated with a verified Unified HMI runtime device. KTP700 Basic hardware insertion is verified on this machine, but Classic/Basic HMI connection creation and safe PLC-variable binding are still not fully automated through the current MCP path, so the end-to-end demo remains on Unified.";
+    const string hardwareDeviation = "Generated with a verified Unified HMI runtime device. KTP700 Basic hardware insertion is verified on this machine, but Classic/Basic HMI connection creation and safe PLC-variable binding are still not fully automated through the current MCP path, so the end-to-end demo remains on Unified.";
     var hmiDesignApplySummary = "";
 
     var connect = McpServer.Connect();
@@ -1817,7 +1814,7 @@ public partial class Program
     var plc = McpServer.AddDeviceWithFallback("6ES7211-1AE40-0XB0", "V4.7", "PLC_1", "S7-1200");
     Program.LogDiag(
       $"PLC add DC/DC/DC preferred: ok={plc.Ok}, used={plc.MlfbUsed}/{plc.VersionUsed}, error={plc.Error}");
-    plcAttempts = plc.Attempts?.ToArray() ?? Array.Empty<string>();
+    var plcAttempts = plc.Attempts?.ToArray() ?? [];
     foreach (var attempt in plcAttempts)
     {
       Program.LogDiag("  PLC attempt: " + attempt);
@@ -1833,13 +1830,13 @@ public partial class Program
       "HMI_RT_1",
       "WinCCUnifiedPC");
     Program.LogDiag($"HMI add Unified fallback: ok={hmi.Ok}, used={hmi.MlfbUsed}/{hmi.VersionUsed}, error={hmi.Error}");
-    hmiAttempts = hmi.Attempts?.ToArray() ?? Array.Empty<string>();
+    var hmiAttempts = hmi.Attempts?.ToArray() ?? [];
     foreach (var attempt in hmiAttempts)
     {
       Program.LogDiag("  HMI attempt: " + attempt);
     }
 
-    networkProbeSummary = ProbeMotorNetworkBestEffort();
+    var networkProbeSummary = ProbeMotorNetworkBestEffort();
     Program.LogDiag("Motor minimal network probe:");
     Program.LogDiag(networkProbeSummary);
 
@@ -1850,8 +1847,8 @@ public partial class Program
     var import =
       McpServer.ImportPlcProgramFromDirectory("PLC_1", importDir, compileAfter: true, stopOnImportFailure: false);
     Program.LogDiag(
-      $"PLC import: types={string.Join(",", import.ImportedTypes ?? Array.Empty<string>())}, tags={string.Join(",", import.ImportedTagTables ?? Array.Empty<string>())}, blocks={string.Join(",", import.ImportedBlocks ?? Array.Empty<string>())}, failed={import.Failed?.Count() ?? 0}");
-    foreach (var failure in import.Failed ?? Array.Empty<ImportFailure>())
+      $"PLC import: types={string.Join(",", import.ImportedTypes ?? [])}, tags={string.Join(",", import.ImportedTagTables ?? [])}, blocks={string.Join(",", import.ImportedBlocks ?? [])}, failed={import.Failed?.Count() ?? 0}");
+    foreach (var failure in import.Failed ?? [])
     {
       Program.LogDiag($"PLC import failure: {failure.Path} :: {failure.Error}");
     }
@@ -1865,12 +1862,12 @@ public partial class Program
     var compile = McpServer.CompileAndDiagnosePlc("PLC_1");
     Program.LogDiag(
       $"Final PLC compile: state={compile.State}, errors={Program.CountText(compile.ErrorCount)}, warnings={Program.CountText(compile.WarningCount)}");
-    foreach (var e in compile.Errors ?? Array.Empty<string>())
+    foreach (var e in compile.Errors ?? [])
     {
       Program.LogDiag("PLC compile error: " + e);
     }
 
-    foreach (var w in compile.Warnings ?? Array.Empty<string>())
+    foreach (var w in compile.Warnings ?? [])
     {
       Program.LogDiag("PLC compile warning: " + w);
     }
@@ -1956,7 +1953,7 @@ public partial class Program
       {
         var info = McpServer.GetHmiProgramInfo("HMI_RT_1");
         Program.LogDiag(
-          $"HMI info: name={info.Name}, type={info.ProgramType}, screens={string.Join(",", info.Screens ?? Array.Empty<string>())}");
+          $"HMI info: name={info.Name}, type={info.ProgramType}, screens={string.Join(",", info.Screens ?? [])}");
 
         var connectionName = "HMI_Connection_1";
         var conn = McpServer.EnsureUnifiedHmiConnection("HMI_RT_1", connectionName);
@@ -1994,10 +1991,10 @@ public partial class Program
         var tables = McpServer.GetHmiTagTables("HMI_RT_1");
         var tags = McpServer.GetHmiTags("HMI_RT_1", "Motor_HMI_Tags");
         Program.LogDiag(
-          $"HMI readback: screens={string.Join(",", screens.Items ?? Array.Empty<string>())}; tables={string.Join(",", tables.Items ?? Array.Empty<string>())}; tags={string.Join(",", tags.Items ?? Array.Empty<string>())}");
-        hmiReadbackSummary = "Screens=" + string.Join(",", screens.Items ?? Array.Empty<string>()) + "; TagTables=" +
-          string.Join(",", tables.Items ?? Array.Empty<string>()) + "; Tags=" +
-          string.Join(",", tags.Items ?? Array.Empty<string>()) + "; Connection=" + hmiConnectionSummary +
+          $"HMI readback: screens={string.Join(",", screens.Items ?? [])}; tables={string.Join(",", tables.Items ?? [])}; tags={string.Join(",", tags.Items ?? [])}");
+        hmiReadbackSummary = "Screens=" + string.Join(",", screens.Items ?? []) + "; TagTables=" +
+          string.Join(",", tables.Items ?? []) + "; Tags=" +
+          string.Join(",", tags.Items ?? []) + "; Connection=" + hmiConnectionSummary +
           "; Bindings=Btn_Start->Motor_Start(events), Btn_Stop->Motor_Stop(events), Lamp_Run.Visible->Motor_Run, Lamp_Fault.Visible->Motor_Fault, IO_Counter.ProcessValue->Counter" +
           "; DesignApply=" + hmiDesignApplySummary;
 
@@ -2011,7 +2008,7 @@ public partial class Program
             plcTag,
             connectionName,
             absoluteAddress);
-          var tagSummary = ReadHmiTagSummary(tagName);
+          var tagSummary = __ReadHmiTagSummary(tagName);
           var symbolicOk = tagSummary.IndexOf("Connection=HMI_Connection_1", StringComparison.OrdinalIgnoreCase) >= 0 &&
             tagSummary.IndexOf("PlcTag=" + plcTag, StringComparison.OrdinalIgnoreCase) >= 0;
           if (!symbolicOk)
@@ -2022,7 +2019,7 @@ public partial class Program
             SetHmiTagAttribute(tagName, "DataType", dataType);
             SetHmiTagAttribute(tagName, "AccessMode", "AbsoluteAccess");
             SetHmiTagAttribute(tagName, "Address", absoluteAddress);
-            tagSummary = ReadHmiTagSummary(tagName);
+            tagSummary = __ReadHmiTagSummary(tagName);
           }
 
           Program.LogDiag($"HMI tag {tagName}: {tagSummary}");
@@ -2043,8 +2040,17 @@ public partial class Program
             true);
         }
 
-        string ReadHmiTagSummary(string tagName)
+        string __ReadHmiTagSummary(string tagName)
         {
+          var plcTagValue = Attr("PlcTag");
+          if (string.IsNullOrWhiteSpace(plcTagValue))
+          {
+            plcTagValue = Attr("ControllerTag");
+          }
+
+          return
+            $"Connection={Attr("Connection")}; AccessMode={Attr("AccessMode")}; AddressAccessMode={Attr("AddressAccessMode")}; PlcName={Attr("PlcName")}; PlcTag={plcTagValue}; Address={Attr("Address")}; LogicalAddress={Attr("LogicalAddress")}; DataType={Attr("DataType")}";
+
           string Attr(string attr)
           {
             try
@@ -2058,31 +2064,12 @@ public partial class Program
               return "";
             }
           }
-
-          var plcTagValue = Attr("PlcTag");
-          if (string.IsNullOrWhiteSpace(plcTagValue))
-          {
-            plcTagValue = Attr("ControllerTag");
-          }
-
-          return
-            $"Connection={Attr("Connection")}; AccessMode={Attr("AccessMode")}; AddressAccessMode={Attr("AddressAccessMode")}; PlcName={Attr("PlcName")}; PlcTag={plcTagValue}; Address={Attr("Address")}; LogicalAddress={Attr("LogicalAddress")}; DataType={Attr("DataType")}";
         }
 
         string ReadHmiConnectionSummary(string ensuredConnectionName)
         {
-          string P(string path)
-          {
-            try
-            {
-              return McpServer.GetObjectProperty("HmiConnection", $"HMI_RT_1:{ensuredConnectionName}", path).Value
-                ?.ToString() ?? "";
-            }
-            catch
-            {
-              return "";
-            }
-          }
+          return
+            $"Name={P("Name")}; CommunicationDriver={P("CommunicationDriver")}; Partner={P("Partner")}; Station={P("Station")}; Node={P("Node")}; DriverAttr={A("CommunicationDriver")}";
 
           string A(string attr)
           {
@@ -2099,8 +2086,18 @@ public partial class Program
             }
           }
 
-          return
-            $"Name={P("Name")}; CommunicationDriver={P("CommunicationDriver")}; Partner={P("Partner")}; Station={P("Station")}; Node={P("Node")}; DriverAttr={A("CommunicationDriver")}";
+          string P(string path)
+          {
+            try
+            {
+              return McpServer.GetObjectProperty("HmiConnection", $"HMI_RT_1:{ensuredConnectionName}", path).Value
+                ?.ToString() ?? "";
+            }
+            catch
+            {
+              return "";
+            }
+          }
         }
 
         void TryBindButton(string buttonName, string tagName)
@@ -2160,7 +2157,7 @@ public partial class Program
           {
             var action =
               McpServer.EnsureUnifiedHmiButtonAction("HMI_RT_1", "Main", buttonName, eventType, actionKind, tagName);
-            var ok = action.Meta?["applyStatus"]?.ToString()?.Equals("applied", StringComparison.OrdinalIgnoreCase) ==
+            var ok = action.Meta?["applyStatus"]?.ToString().Equals("applied", StringComparison.OrdinalIgnoreCase) ==
               true;
             Program.LogDiag($"{buttonName}.{eventType} {actionKind}: {(ok ? "OK" : "FAIL")} :: {action.Message}");
             return ok;
@@ -2188,41 +2185,6 @@ public partial class Program
         string BuildMotorUnifiedHmiDesignJson()
         {
           var root = new JsonObject { ["screen"] = new JsonObject { ["BackColor"] = "0xFFF4F6F8", }, };
-
-          JsonObject Item(string type, string name, int left, int top, int width, int height, string? text = null,
-            JsonObject? props = null, JsonObject? font = null, string? textProperty = null)
-          {
-            var obj = new JsonObject
-            {
-              ["type"] = type,
-              ["name"] = name,
-              ["left"] = left,
-              ["top"] = top,
-              ["width"] = width,
-              ["height"] = height,
-            };
-            if (!string.IsNullOrWhiteSpace(text))
-            {
-              obj["text"] = text;
-            }
-
-            if (props != null)
-            {
-              obj["properties"] = props;
-            }
-
-            if (font != null)
-            {
-              obj["font"] = font;
-            }
-
-            if (!string.IsNullOrWhiteSpace(textProperty))
-            {
-              obj["textProperty"] = textProperty;
-            }
-
-            return obj;
-          }
 
           var items = new JsonArray
           {
@@ -2441,6 +2403,41 @@ public partial class Program
 
           root["items"] = items;
           return root.ToJsonString(new JsonSerializerOptions { WriteIndented = false, });
+
+          JsonObject Item(string type, string name, int left, int top, int width, int height, string? text = null,
+            JsonObject? props = null, JsonObject? font = null, string? textProperty = null)
+          {
+            var obj = new JsonObject
+            {
+              ["type"] = type,
+              ["name"] = name,
+              ["left"] = left,
+              ["top"] = top,
+              ["width"] = width,
+              ["height"] = height,
+            };
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+              obj["text"] = text;
+            }
+
+            if (props != null)
+            {
+              obj["properties"] = props;
+            }
+
+            if (font != null)
+            {
+              obj["font"] = font;
+            }
+
+            if (!string.IsNullOrWhiteSpace(textProperty))
+            {
+              obj["textProperty"] = textProperty;
+            }
+
+            return obj;
+          }
         }
       }
       catch (Exception ex)

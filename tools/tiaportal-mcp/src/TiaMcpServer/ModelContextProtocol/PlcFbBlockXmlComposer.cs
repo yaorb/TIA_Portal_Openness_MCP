@@ -22,9 +22,9 @@ public static class PlcFbBlockXmlComposer
   private static readonly XNamespace StructuredTextNs =
     "http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4";
 
-  public static XDocument Compose(string blockName, int blockNumber, IEnumerable<PlcBlockMemberDefinition> inputMembers,
-    IEnumerable<PlcBlockMemberDefinition> outputMembers, IEnumerable<PlcBlockMemberDefinition> inOutMembers,
-    IEnumerable<PlcBlockMemberDefinition> staticMembers, IEnumerable<PlcBlockMemberDefinition> tempMembers,
+  public static XDocument Compose(string blockName, int blockNumber, IEnumerable<PlcBlockMemberDefinition>? inputMembers,
+    IEnumerable<PlcBlockMemberDefinition>? outputMembers, IEnumerable<PlcBlockMemberDefinition>? inOutMembers,
+    IEnumerable<PlcBlockMemberDefinition>? staticMembers, IEnumerable<PlcBlockMemberDefinition>? tempMembers,
     string structuredTextInnerXml, string blockCommentZhCn = "", string blockTitleZhCn = "",
     string networkCommentZhCn = "", string networkTitleZhCn = "")
   {
@@ -51,11 +51,10 @@ public static class PlcFbBlockXmlComposer
     var inouts = inOutMembers?.ToArray() ?? throw new ArgumentNullException(nameof(inOutMembers));
     var statics = staticMembers?.ToArray() ?? throw new ArgumentNullException(nameof(staticMembers));
     var temps = tempMembers?.ToArray() ?? throw new ArgumentNullException(nameof(tempMembers));
-    PlcFbBlockXmlComposer.ValidateMembers(inputs.Concat(outputs).Concat(inouts).Concat(statics).Concat(temps)
-      .ToArray());
+    PlcFbBlockXmlComposer.ValidateMembers([.. inputs, .. outputs, .. inouts, .. statics, .. temps,]);
 
-    var st = XElement.Parse("<StructuredText xmlns=\"" + PlcFbBlockXmlComposer.StructuredTextNs + "\">" +
-      structuredTextInnerXml + "</StructuredText>");
+    var st = XElement.Parse(
+      $"<StructuredText xmlns=\"{PlcFbBlockXmlComposer.StructuredTextNs}\">{structuredTextInnerXml}</StructuredText>");
 
     return new XDocument(new XDeclaration("1.0", "utf-8", null),
       new XElement("Document",
@@ -74,7 +73,7 @@ public static class PlcFbBlockXmlComposer
                 PlcFbBlockXmlComposer.BuildSection("InOut", inouts),
                 PlcFbBlockXmlComposer.BuildSection("Static", statics),
                 PlcFbBlockXmlComposer.BuildSection("Temp", temps),
-                PlcFbBlockXmlComposer.BuildSection("Constant", Array.Empty<PlcBlockMemberDefinition>()))),
+                PlcFbBlockXmlComposer.BuildSection("Constant", []))),
             new XElement("MemoryLayout", "Optimized"),
             new XElement("Name", blockName),
             new XElement("Namespace"),
@@ -156,7 +155,7 @@ public static class PlcFbBlockXmlComposer
       .Select(x => x.Key).ToArray();
     if (duplicates.Length > 0)
     {
-      throw new ArgumentException("FB 接口成员名重复: " + string.Join(", ", duplicates));
+      throw new ArgumentException($"FB 接口成员名重复: {string.Join(", ", duplicates)}");
     }
 
     foreach (var member in members)
@@ -168,7 +167,7 @@ public static class PlcFbBlockXmlComposer
 
       if (string.IsNullOrWhiteSpace(member.Datatype))
       {
-        throw new ArgumentException("FB 接口成员数据类型不能为空: " + member.Name);
+        throw new ArgumentException($"FB 接口成员数据类型不能为空: {member.Name}");
       }
     }
   }

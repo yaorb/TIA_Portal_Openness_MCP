@@ -31,21 +31,22 @@ public static partial class McpServer
     try
     {
       var software = McpServer.Portal.GetPlcSoftware(softwarePath);
-      if (software != null)
+      if (software == null)
       {
-        var attributes = Helper.GetAttributeList(software);
-
-        return new ResponseSoftwareInfo
-        {
-          Message = $"Software info retrieved from '{softwarePath}'",
-          Name = software.Name,
-          Attributes = attributes,
-          Description = software.ToString(),
-          Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
-        };
+        throw new McpProtocolException($"Software not found at '{softwarePath}'", McpErrorCode.InternalError);
       }
 
-      throw new McpProtocolException($"Software not found at '{softwarePath}'", McpErrorCode.InternalError);
+      var attributes = Helper.GetAttributeList(software);
+
+      return new ResponseSoftwareInfo
+      {
+        Message = $"Software info retrieved from '{softwarePath}'",
+        Name = software.Name,
+        Attributes = attributes,
+        Description = software.ToString(),
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -818,12 +819,11 @@ public static partial class McpServer
       var build = McpServer.BuildPlcArtifact(normalizedKind, json);
       var xml = build["xml"]?.ToString() ?? "";
       var objectName = McpServer.ResolveBuiltPlcObjectName(xml);
-      var tempDir = Path.Combine(Path.GetTempPath(),
-        "tia_mcp_plc_build_import_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff"));
+      var tempDir = Path.Combine(Path.GetTempPath(), $"tia_mcp_plc_build_import_{DateTime.Now:yyyyMMdd_HHmmss_fff}");
       Directory.CreateDirectory(tempDir);
-      var fileName = McpServer.MakeSafeFileName(string.IsNullOrWhiteSpace(objectName)
+      var fileName = $"{McpServer.MakeSafeFileName(string.IsNullOrWhiteSpace(objectName)
         ? normalizedKind
-        : objectName) + ".xml";
+        : objectName)}.xml";
       var xmlPath = Path.Combine(tempDir, fileName);
       File.WriteAllText(xmlPath, xml, Encoding.UTF8);
 
@@ -866,11 +866,11 @@ public static partial class McpServer
         dryRun,
         discoveredTypes,
         discoveredTagTables,
-        new List<string>(),
+        [],
         discoveredBlocks,
         importedTypes,
         importedTagTables,
-        new List<string>(),
+        [],
         importedBlocks,
         failed,
         compile);
@@ -879,7 +879,7 @@ public static partial class McpServer
       response.CapabilityWarnings = capability.Warnings;
       response.RecommendedNextActions = capability.NextActions;
       response.GeneratedDirectory = tempDir;
-      response.WrittenFiles = new[] { xmlPath, };
+      response.WrittenFiles = [xmlPath,];
       response.Message = dryRun
         ? $"PLC build/import dry-run kind={normalizedKind}: generated '{xmlPath}', classified={classifiedKind}/{subKind}, failed={failed.Count}"
         : $"PLC build/import kind={normalizedKind}: generated '{xmlPath}', importedTypes={importedTypes.Count}, importedTagTables={importedTagTables.Count}, importedBlocks={importedBlocks.Count}, failed={failed.Count}, compileState={compile?.State ?? "-"}";
@@ -944,7 +944,7 @@ public static partial class McpServer
     }
     else
     {
-      failed.Add(new ImportFailure { Path = xmlPath, Error = "Unsupported classified kind: " + classifiedKind, });
+      failed.Add(new ImportFailure { Path = xmlPath, Error = $"Unsupported classified kind: {classifiedKind}", });
     }
 
     if (!compileAfter || failed.Count != 0)
@@ -975,7 +975,7 @@ public static partial class McpServer
     string[]? errorList = null;
     if (data["errors"] is JsonArray errArr)
     {
-      errorList = errArr.Where(e => e != null).Select(e => e!.GetValue<string>()).ToArray();
+      errorList = [.. errArr.Where(e => e != null).Select(e => e!.GetValue<string>()),];
       if (errorList.Length == 0)
       {
         errorList = null;
@@ -986,18 +986,31 @@ public static partial class McpServer
       var singleError = data["error"]?.GetValue<string>();
       if (!string.IsNullOrEmpty(singleError))
       {
-        errorList = new[] { singleError!, };
+        errorList = [singleError!,];
       }
     }
 
     string[]? warningList = null;
-    if (data["warnings"] is JsonArray warnArr)
+    if (data["warnings"] is not JsonArray warnArr)
     {
-      warningList = warnArr.Where(w => w != null).Select(w => w!.GetValue<string>()).ToArray();
-      if (warningList.Length == 0)
+      return new ResponseXmlBuild
       {
-        warningList = null;
-      }
+        Ok = ok,
+        Message = ok
+          ? successMessage
+          : $"{successMessage} with validation findings",
+        Data = data,
+        Xml = xml,
+        Errors = errorList,
+        Warnings = warningList,
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = ok, ["offlineOnly"] = true, },
+      };
+    }
+
+    warningList = [.. warnArr.Where(w => w != null).Select(w => w!.GetValue<string>()),];
+    if (warningList.Length == 0)
+    {
+      warningList = null;
     }
 
     return new ResponseXmlBuild
@@ -1005,7 +1018,7 @@ public static partial class McpServer
       Ok = ok,
       Message = ok
         ? successMessage
-        : successMessage + " with validation findings",
+        : $"{successMessage} with validation findings",
       Data = data,
       Xml = xml,
       Errors = errorList,
@@ -1015,7 +1028,7 @@ public static partial class McpServer
   }
 
 
-  private static string NormalizePlcBuildKind(string kind)
+  private static string NormalizePlcBuildKind(string? kind)
   {
     var normalized = (kind ?? string.Empty).Trim().ToLowerInvariant().Replace("-", "").Replace("_", "");
     return normalized switch
@@ -1044,15 +1057,15 @@ public static partial class McpServer
       "globaldb" => PlcBuilderToolJson.BuildGlobalDb(json),
       "fc"       => PlcBuilderToolJson.ComposeFcBlock(json),
       "fb"       => PlcBuilderToolJson.ComposeFbBlock(json),
-      _          => throw new ArgumentException("Unsupported PLC build kind: " + kind),
+      _          => throw new ArgumentException($"Unsupported PLC build kind: {kind}"),
     };
   }
 
   private sealed class PlcBuildCapabilityDecision
   {
     public string Decision { get; set; } = "xml-dsl";
-    public List<string> Warnings { get; } = new();
-    public List<string> NextActions { get; } = new();
+    public List<string> Warnings { get; } = [];
+    public List<string> NextActions { get; } = [];
   }
 
   private static PlcBuildCapabilityDecision AnalyzePlcBuildCapability(string kind, string json)
@@ -1065,7 +1078,7 @@ public static partial class McpServer
       return result;
     }
 
-    JsonObject? root = null;
+    JsonObject? root;
     try
     {
       root = JsonNode.Parse(json) as JsonObject;
@@ -1079,17 +1092,18 @@ public static partial class McpServer
     }
 
     var structuredText = root?["structuredText"] as JsonObject;
-    var operations = structuredText?["operations"] as JsonArray;
-    if (operations == null)
+    if (structuredText?["operations"] is not JsonArray operations)
     {
-      if (root?["structuredTextInnerXml"] != null || root?["structuredTextXml"] != null || root?["sclInnerXml"] != null)
+      if (root?["structuredTextInnerXml"] == null && root?["structuredTextXml"] == null && root?["sclInnerXml"] == null)
       {
-        result.Decision = "raw-structuredtext-xml";
-        result.Warnings.Add(
-          "Raw StructuredText XML was supplied. This path is only safe when cloned from a TIA export or generated by a verified builder.");
-        result.NextActions.Add(
-          "Dry-run first, import into a disposable project, then require CompileAndDiagnosePlc errors=0.");
+        return result;
       }
+
+      result.Decision = "raw-structuredtext-xml";
+      result.Warnings.Add(
+        "Raw StructuredText XML was supplied. This path is only safe when cloned from a TIA export or generated by a verified builder.");
+      result.NextActions.Add(
+        "Dry-run first, import into a disposable project, then require CompileAndDiagnosePlc errors=0.");
 
       return result;
     }
@@ -1104,7 +1118,7 @@ public static partial class McpServer
 
       foreach (var name in new[] { "condition", "source", "sym", "name", })
       {
-        if (op[name] is JsonNode n && McpServer.LooksLikeSclExpression(n.ToString()))
+        if (op[name] is { } n && McpServer.LooksLikeSclExpression(n.ToString()))
         {
           risky.Add($"$.structuredText.operations[{i}].{name}='{n}'");
         }
@@ -1114,8 +1128,8 @@ public static partial class McpServer
     if (risky.Count > 0)
     {
       result.Decision = "external-scl-recommended";
-      result.Warnings.Add("The PLC XML DSL is intentionally narrow. Complex SCL expressions were detected: " +
-        string.Join("; ", risky.Take(8)));
+      result.Warnings.Add(
+        $"The PLC XML DSL is intentionally narrow. Complex SCL expressions were detected: {string.Join("; ", risky.Take(8))}");
       result.NextActions.Add(
         "Prefer a native .scl/.s7dcl external source and import via ImportFromDocuments/ImportBlocksFromDocuments, or use a verified SCL template from templates/plc/scl-examples.");
       result.NextActions.Add(
@@ -1145,7 +1159,7 @@ public static partial class McpServer
 
     if (s.StartsWith("#", StringComparison.Ordinal))
     {
-      s = s.Substring(1);
+      s = s[1..];
     }
 
     if (string.Equals(s, "TRUE", StringComparison.OrdinalIgnoreCase) ||
@@ -1311,7 +1325,7 @@ public static partial class McpServer
       string[]? files = null;
       if (data["files"] is JsonArray arr)
       {
-        files = arr.Where(f => f != null).Select(f => f!.GetValue<string>()).ToArray();
+        files = [.. arr.Where(f => f != null).Select(f => f!.GetValue<string>()),];
         if (files.Length == 0)
         {
           files = null;
@@ -1753,7 +1767,7 @@ public static partial class McpServer
         {
           var templateRoot = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
           var expectedItems =
-            (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? new JsonArray()).Count;
+            (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? []).Count;
           var design = HmiTemplateDesignJsonBuilder.BuildApplyDesign(path, fallbackWidth, fallbackHeight);
           return design["items"] is JsonArray executionItems && executionItems.Count == expectedItems;
         });
@@ -1809,9 +1823,9 @@ public static partial class McpServer
         : Array.Empty<string>();
       var rows = new JsonArray();
       var referenceAnalysis = HmiTemplateReferenceAnalyzer.Analyze(templateDirectory, "", "");
-      var referenceRows = (referenceAnalysis["templates"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+      var referenceRows = (referenceAnalysis["templates"] as JsonArray ?? []).OfType<JsonObject>()
         .ToDictionary(x => x["templateName"]?.ToString() ?? "", x => x, StringComparer.OrdinalIgnoreCase);
-      var referenceRowsByFile = (referenceAnalysis["templates"] as JsonArray ?? new JsonArray()).OfType<JsonObject>()
+      var referenceRowsByFile = (referenceAnalysis["templates"] as JsonArray ?? []).OfType<JsonObject>()
         .Where(x => !string.IsNullOrWhiteSpace(x["file"]?.ToString())).ToDictionary(
           x => Path.GetFullPath(x["file"]?.ToString() ?? ""),
           x => x,
@@ -1889,14 +1903,14 @@ public static partial class McpServer
       {
         var templateRoot = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
         var expectedItems =
-          (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? new JsonArray()).Count;
+          (templateRoot?["Items"] as JsonArray ?? templateRoot?["items"] as JsonArray ?? []).Count;
         var design = HmiTemplateDesignJsonBuilder.BuildApplyDesign(path, fallbackWidth, fallbackHeight);
         return design["items"] is JsonArray executionItems && executionItems.Count == expectedItems;
       });
     var designJson = HmiTemplateDesignJsonBuilder.BuildApplyDesign(templateFile, fallbackWidth, fallbackHeight);
-    var items = designJson["items"] as JsonArray ?? new JsonArray();
-    var errors = layout["errors"] as JsonArray ?? new JsonArray();
-    var warnings = layout["warnings"] as JsonArray ?? new JsonArray();
+    var items = designJson["items"] as JsonArray ?? [];
+    var errors = layout["errors"] as JsonArray ?? [];
+    var warnings = layout["warnings"] as JsonArray ?? [];
     var ok = string.Equals(layout["status"]?.ToString(), "pass", StringComparison.OrdinalIgnoreCase);
     var eventReadiness = McpServer.BuildUnifiedHmiTemplateEventReadiness(referenceRow);
     var row = new JsonObject
@@ -1921,8 +1935,8 @@ public static partial class McpServer
       ["recommendedNextAction"] = ok
         ? "Inspect full payload with BuildUnifiedHmiTemplateApplyDesignJson, then apply in a temporary TIA project before using a real project."
         : "Fix blocking layout/template findings before applying to TIA.",
+      ["eventRecommendedNextAction"] = eventReadiness["recommendedNextAction"]?.DeepClone(),
     };
-    row["eventRecommendedNextAction"] = eventReadiness["recommendedNextAction"]?.DeepClone();
     return row;
   }
 
@@ -1948,8 +1962,8 @@ public static partial class McpServer
     }
 
     var summary = referenceRow["actionRecipeSummary"] as JsonObject ?? new JsonObject();
-    var effectiveRecipes = summary["effectiveRecipes"] as JsonArray ?? new JsonArray();
-    var generated = new JsonArray();
+    var effectiveRecipes = summary["effectiveRecipes"] as JsonArray ?? [];
+    // var generated = new JsonArray();
     var safeDeterministic = 0;
     var apiDiscovery = 0;
     var todo = 0;
@@ -1959,13 +1973,13 @@ public static partial class McpServer
 
     foreach (var recipeNode in effectiveRecipes.OfType<JsonObject>())
     {
-      var targetTags = (recipeNode["targetTags"] as JsonArray ?? new JsonArray()).Select(x => x?.ToString() ?? "");
+      var targetTags = (recipeNode["targetTags"] as JsonArray ?? []).Select(x => x?.ToString() ?? "");
       var built = HmiActionScriptRecipeBuilder.Build(recipeNode["recipeKind"]?.ToString() ?? "",
         recipeNode["event"]?.ToString() ?? "",
         targetTags,
         recipeNode["targetScreen"]?.ToString() ?? "",
         recipeNode["targetPopup"]?.ToString() ?? "");
-      generated.Add(built);
+      // generated.Add(built);
       var kind = built["recipeKind"]?.ToString() ?? "";
       var safety = built["safetyLevel"]?.ToString() ?? "";
       if (string.Equals(safety, "command", StringComparison.OrdinalIgnoreCase))
@@ -2003,10 +2017,10 @@ public static partial class McpServer
       }
     }
 
-    var missingTargets = summary["missingTargets"] as JsonArray ?? new JsonArray();
-    var duplicateActions = summary["duplicateActions"] as JsonArray ?? new JsonArray();
+    var missingTargets = summary["missingTargets"] as JsonArray ?? [];
+    var duplicateActions = summary["duplicateActions"] as JsonArray ?? [];
     var highRisk = McpServer.GetManifestInt(summary, "highRiskWrites");
-    var missingRequiredTags = summary["missingRequiredTags"] as JsonArray ?? new JsonArray();
+    var missingRequiredTags = summary["missingRequiredTags"] as JsonArray ?? [];
     var status = "ready-for-temp-project-validation";
     var recommended =
       "Generate safe deterministic scripts, then verify HMI tags, PLC-side symbols, TIA SyntaxCheck, and readback in a temporary project.";
@@ -2292,7 +2306,7 @@ public static partial class McpServer
   {
     try
     {
-      var recipe = HmiActionScriptRecipeBuilder.Build(actionKind, eventType, new[] { targetTag, });
+      var recipe = HmiActionScriptRecipeBuilder.Build(actionKind, eventType, [targetTag,]);
       var kind = recipe["recipeKind"]?.ToString() ?? "";
       var script = recipe["script"]?.ToString() ?? "";
       var allowed = new[] { "set-bit", "reset-bit", "toggle-bit", };
@@ -2889,36 +2903,45 @@ public static partial class McpServer
     try
     {
       var items = McpServer.Portal.GetPlcTagTables(softwarePath, out var walk);
-      if (items != null)
+      if (items == null)
       {
-        // 空清单有三种完全不同的成因：这个 PLC 确实没有表 / TagTables 属性
-        // 在这个版本上叫别的名字 / 读属性时抛了异常被吞掉。三者返回的东西
-        // 一模一样，用户报「枚举返回空但删除工具能找到同一张表」时我们手上
-        // 没有任何证据。所以空清单必须把「走过了什么」一并带回来。
-        var meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, };
-        if (items.Count == 0)
-        {
-          meta["walkedGroupType"] = walk.RootGroupType;
-          meta["tagTablesPropertyFound"] = walk.TagTablesPropertyFound;
-          meta["tagTablesPropertyError"] = walk.TagTablesPropertyError;
-          meta["groupsVisited"] = walk.GroupsVisited;
-          meta["notes"] = new JsonArray(walk.Notes.Select(x => (JsonNode)JsonValue.Create(x)!).ToArray());
-        }
+        throw new McpProtocolException(
+          $"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
+          McpErrorCode.InternalError);
+      }
 
+      // 空清单有三种完全不同的成因：这个 PLC 确实没有表 / TagTables 属性
+      // 在这个版本上叫别的名字 / 读属性时抛了异常被吞掉。三者返回的东西
+      // 一模一样，用户报「枚举返回空但删除工具能找到同一张表」时我们手上
+      // 没有任何证据。所以空清单必须把「走过了什么」一并带回来。
+      var meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, };
+      if (items.Count != 0)
+      {
         return new ResponseStringList
         {
           Message = items.Count > 0
             ? $"PLC tag tables listed for '{softwarePath}'"
-            : $"'{softwarePath}' 上没有枚举到任何变量表。这**不一定**表示它没有表 —— " + "读属性失败也长这样，所以 Meta 里带了这次遍历的证据" +
-            "（walkedGroupType / tagTablesPropertyFound / tagTablesPropertyError / groupsVisited / notes）。" +
-            "若你确信有表，把这几项贴给维护者。",
+            : $"'{softwarePath}' 上没有枚举到任何变量表。这**不一定**表示它没有表 —— 读属性失败也长这样，所以 Meta 里带了这次遍历的证据（walkedGroupType / tagTablesPropertyFound / tagTablesPropertyError / groupsVisited / notes）。若你确信有表，把这几项贴给维护者。",
           Items = items,
           Meta = meta,
         };
       }
 
-      throw new McpProtocolException($"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
-        McpErrorCode.InternalError);
+      meta["walkedGroupType"] = walk.RootGroupType;
+      meta["tagTablesPropertyFound"] = walk.TagTablesPropertyFound;
+      meta["tagTablesPropertyError"] = walk.TagTablesPropertyError;
+      meta["groupsVisited"] = walk.GroupsVisited;
+      meta["notes"] = new JsonArray(walk.Notes.Select(JsonNode (x) => JsonValue.Create(x)).ToArray());
+
+      return new ResponseStringList
+      {
+        Message = items.Count > 0
+          ? $"PLC tag tables listed for '{softwarePath}'"
+          : $"'{softwarePath}' 上没有枚举到任何变量表。这**不一定**表示它没有表 —— 读属性失败也长这样，所以 Meta 里带了这次遍历的证据（walkedGroupType / tagTablesPropertyFound / tagTablesPropertyError / groupsVisited / notes）。若你确信有表，把这几项贴给维护者。",
+        Items = items,
+        Meta = meta,
+      };
+
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -2948,10 +2971,10 @@ public static partial class McpServer
         };
       }
 
-      throw new McpProtocolException($"Failed exporting PLC tag table '{tagTableName}' from '{softwarePath}'" +
-        (string.IsNullOrWhiteSpace(reason)
+      throw new McpProtocolException(
+        $"Failed exporting PLC tag table '{tagTableName}' from '{softwarePath}'{(string.IsNullOrWhiteSpace(reason)
           ? string.Empty
-          : ": " + reason),
+          : $": {reason}")}",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
@@ -3075,8 +3098,7 @@ public static partial class McpServer
         // 只读 Items 的调用方看到的是「这台 PLC 没有强制表」——和「你路径写错了」
         // 是完全不同的结论，而它分辨不出来。
         throw new McpProtocolException(
-          $"GetPlcForceTables: PLC software not found at '{softwarePath}'. " +
-          "Use GetProjectTree to get the exact PLC path.",
+          $"GetPlcForceTables: PLC software not found at '{softwarePath}'. Use GetProjectTree to get the exact PLC path.",
           McpErrorCode.InvalidParams);
       }
 
@@ -3271,7 +3293,7 @@ public static partial class McpServer
     [Description(
       "tagPathsJson: JSON array of symbolic PLC tag/member paths, for example [\"DB_HMI.MotorRun\",\"DB_HMI.SpeedSet\"]. Do not pass guessed M bits.")]
     string tagPathsJson,
-    [Description("mode: current-values or watch-table-export-plan. Both are read-only planning modes.")] string mode =
+    [Description("mode: current-values or watch-table-export-plan. Both are read-only planning modes.")] string? mode =
       "current-values")
   {
     try
@@ -3323,7 +3345,7 @@ public static partial class McpServer
           rejectedTags,
           warnings,
           policy,
-          "tagPathsJson must be a JSON array of symbolic PLC paths. Parse error: " + ex.Message);
+          $"tagPathsJson must be a JSON array of symbolic PLC paths. Parse error: {ex.Message}");
       }
 
       if (parsed is not JsonArray tagArray)
@@ -3340,7 +3362,7 @@ public static partial class McpServer
 
       foreach (var item in tagArray)
       {
-        var tag = item?.GetValue<string>()?.Trim() ?? string.Empty;
+        var tag = item?.GetValue<string>().Trim() ?? string.Empty;
         var rejectReason = McpServer.GetOnlineMonitoringTagRejectReason(tag);
         if (rejectReason == null)
         {
@@ -3447,7 +3469,7 @@ public static partial class McpServer
     "[L2][Online-Monitoring] Plan the commercial current-value path through an external read-only data provider such as opcua or s7-readonly. This is a preflight only: it does not connect, write PLC values, modify watch tables, go online/offline through TIA, or use force operations.")]
   public static ResponseJsonReport PlanOnlineReadOnlyDataProvider(
     [Description("provider: opcua or s7-readonly. opcua is preferred for commercial symbolic readback.")]
-    string provider,
+    string? provider,
     [Description("endpoint: OPC UA endpoint URL or PLC endpoint/IP. It is validated only for shape and is not opened.")]
     string endpoint,
     [Description(
@@ -3462,7 +3484,7 @@ public static partial class McpServer
       var allowedProviders = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "opcua", "s7-readonly", };
 
       var policy =
-        new JsonArray(McpServer.GetOnlineMonitoringSafetyPolicy().Select(x => JsonValue.Create(x)).ToArray());
+        new JsonArray([.. McpServer.GetOnlineMonitoringSafetyPolicy().Select(x => JsonValue.Create(x)),]);
       var warnings = new JsonArray();
       var acceptedTags = new JsonArray();
       var rejectedTags = new JsonArray();
@@ -3502,7 +3524,7 @@ public static partial class McpServer
           warnings,
           policy,
           options,
-          "tagPathsJson must be a JSON array. Parse error: " + ex.Message);
+          $"tagPathsJson must be a JSON array. Parse error: {ex.Message}");
       }
 
       if (parsed is not JsonArray tagArray)
@@ -3520,7 +3542,7 @@ public static partial class McpServer
 
       foreach (var item in tagArray)
       {
-        var tag = item?.GetValue<string>()?.Trim() ?? "";
+        var tag = item?.GetValue<string>().Trim() ?? "";
         var rejectReason = McpServer.GetOnlineMonitoringTagRejectReason(tag);
         if (rejectReason == null)
         {
@@ -3559,7 +3581,7 @@ public static partial class McpServer
     }
   }
 
-  private static ResponseJsonReport BuildReadOnlyProviderPlan(bool ok, string provider, string endpoint,
+  private static ResponseJsonReport BuildReadOnlyProviderPlan(bool ok, string provider, string? endpoint,
     JsonArray acceptedTags, JsonArray rejectedTags, JsonArray warnings, JsonArray policy, JsonObject options,
     string message) =>
     new()
@@ -3603,7 +3625,7 @@ public static partial class McpServer
     }
     catch (Exception ex)
     {
-      throw new McpProtocolException(parameterName + " must be a JSON object. Parse error: " + ex.Message,
+      throw new McpProtocolException($"{parameterName} must be a JSON object. Parse error: {ex.Message}",
         ex,
         McpErrorCode.InvalidParams);
     }
@@ -4047,17 +4069,17 @@ public static partial class McpServer
       if (string.IsNullOrWhiteSpace(outputPath))
       {
         var dir = Path.Combine(Path.GetTempPath(), "tia_mcp_scl");
-        finalPath = Path.Combine(dir, defaultName + ".scl");
+        finalPath = Path.Combine(dir, $"{defaultName}.scl");
       }
       else if (Directory.Exists(outputPath) || outputPath.EndsWith("\\", StringComparison.Ordinal) ||
         outputPath.EndsWith("/", StringComparison.Ordinal))
       {
-        finalPath = Path.Combine(outputPath, defaultName + ".scl");
+        finalPath = Path.Combine(outputPath, $"{defaultName}.scl");
       }
       else
       {
         finalPath = string.IsNullOrEmpty(Path.GetExtension(outputPath))
-          ? outputPath + ".scl"
+          ? $"{outputPath}.scl"
           : outputPath;
       }
 
@@ -4072,10 +4094,8 @@ public static partial class McpServer
 
       return new ResponseMessage
       {
-        Message = $"SCL source written to '{finalPath}'. To import in TIA Portal: project tree → " +
-          "'External source files' → 'Add new external file' → select this .scl → " +
-          "right-click the source → 'Generate blocks from source'. " +
-          "(Or call ImportPlcExternalSource then GenerateBlocksFromExternalSource if connected.)",
+        Message =
+          $"SCL source written to '{finalPath}'. To import in TIA Portal: project tree → 'External source files' → 'Add new external file' → select this .scl → right-click the source → 'Generate blocks from source'. (Or call ImportPlcExternalSource then GenerateBlocksFromExternalSource if connected.)",
         Meta = new JsonObject
         {
           ["timestamp"] = DateTime.Now,
@@ -4762,6 +4782,7 @@ public static partial class McpServer
       }
       catch
       {
+        // ignored
       }
 
       return op(); // retry once, now fully offline
@@ -4880,12 +4901,9 @@ public static partial class McpServer
           ? null
           : targetIpAddress);
 
-      if (result.Ok == false && result.Errors != null && result.Errors.Length > 0)
-      {
-        throw new McpProtocolException($"Download to '{softwarePath}' failed: {result.Message}", McpErrorCode.InternalError);
-      }
-
-      return result;
+      return result is { Ok: false, Errors.Length: > 0, }
+        ? throw new McpProtocolException($"Download to '{softwarePath}' failed: {result.Message}", McpErrorCode.InternalError)
+        : result;
     }
     catch (McpException)
     {
@@ -4915,7 +4933,7 @@ public static partial class McpServer
         return new ResponseSoftwareTree
         {
           Message = $"Software tree retrieved from '{softwarePath}'",
-          Tree = "```\n" + tree + "\n```",
+          Tree = $"```\n{tree}\n```",
           Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = true, },
         };
       }

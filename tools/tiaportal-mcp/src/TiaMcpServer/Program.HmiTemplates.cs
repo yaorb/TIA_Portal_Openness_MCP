@@ -71,7 +71,7 @@ public partial class Program
     md.AppendLine("- Exists: " + section["exists"]);
     md.AppendLine("- File count: " + section["fileCount"]);
     md.AppendLine("- Total bytes: " + section["totalBytes"]);
-    if (section["samples"] is JsonArray samples && samples.Count > 0)
+    if (section["samples"] is JsonArray { Count: > 0, } samples)
     {
       md.AppendLine("- Largest samples:");
       foreach (var item in samples.Take(5))
@@ -438,33 +438,35 @@ public partial class Program
     Line(Tok("END_REPEAT"), Tok(";"));
 
     File.WriteAllText(Path.Combine(dir, "MCP_Syntax_FC.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.FC ID=""0"">
-    <AttributeList>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Input""><Member Name=""Enable"" Datatype=""Bool"" /><Member Name=""Mode"" Datatype=""Int"" /><Member Name=""InInt"" Datatype=""Int"" /><Member Name=""InReal"" Datatype=""Real"" /></Section>
-          <Section Name=""Output""><Member Name=""OutBool"" Datatype=""Bool"" /><Member Name=""OutInt"" Datatype=""Int"" /><Member Name=""OutDInt"" Datatype=""DInt"" /><Member Name=""OutReal"" Datatype=""Real"" /><Member Name=""OutWord"" Datatype=""Word"" /></Section>
-          <Section Name=""InOut"" />
-          <Section Name=""Temp""><Member Name=""i"" Datatype=""Int"" /><Member Name=""acc"" Datatype=""Int"" /></Section>
-          <Section Name=""Constant"" />
-          <Section Name=""Return""><Member Name=""Ret_Val"" Datatype=""Void"" /></Section>
-        </Sections>
-      </Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>MCP_Syntax_FC</Name><Namespace /><Number>12001</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      <SW.Blocks.CompileUnit ID=""1"" CompositionName=""CompileUnits"">
-        <AttributeList><NetworkSource><StructuredText xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4"">
-{st}
-        </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.FC>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.FC ID="0">
+           <AttributeList>
+             <Interface>
+               <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                 <Section Name="Input"><Member Name="Enable" Datatype="Bool" /><Member Name="Mode" Datatype="Int" /><Member Name="InInt" Datatype="Int" /><Member Name="InReal" Datatype="Real" /></Section>
+                 <Section Name="Output"><Member Name="OutBool" Datatype="Bool" /><Member Name="OutInt" Datatype="Int" /><Member Name="OutDInt" Datatype="DInt" /><Member Name="OutReal" Datatype="Real" /><Member Name="OutWord" Datatype="Word" /></Section>
+                 <Section Name="InOut" />
+                 <Section Name="Temp"><Member Name="i" Datatype="Int" /><Member Name="acc" Datatype="Int" /></Section>
+                 <Section Name="Constant" />
+                 <Section Name="Return"><Member Name="Ret_Val" Datatype="Void" /></Section>
+               </Sections>
+             </Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>MCP_Syntax_FC</Name><Namespace /><Number>12001</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             <SW.Blocks.CompileUnit ID="1" CompositionName="CompileUnits">
+               <AttributeList><NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+       {st}
+               </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
+             </SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.FC>
+       </Document>
+       """,
       Encoding.UTF8);
   }
 
@@ -535,243 +537,249 @@ public partial class Program
     Line(Local("Elapsed"), Blank(), Tok(":="), Blank(), LocalField("tOn", "ET"), Tok(";"));
 
     File.WriteAllText(Path.Combine(dir, "MCP_Syntax_Iec_FB.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.FB ID=""0"">
-    <AttributeList>
-      <HeaderVersion>1.0</HeaderVersion>
-      <Interface>
-        <Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5"">
-          <Section Name=""Input""><Member Name=""Enable"" Datatype=""Bool"" /><Member Name=""Pulse"" Datatype=""Bool"" /></Section>
-          <Section Name=""Output""><Member Name=""Rising"" Datatype=""Bool"" /><Member Name=""Falling"" Datatype=""Bool"" /><Member Name=""TimerDone"" Datatype=""Bool"" /><Member Name=""Elapsed"" Datatype=""Time"" /></Section>
-          <Section Name=""InOut"" />
-          <Section Name=""Static"">
-            <Member Name=""rEdge"" Datatype=""R_TRIG"" Version=""1.0""><AttributeList><BooleanAttribute Name=""SetPoint"" SystemDefined=""true"">true</BooleanAttribute></AttributeList></Member>
-            <Member Name=""fEdge"" Datatype=""F_TRIG"" Version=""1.0""><AttributeList><BooleanAttribute Name=""SetPoint"" SystemDefined=""true"">true</BooleanAttribute></AttributeList></Member>
-            <Member Name=""tOn"" Datatype=""TON_TIME"" Version=""1.0""><AttributeList><BooleanAttribute Name=""SetPoint"" SystemDefined=""true"">true</BooleanAttribute></AttributeList></Member>
-          </Section>
-          <Section Name=""Temp"" />
-        </Sections>
-      </Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>MCP_Syntax_Iec_FB</Name><Namespace /><Number>12002</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      <SW.Blocks.CompileUnit ID=""1"" CompositionName=""CompileUnits"">
-        <AttributeList><NetworkSource><StructuredText xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4"">
-{st}
-        </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.FB>
-</Document>",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.FB ID="0">
+           <AttributeList>
+             <HeaderVersion>1.0</HeaderVersion>
+             <Interface>
+               <Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5">
+                 <Section Name="Input"><Member Name="Enable" Datatype="Bool" /><Member Name="Pulse" Datatype="Bool" /></Section>
+                 <Section Name="Output"><Member Name="Rising" Datatype="Bool" /><Member Name="Falling" Datatype="Bool" /><Member Name="TimerDone" Datatype="Bool" /><Member Name="Elapsed" Datatype="Time" /></Section>
+                 <Section Name="InOut" />
+                 <Section Name="Static">
+                   <Member Name="rEdge" Datatype="R_TRIG" Version="1.0"><AttributeList><BooleanAttribute Name="SetPoint" SystemDefined="true">true</BooleanAttribute></AttributeList></Member>
+                   <Member Name="fEdge" Datatype="F_TRIG" Version="1.0"><AttributeList><BooleanAttribute Name="SetPoint" SystemDefined="true">true</BooleanAttribute></AttributeList></Member>
+                   <Member Name="tOn" Datatype="TON_TIME" Version="1.0"><AttributeList><BooleanAttribute Name="SetPoint" SystemDefined="true">true</BooleanAttribute></AttributeList></Member>
+                 </Section>
+                 <Section Name="Temp" />
+               </Sections>
+             </Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>MCP_Syntax_Iec_FB</Name><Namespace /><Number>12002</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             <SW.Blocks.CompileUnit ID="1" CompositionName="CompileUnits">
+               <AttributeList><NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+       {st}
+               </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
+             </SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.FB>
+       </Document>
+       """,
       Encoding.UTF8);
   }
 
   private static void WritePlcSyntaxValidationScl(string path)
   {
     File.WriteAllText(path,
-      @"TYPE ""MCP_Syntax_UDT""
-VERSION : 0.1
-   STRUCT
-      Flag : Bool;
-      Count : Int;
-      Level : Real;
-      Stamp : Time;
-   END_STRUCT;
-END_TYPE
+      """
+      TYPE "MCP_Syntax_UDT"
+      VERSION : 0.1
+         STRUCT
+            Flag : Bool;
+            Count : Int;
+            Level : Real;
+            Stamp : Time;
+         END_STRUCT;
+      END_TYPE
 
-FUNCTION ""MCP_Syntax_CalcInt"" : Int
-{ S7_Optimized_Access := 'TRUE' }
-VAR_INPUT
-   A : Int;
-   B : Int;
-END_VAR
-BEGIN
-   ""MCP_Syntax_CalcInt"" := #A + #B;
-END_FUNCTION
+      FUNCTION "MCP_Syntax_CalcInt" : Int
+      { S7_Optimized_Access := 'TRUE' }
+      VAR_INPUT
+         A : Int;
+         B : Int;
+      END_VAR
+      BEGIN
+         "MCP_Syntax_CalcInt" := #A + #B;
+      END_FUNCTION
 
-FUNCTION ""MCP_Syntax_Basics"" : Void
-{ S7_Optimized_Access := 'TRUE' }
-VAR_INPUT
-   Enable : Bool;
-   Mode : Int;
-   InInt : Int;
-   InReal : Real;
-END_VAR
-VAR_OUTPUT
-   OutBool : Bool;
-   OutInt : Int;
-   OutDInt : DInt;
-   OutReal : Real;
-   OutWord : Word;
-END_VAR
-VAR_TEMP
-   i : Int;
-   acc : Int;
-   localArray : Array[0..9] of Int;
-   data : ""MCP_Syntax_UDT"";
-END_VAR
-BEGIN
-   // Assignment, boolean logic, comparison, arithmetic, and type conversion.
-   #OutBool := #Enable AND (#InInt >= 0) OR (#Mode = 2);
-   #OutInt := #InInt + 1;
-   #OutDInt := INT_TO_DINT(#OutInt);
-   #OutReal := DINT_TO_REAL(#OutDInt) / 10.0;
-   #OutWord := INT_TO_WORD(#OutInt);
+      FUNCTION "MCP_Syntax_Basics" : Void
+      { S7_Optimized_Access := 'TRUE' }
+      VAR_INPUT
+         Enable : Bool;
+         Mode : Int;
+         InInt : Int;
+         InReal : Real;
+      END_VAR
+      VAR_OUTPUT
+         OutBool : Bool;
+         OutInt : Int;
+         OutDInt : DInt;
+         OutReal : Real;
+         OutWord : Word;
+      END_VAR
+      VAR_TEMP
+         i : Int;
+         acc : Int;
+         localArray : Array[0..9] of Int;
+         data : "MCP_Syntax_UDT";
+      END_VAR
+      BEGIN
+         // Assignment, boolean logic, comparison, arithmetic, and type conversion.
+         #OutBool := #Enable AND (#InInt >= 0) OR (#Mode = 2);
+         #OutInt := #InInt + 1;
+         #OutDInt := INT_TO_DINT(#OutInt);
+         #OutReal := DINT_TO_REAL(#OutDInt) / 10.0;
+         #OutWord := INT_TO_WORD(#OutInt);
 
-   // Common scalar functions.
-   #OutInt := LIMIT(MN := -100, IN := #OutInt, MX := 100);
-   #OutReal := ABS(#InReal);
+         // Common scalar functions.
+         #OutInt := LIMIT(MN := -100, IN := #OutInt, MX := 100);
+         #OutReal := ABS(#InReal);
 
-   // IF / ELSIF / ELSE.
-   IF NOT #Enable THEN
-      #OutInt := 0;
-   ELSIF #Mode = 1 THEN
-      #OutInt := #OutInt + 10;
-   ELSE
-      #OutInt := #OutInt + 20;
-   END_IF;
+         // IF / ELSIF / ELSE.
+         IF NOT #Enable THEN
+            #OutInt := 0;
+         ELSIF #Mode = 1 THEN
+            #OutInt := #OutInt + 10;
+         ELSE
+            #OutInt := #OutInt + 20;
+         END_IF;
 
-   // CASE with single values, value list, and range.
-   CASE #Mode OF
-      0:
-         #OutInt := 0;
-      1, 2:
-         #OutInt := #OutInt + 1;
-      3..5:
-         #OutInt := #OutInt + 3;
-   ELSE
-      #OutInt := -1;
-   END_CASE;
+         // CASE with single values, value list, and range.
+         CASE #Mode OF
+            0:
+               #OutInt := 0;
+            1, 2:
+               #OutInt := #OutInt + 1;
+            3..5:
+               #OutInt := #OutInt + 3;
+         ELSE
+            #OutInt := -1;
+         END_CASE;
 
-   // FOR loop and array indexing.
-   #acc := 0;
-   FOR #i := 0 TO 9 DO
-      #localArray[#i] := #i;
-      #acc := #acc + #localArray[#i];
-   END_FOR;
+         // FOR loop and array indexing.
+         #acc := 0;
+         FOR #i := 0 TO 9 DO
+            #localArray[#i] := #i;
+            #acc := #acc + #localArray[#i];
+         END_FOR;
 
-   // WHILE loop.
-   #i := 0;
-   WHILE #i < 3 DO
-      #acc := #acc + #i;
-      #i := #i + 1;
-   END_WHILE;
+         // WHILE loop.
+         #i := 0;
+         WHILE #i < 3 DO
+            #acc := #acc + #i;
+            #i := #i + 1;
+         END_WHILE;
 
-   // REPEAT loop.
-   REPEAT
-      #acc := #acc - 1;
-   UNTIL #acc <= 0
-   END_REPEAT;
+         // REPEAT loop.
+         REPEAT
+            #acc := #acc - 1;
+         UNTIL #acc <= 0
+         END_REPEAT;
 
-   // UDT/STRUCT field access.
-   #data.Flag := #OutBool;
-   #data.Count := #OutInt;
-   #data.Level := #OutReal;
-   #data.Stamp := T#1s;
-END_FUNCTION
+         // UDT/STRUCT field access.
+         #data.Flag := #OutBool;
+         #data.Count := #OutInt;
+         #data.Level := #OutReal;
+         #data.Stamp := T#1s;
+      END_FUNCTION
 
-FUNCTION_BLOCK ""MCP_Syntax_Iec""
-{ S7_Optimized_Access := 'TRUE' }
-VAR_INPUT
-   Enable : Bool;
-   Reset : Bool;
-   Pulse : Bool;
-END_VAR
-VAR_OUTPUT
-   Rising : Bool;
-   Falling : Bool;
-   TimerDone : Bool;
-   Elapsed : Time;
-   CountValue : Int;
-END_VAR
-VAR
-   tOn : TON;
-   cUp : CTU;
-   rEdge : R_TRIG;
-   fEdge : F_TRIG;
-END_VAR
-BEGIN
-   // IEC multi-instance calls. Inputs use :=, outputs are read from instance members.
-   #rEdge(CLK := #Pulse);
-   #fEdge(CLK := #Pulse);
-   #Rising := #rEdge.Q;
-   #Falling := #fEdge.Q;
+      FUNCTION_BLOCK "MCP_Syntax_Iec"
+      { S7_Optimized_Access := 'TRUE' }
+      VAR_INPUT
+         Enable : Bool;
+         Reset : Bool;
+         Pulse : Bool;
+      END_VAR
+      VAR_OUTPUT
+         Rising : Bool;
+         Falling : Bool;
+         TimerDone : Bool;
+         Elapsed : Time;
+         CountValue : Int;
+      END_VAR
+      VAR
+         tOn : TON;
+         cUp : CTU;
+         rEdge : R_TRIG;
+         fEdge : F_TRIG;
+      END_VAR
+      BEGIN
+         // IEC multi-instance calls. Inputs use :=, outputs are read from instance members.
+         #rEdge(CLK := #Pulse);
+         #fEdge(CLK := #Pulse);
+         #Rising := #rEdge.Q;
+         #Falling := #fEdge.Q;
 
-   #tOn(IN := #Enable, PT := T#2s);
-   #TimerDone := #tOn.Q;
-   #Elapsed := #tOn.ET;
+         #tOn(IN := #Enable, PT := T#2s);
+         #TimerDone := #tOn.Q;
+         #Elapsed := #tOn.ET;
 
-   #cUp(CU := #rEdge.Q, R := #Reset, PV := 10);
-   #CountValue := #cUp.CV;
-END_FUNCTION_BLOCK
+         #cUp(CU := #rEdge.Q, R := #Reset, PV := 10);
+         #CountValue := #cUp.CV;
+      END_FUNCTION_BLOCK
 
-FUNCTION_BLOCK ""MCP_Syntax_Caller""
-{ S7_Optimized_Access := 'TRUE' }
-VAR_INPUT
-   Enable : Bool;
-   Reset : Bool;
-   Pulse : Bool;
-   A : Int;
-   B : Int;
-END_VAR
-VAR_OUTPUT
-   Done : Bool;
-   Sum : Int;
-   CountValue : Int;
-END_VAR
-VAR
-   iec : ""MCP_Syntax_Iec"";
-END_VAR
-BEGIN
-   // Function call with named parameters and return value.
-   #Sum := ""MCP_Syntax_CalcInt""(A := #A, B := #B);
+      FUNCTION_BLOCK "MCP_Syntax_Caller"
+      { S7_Optimized_Access := 'TRUE' }
+      VAR_INPUT
+         Enable : Bool;
+         Reset : Bool;
+         Pulse : Bool;
+         A : Int;
+         B : Int;
+      END_VAR
+      VAR_OUTPUT
+         Done : Bool;
+         Sum : Int;
+         CountValue : Int;
+      END_VAR
+      VAR
+         iec : "MCP_Syntax_Iec";
+      END_VAR
+      BEGIN
+         // Function call with named parameters and return value.
+         #Sum := "MCP_Syntax_CalcInt"(A := #A, B := #B);
 
-   // FB multi-instance call with output parameter assignment.
-   #iec(Enable := #Enable,
-        Reset := #Reset,
-        Pulse := #Pulse,
-        TimerDone => #Done,
-        CountValue => #CountValue);
-END_FUNCTION_BLOCK
+         // FB multi-instance call with output parameter assignment.
+         #iec(Enable := #Enable,
+              Reset := #Reset,
+              Pulse := #Pulse,
+              TimerDone => #Done,
+              CountValue => #CountValue);
+      END_FUNCTION_BLOCK
 
-DATA_BLOCK ""MCP_Syntax_DB""
-{ S7_Optimized_Access := 'TRUE' }
-VAR
-   Enable : Bool := TRUE;
-   Value : Int := 10;
-   Data : ""MCP_Syntax_UDT"";
-   Caller : ""MCP_Syntax_Caller"";
-END_VAR
-BEGIN
-END_DATA_BLOCK
-",
+      DATA_BLOCK "MCP_Syntax_DB"
+      { S7_Optimized_Access := 'TRUE' }
+      VAR
+         Enable : Bool := TRUE;
+         Value : Int := 10;
+         Data : "MCP_Syntax_UDT";
+         Caller : "MCP_Syntax_Caller";
+      END_VAR
+      BEGIN
+      END_DATA_BLOCK
+
+      """,
       Encoding.UTF8);
   }
 
   private static void WriteFlowLightPlcXml(string dir)
   {
     File.WriteAllText(Path.Combine(dir, "FlowLightTags.xml"),
-      @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Tags.PlcTagTable ID=""0"">
-    <AttributeList><Name>FlowLightTags</Name></AttributeList>
-    <ObjectList>
-      <SW.Tags.PlcTag ID=""1"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Flow_Enable</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""2"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.5</LogicalAddress><Name>Clock_1Hz</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""3"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M1.0</LogicalAddress><Name>Clock_Last</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""4"" CompositionName=""Tags""><AttributeList><DataTypeName>Int</DataTypeName><LogicalAddress>%MW2</LogicalAddress><Name>Flow_Step</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""5"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.0</LogicalAddress><Name>Light_1</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""6"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.1</LogicalAddress><Name>Light_2</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""7"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.2</LogicalAddress><Name>Light_3</Name></AttributeList></SW.Tags.PlcTag>
-      <SW.Tags.PlcTag ID=""8"" CompositionName=""Tags""><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.3</LogicalAddress><Name>Light_4</Name></AttributeList></SW.Tags.PlcTag>
-    </ObjectList>
-  </SW.Tags.PlcTagTable>
-</Document>");
+      """
+      <?xml version="1.0" encoding="utf-8"?>
+      <Document>
+        <Engineering version="V21" />
+        <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+        <SW.Tags.PlcTagTable ID="0">
+          <AttributeList><Name>FlowLightTags</Name></AttributeList>
+          <ObjectList>
+            <SW.Tags.PlcTag ID="1" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.0</LogicalAddress><Name>Flow_Enable</Name></AttributeList></SW.Tags.PlcTag>
+            <SW.Tags.PlcTag ID="2" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M0.5</LogicalAddress><Name>Clock_1Hz</Name></AttributeList></SW.Tags.PlcTag>
+            <SW.Tags.PlcTag ID="3" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%M1.0</LogicalAddress><Name>Clock_Last</Name></AttributeList></SW.Tags.PlcTag>
+            <SW.Tags.PlcTag ID="4" CompositionName="Tags"><AttributeList><DataTypeName>Int</DataTypeName><LogicalAddress>%MW2</LogicalAddress><Name>Flow_Step</Name></AttributeList></SW.Tags.PlcTag>
+            <SW.Tags.PlcTag ID="5" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.0</LogicalAddress><Name>Light_1</Name></AttributeList></SW.Tags.PlcTag>
+            <SW.Tags.PlcTag ID="6" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.1</LogicalAddress><Name>Light_2</Name></AttributeList></SW.Tags.PlcTag>
+            <SW.Tags.PlcTag ID="7" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.2</LogicalAddress><Name>Light_3</Name></AttributeList></SW.Tags.PlcTag>
+            <SW.Tags.PlcTag ID="8" CompositionName="Tags"><AttributeList><DataTypeName>Bool</DataTypeName><LogicalAddress>%Q0.3</LogicalAddress><Name>Light_4</Name></AttributeList></SW.Tags.PlcTag>
+          </ObjectList>
+        </SW.Tags.PlcTagTable>
+      </Document>
+      """);
 
     var uid = 21;
     string U() => (uid++).ToString();
@@ -862,82 +870,88 @@ END_DATA_BLOCK
     }
 
     File.WriteAllText(Path.Combine(dir, "Main.xml"),
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
-  <SW.Blocks.OB ID=""0"">
-    <AttributeList>
-      <Interface><Sections xmlns=""http://www.siemens.com/automation/Openness/SW/Interface/v5""><Section Name=""Input""><Member Name=""Initial_Call"" Datatype=""Bool"" Informative=""true"" /><Member Name=""Remanence"" Datatype=""Bool"" Informative=""true"" /></Section><Section Name=""Temp"" /><Section Name=""Constant"" /></Sections></Interface>
-      <MemoryLayout>Optimized</MemoryLayout><Name>Main</Name><Namespace /><Number>1</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SecondaryType>ProgramCycle</SecondaryType><SetENOAutomatically>false</SetENOAutomatically>
-    </AttributeList>
-    <ObjectList>
-      <SW.Blocks.CompileUnit ID=""1"" CompositionName=""CompileUnits"">
-        <AttributeList><NetworkSource><StructuredText xmlns=""http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4"">
-{st}
-        </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
-      </SW.Blocks.CompileUnit>
-    </ObjectList>
-  </SW.Blocks.OB>
-</Document>");
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo><Created>2000-01-01T00:00:00.0000000Z</Created><ExportSetting>None</ExportSetting><InstalledProducts /></DocumentInfo>
+         <SW.Blocks.OB ID="0">
+           <AttributeList>
+             <Interface><Sections xmlns="http://www.siemens.com/automation/Openness/SW/Interface/v5"><Section Name="Input"><Member Name="Initial_Call" Datatype="Bool" Informative="true" /><Member Name="Remanence" Datatype="Bool" Informative="true" /></Section><Section Name="Temp" /><Section Name="Constant" /></Sections></Interface>
+             <MemoryLayout>Optimized</MemoryLayout><Name>Main</Name><Namespace /><Number>1</Number><ProgrammingLanguage>SCL</ProgrammingLanguage><SecondaryType>ProgramCycle</SecondaryType><SetENOAutomatically>false</SetENOAutomatically>
+           </AttributeList>
+           <ObjectList>
+             <SW.Blocks.CompileUnit ID="1" CompositionName="CompileUnits">
+               <AttributeList><NetworkSource><StructuredText xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/StructuredText/v4">
+       {st}
+               </StructuredText></NetworkSource><ProgrammingLanguage>SCL</ProgrammingLanguage></AttributeList>
+             </SW.Blocks.CompileUnit>
+           </ObjectList>
+         </SW.Blocks.OB>
+       </Document>
+       """);
   }
 
   private static void WriteClassicHmiSymbolicTagTableProbeXml(string path, string tableName, string connectionName)
   {
     File.WriteAllText(path,
-      $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<Document>
-  <Engineering version=""V21"" />
-  <DocumentInfo>
-    <Created>2000-01-01T00:00:00.0000000Z</Created>
-    <ExportSetting>None</ExportSetting>
-    <InstalledProducts />
-  </DocumentInfo>
-  <Hmi.Tag.TagTable ID=""0"">
-    <AttributeList>
-      <Name>{SecurityElement.Escape(tableName)}</Name>
-    </AttributeList>
-    <ObjectList>
-{Program.ClassicHmiSymbolicTagXml("1", "Motor_Start", "Bool", "1", connectionName, "DB1_MotorData.Motor.Start")}
-{Program.ClassicHmiSymbolicTagXml("2", "Motor_Stop", "Bool", "1", connectionName, "DB1_MotorData.Motor.Stop")}
-{Program.ClassicHmiSymbolicTagXml("3", "Motor_Run", "Bool", "1", connectionName, "DB1_MotorData.Motor.Run")}
-{Program.ClassicHmiSymbolicTagXml("4", "Motor_Fault", "Bool", "1", connectionName, "DB1_MotorData.Motor.Fault")}
-{Program.ClassicHmiSymbolicTagXml("5", "Counter", "Int", "2", connectionName, "DB1_MotorData.Counter")}
-    </ObjectList>
-  </Hmi.Tag.TagTable>
-</Document>
-",
+      $"""
+       <?xml version="1.0" encoding="utf-8"?>
+       <Document>
+         <Engineering version="V21" />
+         <DocumentInfo>
+           <Created>2000-01-01T00:00:00.0000000Z</Created>
+           <ExportSetting>None</ExportSetting>
+           <InstalledProducts />
+         </DocumentInfo>
+         <Hmi.Tag.TagTable ID="0">
+           <AttributeList>
+             <Name>{SecurityElement.Escape(tableName)}</Name>
+           </AttributeList>
+           <ObjectList>
+       {Program.ClassicHmiSymbolicTagXml("1", "Motor_Start", "Bool", "1", connectionName, "DB1_MotorData.Motor.Start")}
+       {Program.ClassicHmiSymbolicTagXml("2", "Motor_Stop", "Bool", "1", connectionName, "DB1_MotorData.Motor.Stop")}
+       {Program.ClassicHmiSymbolicTagXml("3", "Motor_Run", "Bool", "1", connectionName, "DB1_MotorData.Motor.Run")}
+       {Program.ClassicHmiSymbolicTagXml("4", "Motor_Fault", "Bool", "1", connectionName, "DB1_MotorData.Motor.Fault")}
+       {Program.ClassicHmiSymbolicTagXml("5", "Counter", "Int", "2", connectionName, "DB1_MotorData.Counter")}
+           </ObjectList>
+         </Hmi.Tag.TagTable>
+       </Document>
+
+       """,
       Encoding.UTF8);
   }
 
   private static string ClassicHmiSymbolicTagXml(string id, string name, string dataType, string length,
     string connectionName, string controllerTag) =>
-    $@"      <Hmi.Tag.Tag ID=""{SecurityElement.Escape(id)}"" CompositionName=""Tags"">
-        <AttributeList>
-          <AcquisitionTriggerMode>Visible</AcquisitionTriggerMode>
-          <AddressAccessMode>Symbolic</AddressAccessMode>
-          <Length>{SecurityElement.Escape(length)}</Length>
-          <LogicalAddress />
-          <Name>{SecurityElement.Escape(name)}</Name>
-        </AttributeList>
-        <LinkList>
-          <AcquisitionCycle TargetID=""@OpenLink"">
-            <Name>1 s</Name>
-          </AcquisitionCycle>
-          <Connection TargetID=""@OpenLink"">
-            <Name>{SecurityElement.Escape(connectionName)}</Name>
-          </Connection>
-          <ControllerTag TargetID=""@OpenLink"">
-            <Name>{SecurityElement.Escape(controllerTag)}</Name>
-          </ControllerTag>
-          <DataType TargetID=""@OpenLink"">
-            <Name>{SecurityElement.Escape(dataType)}</Name>
-          </DataType>
-          <HmiDataType TargetID=""@OpenLink"">
-            <Name>{SecurityElement.Escape(dataType)}</Name>
-          </HmiDataType>
-        </LinkList>
-      </Hmi.Tag.Tag>";
+    $"""
+           <Hmi.Tag.Tag ID="{SecurityElement.Escape(id)}" CompositionName="Tags">
+             <AttributeList>
+               <AcquisitionTriggerMode>Visible</AcquisitionTriggerMode>
+               <AddressAccessMode>Symbolic</AddressAccessMode>
+               <Length>{SecurityElement.Escape(length)}</Length>
+               <LogicalAddress />
+               <Name>{SecurityElement.Escape(name)}</Name>
+             </AttributeList>
+             <LinkList>
+               <AcquisitionCycle TargetID="@OpenLink">
+                 <Name>1 s</Name>
+               </AcquisitionCycle>
+               <Connection TargetID="@OpenLink">
+                 <Name>{SecurityElement.Escape(connectionName)}</Name>
+               </Connection>
+               <ControllerTag TargetID="@OpenLink">
+                 <Name>{SecurityElement.Escape(controllerTag)}</Name>
+               </ControllerTag>
+               <DataType TargetID="@OpenLink">
+                 <Name>{SecurityElement.Escape(dataType)}</Name>
+               </DataType>
+               <HmiDataType TargetID="@OpenLink">
+                 <Name>{SecurityElement.Escape(dataType)}</Name>
+               </HmiDataType>
+             </LinkList>
+           </Hmi.Tag.Tag>
+     """;
 
   private static void RunValidateUnifiedHmiTemplates(CliOptions options)
   {
@@ -1430,7 +1444,9 @@ END_DATA_BLOCK
       return "";
     }
 
-    var match = Regex.Match(script, @"Tags\.SysFct\.\w+\(\s*""([^""]+)""", RegexOptions.IgnoreCase);
+    var match = Regex.Match(script, """
+                                    Tags\.SysFct\.\w+\(\s*"([^"]+)"
+                                    """, RegexOptions.IgnoreCase);
     return match.Success && match.Groups.Count > 1
       ? match.Groups[1].Value
       : "";

@@ -99,6 +99,7 @@ public static partial class McpServer
       }
       catch
       {
+        // ignored
       }
 
       var hasProject = !string.IsNullOrWhiteSpace(projectName) && projectName != "-";

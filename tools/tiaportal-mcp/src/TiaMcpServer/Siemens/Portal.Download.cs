@@ -101,7 +101,7 @@ public partial class Portal
       {
         return new ResponseDownload
         {
-          Ok = false, Message = routeDiagnostics.Error, Errors = new[] { routeDiagnostics.Error, },
+          Ok = false, Message = routeDiagnostics.Error, Errors = [routeDiagnostics.Error,],
         };
       }
 
@@ -119,7 +119,7 @@ public partial class Portal
           }
 
           var p = m.GetParameters();
-          return p.Length == 4 && p[1].ParameterType.Name == "DownloadConfigurationDelegate";
+          return p is [_, { ParameterType.Name: "DownloadConfigurationDelegate", }, _, _,];
         });
 
       if (downloadMethod == null)
@@ -131,8 +131,8 @@ public partial class Portal
         };
       }
 
-      var rawResult = downloadMethod.Invoke(downloadProvider,
-        new[] { downloadConfig!, preDelegate, postDelegate, DownloadOptions.Software, });
+      var rawResult = downloadMethod.Invoke(downloadProvider, [downloadConfig!, preDelegate, postDelegate, DownloadOptions.Software,
+      ]);
 
       if (rawResult is not DownloadResult result)
       {
@@ -146,7 +146,7 @@ public partial class Portal
       // The Download call is invoked via reflection, so a real failure arrives wrapped in
       // TargetInvocationException ("调用的目标发生了异常"). Unwrap it so the caller sees the
       // actual reason (connection/route error, not-reachable CPU, etc.).
-      var real = ex is TargetInvocationException tie && tie.InnerException != null
+      var real = ex is TargetInvocationException { InnerException: not null, } tie
         ? tie.InnerException
         : ex;
       logger?.LogError(real, "DownloadToPlc failed for {SoftwarePath}", softwarePath);
@@ -162,7 +162,7 @@ public partial class Portal
 
       return new ResponseDownload
       {
-        Ok = false, Message = $"Download failed: {real.Message}{routeHint}", Errors = new[] { real.Message, },
+        Ok = false, Message = $"Download failed: {real.Message}{routeHint}", Errors = [real.Message,],
       };
     }
   }
@@ -185,12 +185,12 @@ public partial class Portal
   private sealed class DownloadRoute
   {
     public string ModeName = string.Empty;
-    public List<string> PcAddresses = new();
+    public List<string> PcAddresses = [];
     public string PcInterfaceName = string.Empty;
     public int PcInterfaceNumber;
     public int Score;
     public object Target = null!;
-    public List<string> TargetAddresses = new();
+    public List<string> TargetAddresses = [];
     public string TargetName = string.Empty;
 
     public string Describe() =>
@@ -203,7 +203,7 @@ public partial class Portal
 
   private sealed class DownloadRouteSelection
   {
-    public List<DownloadRoute> Candidates = new();
+    public List<DownloadRoute> Candidates = [];
     public object? Configuration; // what to hand to Download(); null = fall back to the raw configuration
     public string Description = "(no route selected — raw connection configuration)";
     public string? Error; // set when an explicit pgPcInterface/targetIpAddress filter matched nothing
@@ -399,7 +399,7 @@ public partial class Portal
       {
         try
         {
-          if (applyMethod?.Invoke(connectionConfiguration, new[] { route.Target, }) is bool ok && ok)
+          if (applyMethod?.Invoke(connectionConfiguration, [route.Target,]) is bool and true)
           {
             selection.Configuration = route.Target;
             selection.Description = route.Describe();
@@ -453,7 +453,7 @@ public partial class Portal
 
     if (this.IsProjectNull())
     {
-      return new ResponseCheckDownload { Ready = false, Issues = new[] { "No project open.", }, };
+      return new ResponseCheckDownload { Ready = false, Issues = ["No project open.",], };
     }
 
     var plcSoftware = this.GetPlcSoftware(softwarePath);
@@ -461,7 +461,7 @@ public partial class Portal
     {
       return new ResponseCheckDownload
       {
-        Ready = false, Issues = new[] { $"PLC software not found: '{softwarePath}'.", },
+        Ready = false, Issues = [$"PLC software not found: '{softwarePath}'.",],
       };
     }
 
@@ -539,7 +539,7 @@ public partial class Portal
         ? $"PLC '{softwarePath}' is ready for download."
         : $"PLC '{softwarePath}' has {issues.Count} readiness issue(s).",
       Issues = issues.Count > 0
-        ? issues.ToArray()
+        ? [.. issues,]
         : null,
       Meta = new JsonObject
       {
@@ -688,10 +688,10 @@ public partial class Portal
       ErrorCount = result.ErrorCount,
       WarningCount = result.WarningCount,
       Errors = errors.Count > 0
-        ? errors.ToArray()
+        ? [.. errors,]
         : null,
       Warnings = warnings.Count > 0
-        ? warnings.ToArray()
+        ? [.. warnings,]
         : null,
       Meta = new JsonObject
       {
