@@ -1,4 +1,4 @@
-﻿# TIA Portal MCP Server (V20 + V21 · S7DCL · CLI · read-only online monitoring · one-click config · Doctor)
+# TIA Portal MCP Server (V20 + V21 · S7DCL · CLI · read-only online monitoring · one-click config · Doctor)
 
 > Current version: see the Release badge below and [CHANGELOG.md](CHANGELOG.md) (this README no longer hardcodes a version).
 
@@ -121,11 +121,17 @@ GetVersionControlStatus(changedOnly=true)
 
 ## Quick Start
 
-1. **Locate the portal install root** (one of):
-   - pass `--tia-portal-location "D:\app\TIA20\Portal V20"` when launching (recommended for non-default installs);
-   - set the `TiaPortalLocation` user environment variable;
-   - let it auto-read `HKLM\SOFTWARE\Siemens\Automation\_InstalledSW\TIAP{20|21}\TIA_Opns\Path`.
+1. **Locate the portal install root** — usually nothing to do; the engine looks in this order:
+   - `--tia-portal-location "D:\app\TIA20\Portal V20"` when launching (wins over everything);
+   - the `TiaPortalLocation` user environment variable;
+   - the registry: `HKLM\SOFTWARE\Siemens\Automation\_InstalledSW\TIAP{20|21}\TIA_Opns\Path`;
+   - the Openness registration, `HKLM\SOFTWARE\Siemens\Automation\Openness\{20|21}.0\PublicAPI\...` —
+     this is the one that also names an install **outside `%ProgramFiles%`** (e.g. TIA V21 on `E:`);
+   - the default folder `%ProgramFiles%\Siemens\Automation\Portal V{20|21}`.
    With multiple versions installed, pass `--tia-major-version 20` (or `21`) explicitly.
+   `tia.cmd doctor` prints which folder — and which of these sources — the engine will use.
+   Environment variables are per-process: an MCP host does not inherit your shell's, so when you
+   rely on `TiaPortalLocation`, put it in the client's own config (`env` block) as well.
 2. **Mount the MCP — one command, fully automatic.**
    Double-click `配置MCP.bat` in the bundle root (V20: `配置MCP-v20.bat`), or run `tia.cmd config`.
 

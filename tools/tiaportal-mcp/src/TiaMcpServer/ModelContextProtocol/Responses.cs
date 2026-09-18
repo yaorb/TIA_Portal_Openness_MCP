@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -144,6 +144,10 @@ public class BootstrapEnvironment
   public int? TiaVersionDetected { get; set; }
   public bool? OpennessGroupOk { get; set; }
   public string? TiaInstallPath { get; set; }
+
+  /// <summary>How TiaInstallPath was located (the --tia-portal-location argument, the TiaPortalLocation environment variable, either registry source, the default folder) — an env var only this shell has is a different problem from a registry entry every process sees.</summary>
+  public string? TiaInstallPathSource { get; set; }
+
   public string? Transport { get; set; }
 }
 

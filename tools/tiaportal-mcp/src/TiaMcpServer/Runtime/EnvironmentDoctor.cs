@@ -37,15 +37,125 @@ public static class EnvironmentDoctor
 
   public static List<Check> Run(int compiledTiaMajorVersion, int? detectedTiaMajorVersion)
   {
+    // The version the engine will actually load assemblies for — set in Program.Main before any
+    // verb runs. Falls back to the detected one so the checks stay meaningful when called early.
+    var inUse = Engineering.TiaMajorVersion != 0
+      ? Engineering.TiaMajorVersion
+      : detectedTiaMajorVersion;
+
     var checks = new List<Check>
     {
       EnvironmentDoctor.TiaInstall(detectedTiaMajorVersion),
+      EnvironmentDoctor.TiaInstallLocation(inUse),
       EnvironmentDoctor.OpennessAssemblies(),
+      // Keeps the machine's *detected* version: the message says "machine has V{detected}", and
+      // that must stay a statement about the machine, not about a --tia-major-version override.
       EnvironmentDoctor.EngineVersionMatch(compiledTiaMajorVersion, detectedTiaMajorVersion),
       EnvironmentDoctor.DotNetFramework48(),
       EnvironmentDoctor.FilesNotBlocked(),
     };
     return checks;
+  }
+
+  /// <summary>
+  ///   Which folder the engine will load the Openness API from, and how it found it.
+  ///   This is informational — <see cref="OpennessAssemblies" /> is the check that gates — but it
+  ///   answers the question the other checks cannot: *where* is TIA, and does the AI client see
+  ///   the same place this shell does. That distinction bites exactly on non-default installs:
+  ///   TIA on another drive is invisible to the default-folder scan, and an env var set in one
+  ///   shell is not inherited by an MCP host, so "tia doctor is green but the client cannot
+  ///   start the engine" was possible with nothing in either report explaining it.
+  /// </summary>
+  private static Check TiaInstallLocation(int? inUse)
+  {
+    if (inUse == null || inUse.Value == 0)
+    {
+      return new Check
+      {
+        Id = "tia-location",
+        Ok = false,
+        Gating = false,
+        NameEn = "TIA Portal install path",
+        NameZh = "TIA Portal 安装目录",
+        DetailEn = "unknown — no TIA Portal version was detected",
+        DetailZh = "未知——没有检测到任何 TIA Portal 版本",
+        FixEn = "Install TIA Portal V20 / V21, or set the TiaPortalLocation environment variable to the install folder.",
+        FixZh = "安装 TIA Portal V20 / V21，或把环境变量 TiaPortalLocation 指向安装目录。",
+      };
+    }
+
+    var major = inUse.Value;
+    var (path, source) = Engineering.DescribeTiaPortalInstallPath(major);
+    var found = !string.IsNullOrWhiteSpace(path);
+    var (sourceEn, sourceZh) = EnvironmentDoctor.SourceName(source);
+    var isDefaultFolder = source == Engineering.InstallPathSource.DefaultFolder;
+
+    var noteEn = "";
+    var noteZh = "";
+    if (found && source == Engineering.InstallPathSource.EnvironmentVariable)
+    {
+      noteEn = " — note: this comes from the TiaPortalLocation environment variable, and an AI client does " +
+        "not inherit your shell's environment. Put the same variable in the client's MCP config (env block), " +
+        "or pass --tia-portal-location.";
+      noteZh = " —— 注意：这个路径来自环境变量 TiaPortalLocation，而 AI 客户端不会继承你 shell 的环境变量。" +
+        "请在客户端的 MCP 配置里也写上它（env 段），或者加参数 --tia-portal-location。";
+    }
+    else if (found && !isDefaultFolder)
+    {
+      noteEn = " — not the default %ProgramFiles% folder; the engine resolves it through the registry, so no " +
+        "environment variable is needed.";
+      noteZh = " —— 非默认安装目录（不在 %ProgramFiles% 下）；引擎能从注册表找到它，不需要设环境变量。";
+    }
+
+    return new Check
+    {
+      Id = "tia-location",
+      Ok = found,
+      Gating = false,
+      NameEn = "TIA Portal install path",
+      NameZh = "TIA Portal 安装目录",
+      DetailEn = found
+        ? $"V{major} at {path} (found via {sourceEn}){noteEn}"
+        : $"could not resolve a V{major} install folder — checked the --tia-portal-location argument, the " +
+        "TiaPortalLocation environment variable, both registry sources and the default folder",
+      DetailZh = found
+        ? $"V{major} 位于 {path}（来源：{sourceZh}）{noteZh}"
+        : $"没能定位 V{major} 的安装目录——命令行参数 --tia-portal-location、环境变量 TiaPortalLocation、" +
+        "两支注册表来源和默认安装目录都查过了",
+      FixEn = found
+        ? null
+        : $"Set the TiaPortalLocation environment variable (or pass --tia-portal-location) to the TIA Portal " +
+        $"V{major} folder, e.g. D:\\Siemens\\Portal V{major}.",
+      FixZh = found
+        ? null
+        : $"把环境变量 TiaPortalLocation（或参数 --tia-portal-location）指向 TIA Portal V{major} 的安装目录，" +
+        $"例如 D:\\Siemens\\Portal V{major}。",
+    };
+  }
+
+  /// <summary>Names an install-path source for people (Bootstrap reports the same wording in English, so the two cannot drift).</summary>
+  public static (string En, string Zh) SourceName(Engineering.InstallPathSource source)
+  {
+    switch (source)
+    {
+      case Engineering.InstallPathSource.CliOverride:
+        return ("the --tia-portal-location argument", "命令行参数 --tia-portal-location");
+
+      case Engineering.InstallPathSource.EnvironmentVariable:
+        return ("the TiaPortalLocation environment variable", "环境变量 TiaPortalLocation");
+
+      case Engineering.InstallPathSource.RegistryTiaOpns:
+        return (@"the registry (TIAP<ver>\TIA_Opns)", @"注册表 TIAP<版本>\TIA_Opns");
+
+      case Engineering.InstallPathSource.RegistryOpenness:
+        return ("the registry (Openness registration)", "注册表里的 Openness 注册项");
+
+      case Engineering.InstallPathSource.DefaultFolder:
+        return ("the default install folder", "默认安装目录");
+
+      default:
+        return ("no source", "没有来源");
+    }
   }
 
   private static Check TiaInstall(int? detected)

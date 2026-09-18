@@ -8,9 +8,11 @@
 
 - **Windows**，**.NET Framework 4.8**
 - **TIA Portal**（推荐 **V21**；其它主版本视环境与 PublicAPI 而定）
-- 用户属于 **`Siemens TIA Openness`**：`whoami /groups | findstr Openness`
-- 用户环境变量 **`TiaPortalLocation`** = Portal 安装根，例如：  
-  `D:\app\TIA21\Portal V21` 或 `C:\Program Files\Siemens\Automation\Portal V21`
+- 用户属于 **`Siemens TIA Openness`**：`whoami /groups | findstr Openness`  
+  （加进组后**必须注销重登**，否则组进不了登录令牌；`tia.cmd doctor` 会分清「不在组里」和「在组里但令牌过期」两种）
+- 博途装在**非默认位置**（不在 `%ProgramFiles%`）时才需要设用户环境变量 **`TiaPortalLocation`** = Portal 安装根，例如：  
+  `D:\app\TIA21\Portal V21` 或 `C:\Program Files\Siemens\Automation\Portal V21`  
+  默认位置留空即可：引擎会依次查注册表 `_InstalledSW\TIAP{20|21}\TIA_Opns\Path`、注册表里的 Openness 注册项、以及默认安装目录，`tia.cmd doctor` 会打印它实际用的是哪个目录、来自哪一条。
 - 首次连接时在 TIA 内允许 **Openness** 访问
 
 ---

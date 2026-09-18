@@ -97,13 +97,20 @@ public static partial class McpServer
   {
     try
     {
+      var installPath = Engineering.DescribeTiaPortalInstallPath(Engineering.TiaMajorVersion);
       var env = new BootstrapEnvironment
       {
         TiaVersionInUse = Engineering.TiaMajorVersion == 0
           ? null
           : Engineering.TiaMajorVersion,
         TiaVersionDetected = Engineering.DetectTiaMajorVersion(),
-        TiaInstallPath = Environment.GetEnvironmentVariable("TiaPortalLocation"),
+        // 报**引擎实际会用**的目录，而不是只看环境变量：装在别的盘、靠注册表定位的机器上，
+        // 原来这里恒为 null，读报告的人会以为「没有安装目录」。来源一并给出，因为它决定
+        // 「AI 客户端能不能同样找到」（环境变量不进宿主进程是另一回事）。
+        TiaInstallPath = installPath.Path ?? Environment.GetEnvironmentVariable("TiaPortalLocation"),
+        TiaInstallPathSource = installPath.Path == null
+          ? null
+          : EnvironmentDoctor.SourceName(installPath.Source).En,
         Transport = Environment.GetEnvironmentVariable("MCP_TRANSPORT") ?? "stdio",
       };
 

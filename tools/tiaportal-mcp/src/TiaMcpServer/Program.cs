@@ -103,7 +103,10 @@ public partial class Program
         Program.LogDiag(
           $"WARN: TIA V{tiaMajorVersion} requested but this exe is built for V{EngineRouter.CompiledTiaMajorVersion} " +
           $"and no V{tiaMajorVersion} sibling exe was found next to it — Siemens assembly load will likely fail. " +
-          $"Run the V{tiaMajorVersion} exe from the bundle, or pass --tia-major-version {EngineRouter.CompiledTiaMajorVersion} to force.");
+          $"Run the V{tiaMajorVersion} exe from the bundle, or pass --tia-major-version {EngineRouter.CompiledTiaMajorVersion} to force. " +
+          $"If TIA V{tiaMajorVersion} is installed outside %ProgramFiles% (or several TIA versions are installed), set the " +
+          $"TiaPortalLocation environment variable — or pass --tia-portal-location — so version detection and assembly " +
+          $"resolution both use that folder.");
       }
 
       // 静态自检也会枚举 MCP 工具特性，方法签名里引用的 Siemens 程序集需要先能被解析。

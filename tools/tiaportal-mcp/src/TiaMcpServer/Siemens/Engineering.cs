@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -71,7 +71,9 @@ public static class Engineering
   ///   Detection order:
   ///   1. TiaPortalLocation env var — extract version from path (e.g. "Portal V21" → 21)
   ///   2. Registry: HKLM\SOFTWARE\Siemens\Automation\_InstalledSW\TIAP*\TIA_Opns
-  ///   3. Filesystem: C:\Program Files\Siemens\Automation\Portal V*
+  ///   3. Registry: HKLM\SOFTWARE\Siemens\Automation\Openness\* — the Openness registration,
+  ///      which also covers installs outside %ProgramFiles% (see OpennessRegistrations)
+  ///   4. Filesystem: C:\Program Files\Siemens\Automation\Portal V*
   ///   Returns the highest found version, or null if nothing detected.
   /// </summary>
   public static int? DetectTiaMajorVersion()
@@ -126,6 +128,20 @@ public static class Engineering
     catch
     {
       // 注册表里没有这一项（或读不到）就换下一个候选，属正常探测
+    }
+
+    // 2b. Openness registration — the only source that still sees an install on ANOTHER DRIVE.
+    //     Measured on a machine with V18 under C:\Program Files and V21 under E:\:
+    //     _InstalledSW\TIAP21\TIA_Opns carried no Path value at all, and the filesystem scan
+    //     below only looks under %ProgramFiles%, so detection answered "V18" — and the exe built
+    //     for V21 then died loading Siemens.Engineering.Base. The registration key named the right
+    //     folder the whole time. See OpennessRegistrations().
+    foreach (var reg in Engineering.OpennessRegistrations())
+    {
+      // The API major is the version this folder can actually serve; the key major is the TIA
+      // that registered it. Both are evidence that a TIA of that major is installed here.
+      candidates.Add(reg.ApiMajor);
+      candidates.Add(reg.KeyMajor);
     }
 
     // 3. Filesystem scan
@@ -218,7 +234,25 @@ public static class Engineering
       $"found the TIA folder but no Siemens.Engineering(.Base).dll under {string.Join(" or ", searchDirectories)}");
   }
 
-  private static string? GetTiaPortalInstallPath()
+  private static string? GetTiaPortalInstallPath() =>
+    Engineering.ResolveTiaPortalInstallPath(Engineering.TiaMajorVersion).Path;
+
+  /// <summary>Where an install path came from. The doctor prints it: the source decides what to do when an AI client cannot start the engine (an env var only this shell has is a different problem from a registry entry every process sees).</summary>
+  public enum InstallPathSource
+  {
+    NotFound = 0,
+    CliOverride,
+    EnvironmentVariable,
+    RegistryTiaOpns,
+    RegistryOpenness,
+    DefaultFolder,
+  }
+
+  /// <summary>The install folder for <paramref name="majorVersion" /> plus the source it was found in — for the doctor, so it can name it instead of guessing.</summary>
+  public static (string? Path, InstallPathSource Source) DescribeTiaPortalInstallPath(int majorVersion) =>
+    Engineering.ResolveTiaPortalInstallPath(majorVersion);
+
+  private static (string? Path, InstallPathSource Source) ResolveTiaPortalInstallPath(int majorVersion)
   {
     // 1. Explicit CLI override (--tia-portal-location). Highest priority — needed when TIA
     //    is installed at a non-default location (e.g. D:\app\TIA20\Portal V20) and the
@@ -226,7 +260,7 @@ public static class Engineering
     if (!string.IsNullOrWhiteSpace(Engineering.TiaPortalLocationOverride) &&
       Directory.Exists(Engineering.TiaPortalLocationOverride))
     {
-      return Engineering.TiaPortalLocationOverride;
+      return (Engineering.TiaPortalLocationOverride, InstallPathSource.CliOverride);
     }
 
     // 2. env var (Cursor MCP env or user env) — but it is version-agnostic and on
@@ -235,27 +269,177 @@ public static class Engineering
     //    Only trust it when its path names the version we need (or names no version).
     var env = Environment.GetEnvironmentVariable("TiaPortalLocation");
     var envUsable = !string.IsNullOrWhiteSpace(env) && Directory.Exists(env);
-    if (envUsable && Engineering.PathMatchesVersion(env!, Engineering.TiaMajorVersion))
+    if (envUsable && Engineering.PathMatchesVersion(env!, majorVersion))
     {
-      return env;
+      return (env, InstallPathSource.EnvironmentVariable);
     }
 
     // 3. Version-specific registry entry — authoritative on multi-version machines.
-    var subKeyName = $@"SOFTWARE\Siemens\Automation\_InstalledSW\TIAP{Engineering.TiaMajorVersion}\TIA_Opns";
-
-    using (var regBaseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-    using (var tiaOpnsKey = regBaseKey.OpenSubKey(subKeyName))
+    try
     {
+      var subKeyName = $@"SOFTWARE\Siemens\Automation\_InstalledSW\TIAP{majorVersion}\TIA_Opns";
+      using var regBaseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+      using var tiaOpnsKey = regBaseKey.OpenSubKey(subKeyName);
       var regPath = tiaOpnsKey?.GetValue("Path")?.ToString();
       if (!string.IsNullOrWhiteSpace(regPath) && Directory.Exists(regPath))
       {
-        return regPath;
+        return (regPath, InstallPathSource.RegistryTiaOpns);
+      }
+    }
+    catch
+    {
+      // 读不到这个键就换下一个来源（Openness 注册项 / 默认目录 / 环境变量）——
+      // 单一来源失效不该让整条解析链断掉，doctor 会把最终用的是哪个来源打出来。
+    }
+
+    // 4. Openness registration: the cross-drive source. On the machine this was written on,
+    //    _InstalledSW\TIAP21\TIA_Opns had no Path value while the registration named
+    //    E:\...\Portal V21\PublicAPI\V21\net48\Siemens.Engineering.Base.dll all along.
+    foreach (var reg in Engineering.OpennessRegistrations())
+    {
+      if (reg.ApiMajor != majorVersion && reg.KeyMajor != majorVersion)
+      {
+        continue;
+      }
+
+      var root = Engineering.InstallRootFromApiDll(reg.DllPath);
+      if (root != null && Engineering.PathMatchesVersion(root, majorVersion))
+      {
+        return (root, InstallPathSource.RegistryOpenness);
       }
     }
 
-    // 4. Last resort: the env var even when its version looks different — better than nothing.
+    // 5. The default folder. The old code never looked here even though the failure message
+    //    claimed it had ("... and the default install folder were all checked") — that claim
+    //    is now true.
+    var defaultFolder = Path.Combine(
+      Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+      "Siemens",
+      "Automation",
+      $"Portal V{majorVersion}");
+    if (Directory.Exists(defaultFolder))
+    {
+      return (defaultFolder, InstallPathSource.DefaultFolder);
+    }
+
+    // 6. Last resort: the env var even when its version looks different — better than nothing.
     return envUsable
-      ? env
+      ? (env, InstallPathSource.EnvironmentVariable)
+      : (null, InstallPathSource.NotFound);
+  }
+
+  /// <summary>
+  ///   What Siemens itself registered under
+  ///   HKLM\SOFTWARE\Siemens\Automation\Openness\&lt;major&gt;.&lt;minor&gt;\PublicAPI\&lt;api&gt;[\net48]:
+  ///   one value per API DLL, **with the full path** (Siemens.Engineering,
+  ///   Siemens.Engineering.Base, …Hmi). Two things make this worth reading:
+  ///   * it is the only registration that still names the install when TIA lives on another
+  ///     drive (the other sources are keyed to %ProgramFiles% or are simply absent);
+  ///   * it is written by the TIA setup itself, so a path that no longer exists means a stale
+  ///     registration, not an install — hence the File.Exists filter.
+  ///   The API major is the version whose DLLs sit in that folder; the key major is the TIA
+  ///   that registered it (a V18 install also registers the older API versions it ships, e.g.
+  ///   15.1 … 18, so only the highest one is meaningful — which is exactly what Max() picks).
+  /// </summary>
+  private static List<(int KeyMajor, int ApiMajor, string DllPath)> OpennessRegistrations()
+  {
+    var registrations = new List<(int KeyMajor, int ApiMajor, string DllPath)>();
+    try
+    {
+      using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+      using var openness = baseKey.OpenSubKey(@"SOFTWARE\Siemens\Automation\Openness");
+      if (openness == null)
+      {
+        return registrations;
+      }
+
+      foreach (var keyName in openness.GetSubKeyNames())
+      {
+        var keyMajorText = keyName.Split('.')[0];
+        if (!int.TryParse(keyMajorText, out var keyMajor))
+        {
+          continue;
+        }
+
+        using var publicApi = openness.OpenSubKey(keyName + @"\PublicAPI");
+        if (publicApi == null)
+        {
+          continue;
+        }
+
+        foreach (var apiName in publicApi.GetSubKeyNames())
+        {
+          var apiMajorText = apiName.Split('.')[0];
+          if (!int.TryParse(apiMajorText, out var apiMajor))
+          {
+            continue;
+          }
+
+          using var apiKey = publicApi.OpenSubKey(apiName);
+          if (apiKey == null)
+          {
+            continue;
+          }
+
+          foreach (var dllPath in Engineering.RegisteredApiDlls(apiKey))
+          {
+            registrations.Add((keyMajor, apiMajor, dllPath));
+          }
+        }
+      }
+    }
+    catch
+    {
+      // 注册表没有 Openness 这一支（或读不到）就当作「这个来源没有」：其余来源继续走，
+      // doctor 会把最终采用哪个来源打印出来，不会因此给出错误的安装结论。
+    }
+
+    return registrations;
+  }
+
+  /// <summary>The DLL paths registered for one API version — directly under it and one level deeper (the "net48" sub-key V21 uses).</summary>
+  private static IEnumerable<string> RegisteredApiDlls(RegistryKey apiKey)
+  {
+    var names = new[] { "Siemens.Engineering", "Siemens.Engineering.Base", };
+    foreach (var name in names)
+    {
+      if (apiKey.GetValue(name) is string direct && File.Exists(direct))
+      {
+        yield return direct;
+      }
+    }
+
+    foreach (var childName in apiKey.GetSubKeyNames())
+    {
+      using var child = apiKey.OpenSubKey(childName);
+      if (child == null)
+      {
+        continue;
+      }
+
+      foreach (var name in names)
+      {
+        if (child.GetValue(name) is string nested && File.Exists(nested))
+        {
+          yield return nested;
+        }
+      }
+    }
+  }
+
+  /// <summary>Turns "...\Portal V21\PublicAPI\V21\net48\Siemens.Engineering.Base.dll" back into "...\Portal V21".</summary>
+  private static string? InstallRootFromApiDll(string dllPath)
+  {
+    var marker = @"\PublicAPI\";
+    var index = dllPath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+    if (index <= 0)
+    {
+      return null;
+    }
+
+    var root = dllPath.Substring(0, index);
+    return Directory.Exists(root)
+      ? root
       : null;
   }
 
