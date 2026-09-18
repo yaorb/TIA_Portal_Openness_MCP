@@ -2040,8 +2040,9 @@ public partial class Portal
         }
       }
     }
-    catch
+    catch (Exception ex)
     {
+      logger?.LogWarning(ex, "DescribeHmiTag: searching tag {TagName} threw - the caller would see it as not-found", tagName);
     }
 
     // 原来这里还有一次 TryFindByNameInCollection(tagsComp, Array.Empty<string>(), tagName) 的"兜底"，
@@ -2132,8 +2133,9 @@ public partial class Portal
         }
       }
     }
-    catch
+    catch (Exception ex)
     {
+      logger?.LogWarning(ex, "DescribeHmiScreenItem: searching item {ItemName} threw - the caller would see it as not-found", itemName);
     }
 
     if (itemObj == null)
@@ -2193,6 +2195,7 @@ public partial class Portal
       }
       catch
       {
+        // 遍历时个别元素读不到名字：跳过它继续找，最终找不到由调用方按 null 处理
       }
 
       return null;
@@ -2372,6 +2375,7 @@ public partial class Portal
             }
             catch
             {
+              // GetType 对动态/反射程序集可能抛异常：当作「这个程序集里没有」，继续试下一个
             }
           }
         }
@@ -3006,6 +3010,7 @@ public partial class Portal
       }
       catch
       {
+        // 属性读不到就退到 EngineeringAttribute；两者都没有返回空，由调用方按「读不出地址」处理
       }
 
       var attr = Portal.TryGetEngineeringAttribute(tag, name)?.ToString();
@@ -3075,6 +3080,7 @@ public partial class Portal
       }
       catch
       {
+        // 这个枚举候选设不上就试下一个；全部试完由方法返回 false 上报
       }
     }
 
@@ -3173,6 +3179,7 @@ public partial class Portal
         }
         catch
         {
+          // 读 CommunicationDriver 当前值只为拿到枚举类型；读不到就退回按名字找（下一行开始）
         }
       }
 
@@ -3210,6 +3217,7 @@ public partial class Portal
         }
         catch
         {
+          // set.Invoke 失败就退到属性赋值；两条路都不行由方法返回 false 上报
         }
       }
 
@@ -3805,6 +3813,7 @@ public partial class Portal
         }
         catch
         {
+          // 单个成员的属性读不出来就跳过它：这是 Describe 的成员清单，缺一项不影响其余
         }
       }
       else
@@ -3830,6 +3839,7 @@ public partial class Portal
         }
         catch
         {
+          // 同上：成员信息读不出来就跳过，返回的清单会少这一项
         }
       }
 
@@ -4395,6 +4405,7 @@ public partial class Portal
     }
     catch
     {
+      // 遍历时个别元素读不到名字：跳过继续找，找不到由调用方按 null 处理
     }
 
     return null;
@@ -4449,6 +4460,7 @@ public partial class Portal
         }
         catch
         {
+          // GetType 对动态程序集可能抛异常：当作「没有这个类型」，继续试下一个程序集
         }
       }
     }
@@ -4486,6 +4498,7 @@ public partial class Portal
         }
         catch
         {
+          // 遍历 AppDomain 里所有程序集找类型：单个程序集查询失败即跳过，属预期
         }
 
         if (t != null)
@@ -4569,6 +4582,7 @@ public partial class Portal
           }
           catch
           {
+            // 这个构造候选不行就试下一个；全部试完仍未成功，方法末尾会抛 InvalidOperationException
           }
         }
       }
@@ -4600,6 +4614,7 @@ public partial class Portal
     }
     catch
     {
+      // 按名字找不到就继续找下一个，最终没找到由方法返回 null 上报
     }
 
     return null;
@@ -4650,6 +4665,7 @@ public partial class Portal
           }
           catch
           {
+            // 这个属性候选设不上就试下一个；是否成功由 any 标志汇总成方法的返回值
           }
         }
       }
@@ -4670,6 +4686,7 @@ public partial class Portal
           }
           catch
           {
+            // 这个特性候选设不上就试下一个；是否成功由 any 标志汇总成方法的返回值
           }
         }
       }
@@ -4731,6 +4748,7 @@ public partial class Portal
       }
       catch
       {
+        // 反射读属性失败就换下一个候选名；got=false 时下面会走「读不到」分支
       }
 
       if (!got)
@@ -4777,6 +4795,7 @@ public partial class Portal
         }
         catch
         {
+          // 属性读不到就退到 EngineeringAttribute；两者都读不到返回空串，调用方按「未知」处理
         }
 
         try
@@ -4789,6 +4808,7 @@ public partial class Portal
         }
         catch
         {
+          // 特性也读不到就返回空串：调用方按「读不出」处理，不再区分是哪个途径失败
         }
       }
 
@@ -4934,6 +4954,7 @@ public partial class Portal
     }
     catch
     {
+      // 反射补网络信息失败就保留已有字段：这是 Describe 的补充信息，缺了不影响主结论
     }
 
     if (string.IsNullOrWhiteSpace(info.NodeName))
@@ -4948,6 +4969,7 @@ public partial class Portal
       }
       catch
       {
+        // 同上：补网络信息失败即跳过，字段名留空由后续逻辑兜底
       }
     }
 
@@ -5099,6 +5121,7 @@ public partial class Portal
     }
     catch
     {
+      // 从工程设备推断型号失败就返回 UNKNOWN，调用方据此走保守配置
     }
 
     return "UNKNOWN";
@@ -5185,6 +5208,7 @@ public partial class Portal
     }
     catch
     {
+      // 类型串解析不出来就返回空串，调用方按「判不出型号」处理
     }
 
     return string.Empty;
@@ -5252,7 +5276,7 @@ public partial class Portal
       : null;
   }
 
-  private static void TryConfigureUnifiedDriverProperties(object connection, string plcFamily)
+  private static void TryConfigureUnifiedDriverProperties(ILogger? logger, object connection, string plcFamily)
   {
     try
     {
@@ -5281,8 +5305,9 @@ public partial class Portal
         }
       }
     }
-    catch
+    catch (Exception ex)
     {
+      logger?.LogWarning(ex, "Unified HMI connection: setting the driver/DP value threw; the property keeps its previous value");
     }
   }
 
@@ -5308,6 +5333,9 @@ public partial class Portal
     }
     catch
     {
+      // 按属性直接赋值失败就退到枚举扫描（下面几行）；最终是否设上由
+      // ValidateUnifiedHmiCommunicationDriver 读回核对 —— 读不回或读错都会抛。
+      // 所以这里不需要自己上报，报错的是那个校验器。
     }
 
     // CommunicationDriver is commonly exposed as an engineering attribute typed as an enum; string writes fail.
@@ -5336,9 +5364,9 @@ public partial class Portal
       }
     }
 
-    Portal.TrySetCommunicationDriverFromAttributeInfos(connection, driverCandidates);
+    Portal.TrySetCommunicationDriverFromAttributeInfos(logger, connection, driverCandidates);
 
-    Portal.TryConfigureUnifiedDriverProperties(connection, plcFamily);
+    Portal.TryConfigureUnifiedDriverProperties(logger, connection, plcFamily);
   }
 
   private static void ValidateUnifiedHmiCommunicationDriver(object connection, string plcFamily)
@@ -5381,6 +5409,7 @@ public partial class Portal
       }
       catch
       {
+        // 属性读不到就退到 EngineeringAttribute；都没有则返回空串
       }
 
       var attr = Portal.TryGetEngineeringAttribute(connection, name)?.ToString();
@@ -5396,7 +5425,8 @@ public partial class Portal
   /// <summary>
   ///   Some Unified builds expose the driver only under a localized or version-specific engineering attribute name.
   /// </summary>
-  private static void TrySetCommunicationDriverFromAttributeInfos(object connection, string[] driverCandidates)
+  private static void TrySetCommunicationDriverFromAttributeInfos(ILogger? logger, object connection,
+    string[] driverCandidates)
   {
     try
     {
@@ -5442,12 +5472,14 @@ public partial class Portal
           }
           catch
           {
+            // 这个 driver 候选不行就试下一个；全部候选都没成，由外层 catch 记录
           }
         }
       }
     }
-    catch
+    catch (Exception ex)
     {
+      logger?.LogWarning(ex, "Unified HMI connection: driver enumeration threw; the connection keeps its DEFAULT communication driver");
     }
   }
 
@@ -5544,6 +5576,7 @@ public partial class Portal
       }
       catch
       {
+        // 读旧值只为做类型强制转换；读不到就不转换，最终成败仍由本方法的 bool 返回值上报
       }
 
       var typed = oldValue == null
@@ -7605,6 +7638,7 @@ public partial class Portal
     }
     catch
     {
+      // teardown：反射关闭失败无处可报，也不该影响调用结果
     }
 
     try
@@ -7616,6 +7650,7 @@ public partial class Portal
     }
     catch
     {
+      // teardown：Dispose 失败无处可报，也不该影响调用结果
     }
   }
 
@@ -7873,6 +7908,7 @@ public partial class Portal
         }
         catch
         {
+          // 单个特性读不到就跳过：这是给人看的摘要，缺一项无妨
         }
       }
     }
@@ -8049,6 +8085,7 @@ public partial class Portal
     }
     catch
     {
+      // 反射取 Name 失败即「读不到名字」，返回 null 交由调用方跳过
     }
 
     return null;
@@ -8074,6 +8111,7 @@ public partial class Portal
       }
       catch
       {
+        // 这个属性读不到就试下一个，都没有返回 null
       }
     }
 
@@ -8158,6 +8196,7 @@ public partial class Portal
         }
         catch
         {
+          // 某个属性拼不进摘要就跳过它，剩余部分照常输出
         }
       }
 
@@ -8862,6 +8901,7 @@ public partial class Portal
         }
         catch
         {
+          // 参数形状不是预期的 [_, enum] 就跳过首选列表，下面按枚举全量兜底
         }
       }
 

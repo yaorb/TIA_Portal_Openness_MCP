@@ -408,6 +408,7 @@ public partial class Portal
         }
         catch
         {
+          // 首选路线的 Configuration/Describe 读不出来就退到 ranked[0]（下面两行即兜底），不再单独上报
         }
       }
 
@@ -419,6 +420,7 @@ public partial class Portal
     }
     catch
     {
+      // 兜底路线的 Description 也读不出来：Configuration 已设好，照样返回 —— 该字段只是给人看的
     }
 
     return selection;
@@ -442,6 +444,7 @@ public partial class Portal
     }
     catch
     {
+      // 反射枚举子项：拿不到就返回已收集的部分，调用方只拿它做提示、不参与判定
     }
 
     return items;
@@ -508,8 +511,9 @@ public partial class Portal
         isConsistent = true; // Assume consistent unless caller has run CompileSoftware
       }
     }
-    catch
+    catch (Exception ex)
     {
+      logger?.LogWarning(ex, "CheckDownloadReadiness: probing ICompilable threw - IsConsistent stays false in the report (the probe could not confirm it)");
     }
 
     Portal.ScoreDownloadRoutes(routes, null);
@@ -772,6 +776,7 @@ public partial class Portal
       }
       catch
       {
+        // 递归展开 Messages 失败就跳过这一层：消息收集尽力而为，不能因此中断整个下载诊断
       }
     }
   }

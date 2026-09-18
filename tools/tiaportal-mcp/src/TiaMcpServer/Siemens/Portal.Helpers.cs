@@ -893,6 +893,7 @@ public partial class Portal
           }
           catch
           {
+            // 该 DeviceItem 取不到 SoftwareContainer 是常态（多数节点没有软件）→ 继续找下一个
           }
         }
 
