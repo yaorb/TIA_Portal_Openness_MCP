@@ -65,3 +65,38 @@ jobs:
       - name: No NEW silent catch blocks
         shell: pwsh
         run: ./scripts/Audit-TryCatch.ps1
+
+  generated-matrix-in-sync:
+    # 生成物必须能**重新生成得一模一样**，否则「文档」和「源码」就是两份各自漂移的东西。
+    # 能力矩阵是纯源码静态抽取（不需要装 TIA，ubuntu 上 pwsh 就能跑），所以生成器坏掉
+    # 和文档过期这两件事都能在这里被抓住 —— 本轮就是靠人肉才发现生成器早已解析不到任何
+    # 工具（正则只认一种已经不用的写法），它抛错、而文档看上去一直正常。
+    # 只比生成结果，不比时间戳那一行。
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docs/tool-capability-matrix.md must match a fresh run
+        shell: pwsh
+        run: |
+          $tmp = Join-Path ([System.IO.Path]::GetTempPath()) 'matrix-fresh.md'
+          Remove-Item -LiteralPath $tmp -ErrorAction SilentlyContinue
+          ./scripts/Generate-ToolCapabilityMatrix.ps1 -OutFile $tmp
+          # 解析不到工具时脚本自己会 throw（那一处刚修过）；这里再兜一层「什么也没写出来」，
+          # 免得坏掉的生成器把「没有输出」当成「没有差异」。
+          if (-not (Test-Path -LiteralPath $tmp)) { throw "生成器没有写出文件：$tmp" }
+
+          function Normalize([string]$path) {
+            # 时间戳每次都不一样；换行按 LF 归一，免得 windows/linux 检出差异被当成文档过期。
+            ((Get-Content -LiteralPath $path -Raw) -replace '(?m)^- 生成时间：.*$', '- 生成时间：<ignored>') `
+              -replace "`r`n", "`n"
+          }
+
+          $fresh = Normalize $tmp
+          $tracked = Normalize 'docs/tool-capability-matrix.md'
+          if ($fresh -ne $tracked) {
+            Write-Host "[FAIL] 文档与源码不一致 —— 本地跑 scripts/Generate-ToolCapabilityMatrix.ps1 后提交。" -ForegroundColor Red
+            Compare-Object ($tracked -split "`n") ($fresh -split "`n") |
+              Select-Object -First 20 | Format-Table -AutoSize | Out-String | Write-Host
+            exit 1
+          }
+          Write-Host ("[PASS] 能力矩阵与源码一致（{0} 行）" -f ($fresh -split "`n").Count)
