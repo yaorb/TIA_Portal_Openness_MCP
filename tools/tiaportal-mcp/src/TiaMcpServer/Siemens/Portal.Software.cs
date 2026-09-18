@@ -6645,6 +6645,10 @@ public partial class Portal
 
     placeholders ??= new JsonObject();
 
+    // 生产构建不带 pdb（Release: DebugType=none + DebugSymbols=false），堆栈里**没有行号**。
+    // 下面是 150 行的多相位流程，光凭方法名无法判断失败在哪一相位，所以把相位名带进失败信息。
+    // 只赋值、不改控制流：catch 抓到的异常集合与改动前完全相同。
+    var step = "check project/state";
     try
     {
       if (this.IsProjectNull())
@@ -6659,6 +6663,7 @@ public partial class Portal
         return new ResponseSeed { Imported = imported, Failed = failed, Placeholders = placeholders, };
       }
 
+      step = "parse manifest.json";
       var manifestPath = Path.Combine(referenceDir, "manifest.json");
       JsonObject? manifest = null;
       if (File.Exists(manifestPath))
@@ -6706,6 +6711,7 @@ public partial class Portal
         hmiTagsDir = Path.Combine(referenceDir, manifest["hmiTagTablesDir"]!.ToString());
       }
 
+      step = "prepare temp workspace";
       var tempDir = Path.Combine(Path.GetTempPath(), "tia-seed-" + Guid.NewGuid().ToString("N"));
       Directory.CreateDirectory(tempDir);
 
@@ -6738,12 +6744,16 @@ public partial class Portal
       var tempHmiScreens = Path.Combine(tempDir, "hmi", "screens");
       var tempHmiTags = Path.Combine(tempDir, "hmi", "tags");
 
+      // 这一段没有逐文件归因（与下面的 Import* 不同），失败会直接落到外层 catch ——
+      // 所以相位名是定位它的唯一线索。
+      step = "substitute placeholders and copy reference XML";
       CopyDirWithReplace(plcBlocksDir, tempPlcBlocks);
       CopyDirWithReplace(plcTypesDir, tempPlcTypes);
       CopyDirWithReplace(hmiScreensDir, tempHmiScreens);
       CopyDirWithReplace(hmiTagsDir, tempHmiTags);
 
       // PLC blocks
+      step = "import PLC blocks";
       if (Directory.Exists(tempPlcBlocks))
       {
         var r = this.ImportBlocksFromDirectory(plcSoftwarePath, plcBlockGroupPath, tempPlcBlocks);
@@ -6753,6 +6763,7 @@ public partial class Portal
       }
 
       // PLC types (UDT)
+      step = "import PLC types (UDT)";
       if (Directory.Exists(tempPlcTypes))
       {
         foreach (var file in Directory.EnumerateFiles(tempPlcTypes, "*.xml", SearchOption.TopDirectoryOnly))
@@ -6771,6 +6782,7 @@ public partial class Portal
       }
 
       // HMI tag tables then screens
+      step = "import HMI tag tables";
       if (Directory.Exists(tempHmiTags))
       {
         var r = this.ImportHmiTagTablesFromDirectory(hmiSoftwarePath, hmiTagTableFolderPath, tempHmiTags);
@@ -6780,6 +6792,7 @@ public partial class Portal
           []);
       }
 
+      step = "import HMI screens";
       if (Directory.Exists(tempHmiScreens))
       {
         var r = this.ImportHmiScreensFromDirectory(hmiSoftwarePath, hmiScreenFolderPath, tempHmiScreens);
@@ -6799,7 +6812,8 @@ public partial class Portal
     }
     catch (Exception ex)
     {
-      failed.Add(new ImportFailure { Path = referenceDir, Error = ex.ToString(), });
+      // 相位名进失败信息：没有 pdb 时，这是把 150 行流程的失败定位到具体阶段的唯一线索。
+      failed.Add(new ImportFailure { Path = referenceDir, Error = $"step '{step}': {ex}", });
       return new ResponseSeed { Imported = imported, Failed = failed, Placeholders = placeholders, };
     }
   }

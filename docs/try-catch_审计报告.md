@@ -17,6 +17,7 @@
 | 少量但真实的"沉默改变了行为" | 我逐处读过代码，确认 **6 处**（见 §4）会造成调用方误判，而非仅仅少一句日志 |
 | 既有规范形同虚设 | 专为消除 try/catch 样板而写的 `Operation.Run`，全仓**只有 1 个调用点**（`Portal.cs:495`） |
 | 也没有机械守卫 | 无 lint 规则 / CI 检查；最近一轮 IDE 清理一次性**新增了 82 条 `// ignored`**，并两次把 `Concat` 的修复改回去 |
+| `Operation.Run` 只有 1 个调用点 | 不是没人用，而是**全仓没有匹配它语义的形状**（详见 §6 P3②） |
 
 **但也要说句公道话**（避免一刀切误伤）：
 
@@ -223,10 +224,39 @@ catch (Exception ex)
 ### P2 —— 把 54 条机械 `// ignored` 替换成真实理由或日志
 这一步的价值不在代码本身，而在于**恢复注释的可信度**：现在看到 `// ignored` 无法判断作者是否想过。
 
-### P3 —— 结构治理
-- 12 处 >60 行的 try：至少把"能独立失败的步骤"拆成独立小 try，让 catch 的语义与步骤对应；
-- `ConnectPortal`（8 个 catch）、`ImportType`（11 个）这类密集方法，改用 `Operation.Run` 收敛样板（它本来就是为此写的）；
-- 对 `GetAllPlcSoftware` 这类"遍历 + 收集"的方法，采纳 `Portal.Blocks.cs:275` 的做法：**要么完整，要么明确告知不完整**。
+### P3 —— 结构治理（**已逐处核实，原建议大半不成立**）
+
+> 本节原本写的是「拆窄 12 处宽 try + 用 `Operation.Run` 收敛密集方法」。实际逐处读过 16 处宽 try
+> 和几个密集方法后，**两条建议都不成立**，记录在此以免后来者重复踩：
+
+**① 「拆窄 try」不成立。** 16 处宽 try 的 catch **全部已经交代得不错**（`ex.ToString()`、
+`FormatExceptionDetail(ex)`、out 参数或 `failed` 列表），其中 `EnsureSubnet` /
+`AttachDeviceNodeToSubnet` 还带 readback、`Software.cs` 的按钮脚本那处**本来就有步骤跟踪**
+（`Step("ui:layout", false, …)`）。宽 try 不是偷懒，而是**「把任何 Openness 失败转成结构化 /
+尽力而为结果」的边界**：
+- `TryExportEngineeringObject`：一串反射尝试共用同一失败出口，拆开要新增分支逻辑；
+- `TryInferPlcFamilyFromProjectDevices`：契约就是「推断不出就说不知道」，拆窄直接违背设计意图；
+- 其余多为「整段操作失败 → 返回一条带原因的响应」。
+拆窄要么让异常泄漏到 MCP 边界（行为变化），要么得为每一步新增 catch（代码变多，不是变少）。
+
+**② 「用 `Operation.Run` 收敛样板」不适用。** 全仓**没有一处**手写 catch 匹配它的语义 ——
+`LogWarning(pex)` 只出现在 `Operation.cs` 自己内部（3 处 = 它自己的实现），其余全是
+`LogError(ex)` 且没有 `PortalException`/`Exception` 分流。它现有的 1 个调用点（`Portal.cs:497`）
+是唯一真正匹配的形状。**不建议为了用它而改写那些失败记录逻辑**（会丢掉逐文件的失败归因）。
+
+**③ 核实中发现的真问题，已修：Release 构建没有行号。**
+csproj 里 `DebugType=none` + `DebugSymbols=false`，所以生产环境的 `ex.ToString()` **只有方法名、
+没有行号**——对 150 行的多相位方法，栈里也只有它自己。已给最宽的那处
+（`SeedProjectFromReference`，外层 try 151 行）加**相位标记**：`var step = "…"` 在各相位边界赋值，
+catch 里报 `step '…'`。**只赋值、不改控制流**，catch 捕获的异常集合与改动前完全相同。
+`CopyDirWithReplace` 那一段尤其需要它——与下面的 `Import*` 不同，它没有逐文件归因，
+失败会直接落到外层 catch。
+
+同类候选（尚未加，按需要再做）：`ApplyUnifiedHmiScreenDesignJson`（106 行，但已有逐项 `name` 归因）、
+`InvokeOnInstance`（110 行）、`ProbePlcMonitorOnlineCapabilities`（111 行）、
+`ImportMasterCopyFromGlobalLibrary`（81 行）。
+
+**④ `GetAllPlcSoftware` 那类「遍历 + 收集」**已在 P1 处理：加日志 + 写明「列表可能不完整」。
 
 ### P4 —— 加机械守卫（防止本轮成果被下一轮清理抹掉）
 本仓已经亲历两次：IDE 清理把 `Concat` 修复改回去、并批量新增 82 条 `// ignored`。建议加一条可执行规则，放进 `scripts/` 并挂到 `.github/workflows/validate.yml`：
