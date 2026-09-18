@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections;
@@ -559,62 +559,79 @@ public partial class Portal
     var typeName = config.GetType().Name;
     logger?.LogDebug("ApplyDownloadConfig: {TypeName}", typeName);
 
+    // 这些配置项是反射设上去的，失败原来完全静默：下载会带着**默认选项**跑下去，
+    // 调用方却仍以为配置成功。设置失败不等于下载失败，所以这里不抛；
+    // 但每一项没设上都必须留下名字 —— 否则「这一步到底生效没有」无法回答。
+    void ApplySelection(string selectionName)
+    {
+      if (!Portal.DownloadConfigSetSelection(config, selectionName))
+      {
+        logger?.LogWarning(
+          "Download config '{TypeName}': could not set CurrentSelection='{Selection}' — this step keeps its DEFAULT.",
+          typeName, selectionName);
+      }
+    }
+
+    void ApplyChecked(bool value)
+    {
+      if (!Portal.DownloadConfigSetChecked(config, value))
+      {
+        logger?.LogWarning(
+          "Download config '{TypeName}': could not set Checked={Value} — this step keeps its DEFAULT.",
+          typeName, value);
+      }
+    }
+
     switch (typeName)
     {
       case "StopModules":
         // StopModulesSelections = { NoAction, StopAll } — NOT "StopModule" (verified
         // against V21 PublicAPI; the old value parsed to nothing and left the prompt
         // "unhandled", which aborted every download).
-        Portal.DownloadConfigSetSelection(config,
-          stopBeforeDownload
+        ApplySelection(stopBeforeDownload
             ? "StopAll"
             : "NoAction");
         break;
 
       case "StopHSystemOrModule":
-        Portal.DownloadConfigSetSelection(config,
-          stopBeforeDownload
+        ApplySelection(stopBeforeDownload
             ? "StopModule"
             : "NoAction");
         break;
 
       case "StopHSystem":
-        Portal.DownloadConfigSetSelection(config,
-          stopBeforeDownload
+        ApplySelection(stopBeforeDownload
             ? "StopHSystem"
             : "NoAction");
         break;
 
       case "StartModules":
       case "StartBackupModules":
-        Portal.DownloadConfigSetSelection(config,
-          startAfterDownload
+        ApplySelection(startAfterDownload
             ? "StartModule"
             : "NoAction");
         break;
 
       case "DataBlockReinitialization":
-        Portal.DownloadConfigSetSelection(config,
-          keepActualValues
+        ApplySelection(keepActualValues
             ? "KeepActualValues"
             : "Reinitialize");
         break;
 
       case "DataBlockReinitializationOrKeepActualValues":
-        Portal.DownloadConfigSetSelection(config,
-          keepActualValues
+        ApplySelection(keepActualValues
             ? "KeepActualValues"
             : "StopPlcAndReinitialize");
         break;
 
       case "ConsistentBlocksDownload":
-        Portal.DownloadConfigSetSelection(config, "ConsistentDownload");
+        ApplySelection("ConsistentDownload");
         break;
 
       case "AllBlocksDownload":
         if (!consistentBlocksOnly)
         {
-          Portal.DownloadConfigSetSelection(config, "DownloadAllBlocks");
+          ApplySelection("DownloadAllBlocks");
         }
 
         break;
@@ -623,50 +640,61 @@ public partial class Portal
       case "AlarmTextLibrariesDownload":
       case "UserManagementDownload":
       case "DownloadCertificate":
-        Portal.DownloadConfigSetChecked(config, true);
+        ApplyChecked(true);
         break;
 
       case "DifferentTargetConfiguration":
       case "ActiveTestCanBeAborted":
       case "ActiveTestCanPreventDownload":
-        Portal.DownloadConfigSetSelection(config, "AcceptAll");
+        ApplySelection("AcceptAll");
         break;
     }
   }
 
-  private static void DownloadConfigSetSelection(object config, string selectionName)
+  private static bool DownloadConfigSetSelection(object config, string selectionName)
   {
     try
     {
       var prop = config.GetType().GetProperty("CurrentSelection");
       if (prop == null)
       {
-        return;
+        return false;
       }
 
       var enumType = prop.PropertyType;
       if (!enumType.IsEnum)
       {
-        return;
+        return false;
       }
 
       var value = Enum.Parse(enumType, selectionName, true);
       prop.SetValue(config, value);
+      return true;
     }
     catch
     {
+      // 这里拿不到 logger，也不该由它决定怎么上报 —— 失败返回 false，
+      // 由调用方（ApplyDefaultDownloadConfig）记录具体是哪一项没设上。
+      return false;
     }
   }
 
-  private static void DownloadConfigSetChecked(object config, bool value)
+  private static bool DownloadConfigSetChecked(object config, bool value)
   {
     try
     {
       var prop = config.GetType().GetProperty("Checked");
-      prop?.SetValue(config, value);
+      if (prop == null)
+      {
+        return false;
+      }
+
+      prop.SetValue(config, value);
+      return true;
     }
     catch
     {
+      return false;
     }
   }
 

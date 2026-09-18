@@ -109,9 +109,12 @@ public partial class Portal
             result.Add(plc);
           }
         }
-        catch
+        catch (Exception ex)
         {
-          // ignored
+          // 静默跳过会让「列表少了一项」看起来像「本来就没有」。本仓在 Portal.Blocks.cs
+          // 里对同类问题写过：少了几个比一个都没有更难发现 —— 至少留下日志。
+          logger?.LogWarning(ex,
+            "GetAllPlcSoftware: a device item's software could not be read; it is MISSING from the returned list");
         }
 
         try
@@ -803,12 +806,21 @@ public partial class Portal
 
       Portal.TrySetProperty(entry, "Address", address);
       Portal.TrySetProperty(entry, "ModifyValue", modifyValue);
-      Portal.SetEnumPropertyByName(entry, "ModifyTrigger", trigger);
+      var triggerApplied = Portal.SetEnumPropertyByName(entry, "ModifyTrigger", trigger);
+      if (!triggerApplied)
+      {
+        // 触发器没设上 = 条目会按**默认触发器**生效。这跟「设成了用户要的触发器」
+        // 是完全不同的行为，必须让调用方看得见，而不是回一句「设置成功」。
+        logger?.LogWarning(
+          "EnsureWatchTableEntry: could not set ModifyTrigger='{Trigger}' on entry '{Address}' — the entry keeps its DEFAULT trigger.",
+          trigger, address);
+      }
 
       return new ResponseMessage
       {
-        Message =
-          $"Watch table '{tableName}': entry '{address}' set to ModifyValue='{modifyValue}' Trigger={trigger}.",
+        Message = triggerApplied
+          ? $"Watch table '{tableName}': entry '{address}' set to ModifyValue='{modifyValue}' Trigger={trigger}."
+          : $"Watch table '{tableName}': entry '{address}' set to ModifyValue='{modifyValue}', but the trigger could NOT be set to {trigger} (see warnings).",
         Meta = new JsonObject
         {
           ["softwarePath"] = softwarePath,
@@ -816,6 +828,7 @@ public partial class Portal
           ["address"] = address,
           ["modifyValue"] = modifyValue,
           ["trigger"] = trigger,
+          ["triggerApplied"] = triggerApplied,
           ["note"] = "Value will be applied to the PLC when TIA Portal is online and the trigger fires.",
         },
       };
@@ -988,22 +1001,24 @@ public partial class Portal
     }
   }
 
-  private static void SetEnumPropertyByName(object target, string propertyName, string valueName)
+  private static bool SetEnumPropertyByName(object target, string propertyName, string valueName)
   {
     try
     {
       var prop = target.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
       if (prop == null || !prop.PropertyType.IsEnum)
       {
-        return;
+        return false;
       }
 
       var enumValue = Enum.Parse(prop.PropertyType, valueName, true);
       prop.SetValue(target, enumValue);
+      return true;
     }
     catch
     {
-      // ignored
+      // 拿不到 logger，也不该由这里决定怎么上报 —— 返回 false，由调用方记录是哪一项没设上。
+      return false;
     }
   }
 
@@ -8647,8 +8662,12 @@ public partial class Portal
         targets.Add(extSourcesObj);
       }
     }
-    catch
+    catch (Exception ex)
     {
+      // 拿不到 ExternalSources 组合时会退化成「只往 group 导入」，落点可能不同 ——
+      // 这是行为降级，不能静默。
+      logger?.LogWarning(ex,
+        "ImportPlcExternalSource: ExternalSources composition not readable; falling back to importing into the group itself");
     }
 
     targets.Add(group);

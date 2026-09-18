@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -232,18 +232,20 @@ public partial class Portal(ILogger<Portal>? logger = null)
             {
               hasSession = candidate.LocalSessions.Any();
             }
-            catch
+            catch (Exception ex)
             {
-              // ignored
+              // 探测失败会让 hasSession 停在 false，而它决定「挑哪个实例 attach」——
+              // 只记录结果（下面那行 hasSession=…）不足以排障，原因必须留下。
+              logger?.LogWarning(ex, $"Portal PID={proc.Id}: probing LocalSessions failed; treated as no-session");
             }
 
             try
             {
               hasProject = candidate.Projects.Any();
             }
-            catch
+            catch (Exception ex)
             {
-              // ignored
+              logger?.LogWarning(ex, $"Portal PID={proc.Id}: probing Projects failed; treated as no-project");
             }
 
             logger?.LogInformation($"Portal PID={proc.Id}: hasSession={hasSession}, hasProject={hasProject}");
@@ -641,15 +643,21 @@ public partial class Portal(ILogger<Portal>? logger = null)
               // ignored
             }
           }
-          catch
+          catch (Exception ex)
           {
-            // ignored
+            // 逐个实例尝试 attach 是预期内的（候选可能被别人占用或已 dispose），所以不抛；
+            // 但全吞掉会让调用方只看到 false、拿不到任何原因 —— 记进 LastConnectError
+            // 侧信道（Bootstrap / GetState 会读它），与 ConnectPortal 的既有约定一致。
+            this.LastConnectError =
+              $"AttachToOpenProject: attach attempt failed: {Portal.FormatExceptionDetail(ex)}";
+            logger?.LogDebug(ex, "AttachToOpenProject: attach attempt failed; trying the next candidate");
           }
         }
       }
-      catch
+      catch (Exception ex)
       {
-        // ignored
+        this.LastConnectError = $"AttachToOpenProject: {Portal.FormatExceptionDetail(ex)}";
+        logger?.LogDebug(ex, "AttachToOpenProject: pass failed; retrying until the deadline");
       }
 
       if (DateTime.UtcNow >= deadline)
