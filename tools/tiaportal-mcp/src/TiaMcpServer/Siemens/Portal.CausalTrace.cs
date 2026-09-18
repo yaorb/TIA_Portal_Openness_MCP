@@ -123,7 +123,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // teardown：临时目录删不掉无处可报，也不影响已分析出的结果
       }
     }
 

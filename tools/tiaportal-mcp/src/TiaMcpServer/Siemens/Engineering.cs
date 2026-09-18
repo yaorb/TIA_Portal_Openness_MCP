@@ -125,7 +125,7 @@ public static class Engineering
     }
     catch
     {
-      // ignored
+      // 注册表里没有这一项（或读不到）就换下一个候选，属正常探测
     }
 
     // 3. Filesystem scan
@@ -148,7 +148,7 @@ public static class Engineering
     }
     catch
     {
-      // ignored
+      // 目录名解析不出 Portal V版本 就跳过该项，候选列表仍可用
     }
 
     return candidates.Count > 0

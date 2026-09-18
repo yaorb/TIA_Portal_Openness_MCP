@@ -194,7 +194,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 版本串解析失败就跳过这一项，只是少一个候选变体
       }
 
       versionVariants =
@@ -1204,7 +1204,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 递归展开子消息失败就跳过这一层：诊断摘要尽力而为
         }
       }
     }
@@ -1252,7 +1252,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 读旧值只为写进 meta 做对比；读不到就留空，成败由返回值与 meta 呈现
       }
 
       meta["oldValue"] = oldValue?.ToString() ?? string.Empty;
@@ -1269,7 +1269,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 回读新值失败就留空；属性是否真设上以 meta 与返回值呈现
       }
 
       meta["newValue"] = newValue?.ToString() ?? string.Empty;
@@ -1482,7 +1482,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 读属性失败即「读不到」，由返回结构呈现
     }
 
     return new JsonObject
@@ -1534,7 +1534,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 设值前的快照读失败就留空；这一步不是判定依据
     }
 
     try
@@ -1559,7 +1559,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 设值后的回读失败就留空；真实结果由返回结构呈现
     }
 
     return new JsonObject
@@ -1621,7 +1621,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 拿不到属性清单就按「没有属性」处理（下面即此分支）
         }
 
         if (infos == null || infos.Count == 0)
@@ -1720,7 +1720,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 反射读属性失败就返回 null，调用方跳过这一项
       }
     }
 
@@ -2099,7 +2099,7 @@ public partial class Portal
           }
           catch
           {
-            // ignored
+            // 读旧值只为类型强转；读不到就不转，成败随后由返回值上报
           }
 
           var typedValue = Portal.CoerceAttributeValue(value, oldValue, info);
@@ -2111,7 +2111,7 @@ public partial class Portal
           }
           catch
           {
-            // ignored
+            // 回读新值失败就留空；是否生效由返回值上报
           }
 
           applied.Add(new JsonObject
@@ -2289,7 +2289,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 诊断摘要：反射读计数失败就少打一行，不影响结论
       }
 
       try
@@ -2332,7 +2332,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 同上：诊断摘要尽力而为，单点失败不中断
         }
 
         break;
@@ -2686,7 +2686,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 摘要拼装：单个字段读不到就跳过它
     }
 
     try
@@ -2711,7 +2711,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 摘要拼装：反射读节点信息失败就跳过该片段
     }
 
     try
@@ -2726,7 +2726,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 摘要拼装：列 Create 方法失败就少列一项
     }
 
     try
@@ -2745,7 +2745,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 摘要拼装：列方法失败就少列一项，空摘要由返回值区分
     }
 
     return parts.Count == 0
@@ -2782,7 +2782,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 取网络接口服务失败即当作没有，下面按 null 分支处理
       }
 
       if (networkInterface == null)
@@ -2969,7 +2969,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 逐个特性读值：读不到的跳过，收集剩余部分
       }
     }
 
@@ -3169,7 +3169,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 逐个服务后缀探测：都没有就按 null 分支处理
       }
 
       if (svc == null)
@@ -3208,7 +3208,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 摘要拼装：单个属性读不到就跳过
         }
       }
 
@@ -3342,7 +3342,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 软件信息是补充信息：反射读不到就少几项，不影响设备树主体
       }
 
       try
@@ -3354,7 +3354,7 @@ public partial class Portal
       }
       catch
       {
-        // ignored
+        // 遍历子设备补软件信息：单个子节点失败即跳过
       }
     }
   }

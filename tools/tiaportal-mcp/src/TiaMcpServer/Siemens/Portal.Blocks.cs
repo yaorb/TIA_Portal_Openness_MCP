@@ -1348,7 +1348,7 @@ public partial class Portal
     }
     catch
     {
-      // ignored
+      // 有些块类型不给 Number/AutoNumber：读不到就不固定编号，绝不因此让导入失败（同 DeletePlcBlock）
     }
 
     DocumentImportResult? result;

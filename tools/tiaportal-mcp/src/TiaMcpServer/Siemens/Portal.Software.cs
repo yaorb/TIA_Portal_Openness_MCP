@@ -132,7 +132,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 遍历子设备项失败会少收几个；最外层（WalkDevices 调用处）会记日志
         }
       }
     }
@@ -152,7 +152,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 遍历设备组：单个组失败即跳过，最终列表可能不完整（最外层有日志）
         }
       }
     }
@@ -173,7 +173,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 递归遍历组与设备：单点失败不中断整体收集（最外层有日志）
         }
       }
     }
@@ -183,9 +183,9 @@ public partial class Portal
       WalkDevices(this.CurrentProject.Devices);
       WalkGroups(this.CurrentProject.DeviceGroups);
     }
-    catch
+    catch (Exception ex)
     {
-      // ignored
+      logger?.LogWarning(ex, "GetAllPlcSoftware: walking project devices threw; the returned list may be INCOMPLETE");
     }
 
     return result;
@@ -7773,7 +7773,7 @@ public partial class Portal
     }
     catch
     {
-      // ignore
+      // 反射读 Name 失败就返回 null，调用方跳过该项
     }
 
     return null;

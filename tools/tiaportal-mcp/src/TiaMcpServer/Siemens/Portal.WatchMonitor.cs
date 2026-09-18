@@ -218,7 +218,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 逐个读属性/特性：都读不到返回空串，调用方按「读不出」处理
         }
       }
     }

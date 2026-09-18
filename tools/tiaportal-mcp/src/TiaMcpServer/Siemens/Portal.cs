@@ -263,9 +263,9 @@ public partial class Portal(ILogger<Portal>? logger = null)
                   this.CurrentProject = this._session.Project;
                   this._projectOpenedByUs = false;
                 }
-                catch
+                catch (Exception ex)
                 {
-                  // ignored
+                  logger?.LogWarning(ex, "ConnectPortal: attaching the local session threw; falling back to Projects.First()");
                 }
               }
 
@@ -278,9 +278,9 @@ public partial class Portal(ILogger<Portal>? logger = null)
               {
                 this.CurrentProject = this._portal.Projects.First();
               }
-              catch
+              catch (Exception ex)
               {
-                // ignored
+                logger?.LogWarning(ex, "ConnectPortal: attaching the first project threw; returning connected WITHOUT a bound project");
               }
 
               this._projectOpenedByUs = false;
@@ -315,7 +315,7 @@ public partial class Portal(ILogger<Portal>? logger = null)
                 }
                 catch
                 {
-                  // ignored
+                  // teardown：释放备用实例失败无处可报
                 }
               }
 
@@ -335,7 +335,7 @@ public partial class Portal(ILogger<Portal>? logger = null)
               }
               catch
               {
-                // ignored
+                // teardown：替换实例前释放旧的，失败不影响后续
               }
             }
           }
@@ -455,7 +455,7 @@ public partial class Portal(ILogger<Portal>? logger = null)
           }
           catch
           {
-            // ignored
+            // teardown：释放候选实例失败无处可报
           }
         }
       }
@@ -621,7 +621,7 @@ public partial class Portal(ILogger<Portal>? logger = null)
                 }
                 catch
                 {
-                  // ignored
+                  // teardown：替换实例前释放旧的，失败不影响后续
                 }
               }
 
@@ -640,7 +640,7 @@ public partial class Portal(ILogger<Portal>? logger = null)
             }
             catch
             {
-              // ignored
+              // teardown：候选不是目标实例，释放它；失败不影响后续
             }
           }
           catch (Exception ex)
@@ -691,7 +691,7 @@ public partial class Portal(ILogger<Portal>? logger = null)
         }
         catch
         {
-          // ignored
+          // 这个 session 不是目标工程的：继续试下一个，全部试完返回 false
         }
       }
 
@@ -710,13 +710,13 @@ public partial class Portal(ILogger<Portal>? logger = null)
         }
         catch
         {
-          // ignored
+          // 这个 project 打不开：继续试下一个，全部试完返回 false
         }
       }
     }
     catch
     {
-      // ignored
+      // 同上：单个 project 读取失败即跳过，最终返回 false
     }
 
     return false;

@@ -67,9 +67,9 @@ public partial class Portal
           {
             tiaRunning = TiaPortal.GetProcesses().Any();
           }
-          catch
+          catch (Exception ex)
           {
-            // ignored
+            logger?.LogWarning(ex, "GetState: probing TiaPortal.GetProcesses() threw - treated as no TIA running, so auto-connect is skipped");
           }
 
           if (tiaRunning)
@@ -1802,7 +1802,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 路径解析不到软件就返回 null，调用方按「找不到」处理
         }
 
         return null;
@@ -1823,7 +1823,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 同上：解析不到即返回 null
         }
 
         return null;
@@ -1938,7 +1938,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 遍历时个别元素读不到名字：跳过继续找，找不到返回 null
         }
 
         // 原来这里还有一层 TryFindByNameInCollection(tagsComp, Array.Empty<string>(), ...) 的"兜底"，
@@ -2027,7 +2027,7 @@ public partial class Portal
         }
         catch
         {
-          // ignored
+          // 同上：找不到返回 null，由调用方判定
         }
 
         return null;
