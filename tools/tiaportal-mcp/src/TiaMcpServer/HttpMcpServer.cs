@@ -107,7 +107,7 @@ internal static class HttpMcpServer
           }
           catch
           {
-            // ignored
+            // teardown：中止响应失败无处可报（连接已经在错误路径上）
           }
         }
       });

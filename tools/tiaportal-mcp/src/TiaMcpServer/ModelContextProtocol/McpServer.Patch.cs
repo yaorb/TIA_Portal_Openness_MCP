@@ -308,7 +308,7 @@ public static partial class McpServer
         }
         catch
         {
-          // ignored
+          // 逐个候选探测 HMI 程序：不是就试下一个，全试完按「没有 HMI」处理
         }
       }
 

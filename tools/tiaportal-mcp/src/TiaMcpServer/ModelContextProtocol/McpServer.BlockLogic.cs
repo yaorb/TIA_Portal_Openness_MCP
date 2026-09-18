@@ -83,7 +83,7 @@ public static partial class McpServer
       }
       catch
       {
-        // ignored
+        // teardown：临时目录删不掉无处可报，分析结果已经拿到
       }
     }
   }

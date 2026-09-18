@@ -183,7 +183,7 @@ public static class S7LiveReader
       }
       catch
       {
-        // ignored
+        // teardown：失败路径上的断开失败无处可报，错误已记入 id.Error
       }
     }
   }
@@ -271,7 +271,7 @@ public static class S7LiveReader
       }
       catch
       {
-        // ignored
+        // teardown：断开失败无处可报，错误已记入 result.Error
       }
 
       sw.Stop();
@@ -427,7 +427,7 @@ public static class S7LiveReader
       }
       catch
       {
-        // ignored
+        // teardown：同上，错误已记入 result.Error
       }
 
       sw.Stop();
@@ -556,7 +556,7 @@ public static class S7LiveReader
       }
       catch
       {
-        // ignored
+        // 读 PLC 时钟失败就留空：state 里该字段为空即表示没读到
       }
 
       // Best-effort diagnostic buffer (raw). Wrapped: any failure -> clean note.
@@ -602,7 +602,7 @@ public static class S7LiveReader
       }
       catch
       {
-        // ignored
+        // teardown：断开失败无处可报，错误已记入 state.Error
       }
 
       sw.Stop();

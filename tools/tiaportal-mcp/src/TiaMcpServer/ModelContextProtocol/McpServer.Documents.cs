@@ -600,7 +600,7 @@ public static partial class McpServer
         }
         catch
         {
-          // ignored
+          // 进度通知发不出去不影响导入本身；导入失败另有日志
         }
       }
 

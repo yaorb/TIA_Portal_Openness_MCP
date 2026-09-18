@@ -376,7 +376,7 @@ public static class McpConfigInstaller
       }
       catch
       {
-        // ignored
+        // teardown：临时文件删不掉无处可报（真正的写入在本 try 之外，已经完成）
       }
     }
   }

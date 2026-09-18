@@ -759,7 +759,7 @@ public partial class Program
     }
     catch
     {
-      // ignored
+      // 诊断日志写不出去无处可报 —— 它本身就是最后兜底的那一层
     }
   }
 
@@ -787,7 +787,7 @@ public partial class Program
       }
       catch
       {
-        // ignored
+        // 异常日志本身失败只能放弃，不能再抛（会盖住原始异常）
       }
     }
   }

@@ -579,7 +579,7 @@ public static partial class McpServer
         }
         catch
         {
-          // ignored
+          // 同 Patch：逐个候选探测 HMI 程序，失败即试下一个
         }
       }
 

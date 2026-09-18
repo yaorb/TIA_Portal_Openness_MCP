@@ -123,15 +123,18 @@ public static class EnvironmentDoctor
   private static Check DotNetFramework48()
   {
     var release = 0;
+    string? probeError = null;
     try
     {
       using var key = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64)
         .OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full");
       release = (int)(key?.GetValue("Release") ?? 0);
     }
-    catch
+    catch (Exception ex)
     {
-      // ignored
+      // 读不到注册表 ≠ 没装 4.8。原来两者都落进 release=0，于是报「未检测到」——
+      // 一个错误的诊断结论。把原因带出来，让人能分辨「没装」和「查不到」。
+      probeError = ex.Message;
     }
 
     // 528040 = .NET Framework 4.8 RTM; anything at or above it satisfies net48.
@@ -142,16 +145,20 @@ public static class EnvironmentDoctor
       Ok = ok,
       NameEn = ".NET Framework 4.8",
       NameZh = ".NET Framework 4.8",
-      DetailEn = ok
-        ? $"present (release {release})"
-        : release > 0
-          ? $"too old (release {release}, need >= 528040)"
-          : "not detected",
-      DetailZh = ok
-        ? $"已安装（release {release}）"
-        : release > 0
-          ? $"版本过低（release {release}，需要 >= 528040）"
-          : "未检测到",
+      DetailEn = probeError != null
+        ? $"could not read the registry ({probeError}) — treat as NOT verified"
+        : ok
+          ? $"present (release {release})"
+          : release > 0
+            ? $"too old (release {release}, need >= 528040)"
+            : "not detected",
+      DetailZh = probeError != null
+        ? $"读不到注册表（{probeError}）—— 按「未验证」处理"
+        : ok
+          ? $"已安装（release {release}）"
+          : release > 0
+            ? $"版本过低（release {release}，需要 >= 528040）"
+            : "未检测到",
       FixEn = ok
         ? null
         : "Install the .NET Framework 4.8 runtime (Windows 10 1903+ and Windows 11 ship it built in).",
@@ -170,6 +177,7 @@ public static class EnvironmentDoctor
   {
     var blocked = new List<string>();
     var dir = "";
+    string? probeError = null;
     try
     {
       dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
@@ -189,9 +197,12 @@ public static class EnvironmentDoctor
         }
       }
     }
-    catch
+    catch (Exception ex)
     {
-      // ignored
+      // 探测失败原来落进「blocked 为空」→ 直接报 OK，是个**假通过**。
+      // 这里不擅自把 Ok 翻成 false（本机无法探测时不该直接判红），
+      // 而是把「没验证成」写进 Detail —— 读报告的人看得到真相。
+      probeError = ex.Message;
     }
 
     var ok = blocked.Count == 0;
@@ -202,12 +213,16 @@ public static class EnvironmentDoctor
       Ok = ok,
       NameEn = "Files not blocked by Windows (MOTW)",
       NameZh = "文件未被 Windows 标记为网络来源 (MOTW)",
-      DetailEn = ok
-        ? "no zone identifier on the engine files"
-        : $"blocked files present: {list}{(blocked.Count >= 5 ? ", ..." : "")}",
-      DetailZh = ok
-        ? "引擎目录下的文件没有网络来源标记"
-        : $"存在被阻止的文件：{list}{(blocked.Count >= 5 ? " …" : "")}",
+      DetailEn = probeError != null
+        ? $"could not scan the engine folder ({probeError}) — NOT verified"
+        : ok
+          ? "no zone identifier on the engine files"
+          : $"blocked files present: {list}{(blocked.Count >= 5 ? ", ..." : "")}",
+      DetailZh = probeError != null
+        ? $"扫描引擎目录失败（{probeError}）—— 未验证"
+        : ok
+          ? "引擎目录下的文件没有网络来源标记"
+          : $"存在被阻止的文件：{list}{(blocked.Count >= 5 ? " …" : "")}",
       FixEn = ok
         ? null
         : $"Unblock the delivery folder in PowerShell:  Get-ChildItem -Recurse '{dir}' | Unblock-File",

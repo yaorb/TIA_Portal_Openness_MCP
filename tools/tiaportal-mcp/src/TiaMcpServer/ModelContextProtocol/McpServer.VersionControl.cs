@@ -166,7 +166,7 @@ public static partial class McpServer
         }
         catch
         {
-          // ignored
+          // 反射读映射对象数失败就记 0，输出里体现为 0
         }
 
         var root = "";
@@ -176,7 +176,7 @@ public static partial class McpServer
         }
         catch
         {
-          // ignored
+          // 反射读根路径失败就留空，输出里体现为空
         }
 
         lines.Add(string.Format("{0} | folder={1} | mappedObjects={2} | language={3}",
@@ -377,7 +377,7 @@ public static partial class McpServer
       }
       catch
       {
-        // ignored
+        // 反射读目录路径失败即留空，文件名仍可正常输出
       }
 
       var f = mo.FileNameWithoutExtension ?? "";
@@ -587,7 +587,7 @@ public static partial class McpServer
     }
     catch
     {
-      // ignored
+      // 反射读名字失败就退回类型名（下一行），仍给出可读标识
     }
 
     return o.GetType().Name;

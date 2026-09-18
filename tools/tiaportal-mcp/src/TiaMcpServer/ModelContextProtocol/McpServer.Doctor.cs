@@ -91,15 +91,18 @@ public static partial class McpServer
       // 3) Connection + project state
       var connected = false;
       string? projectName = null;
+      string? stateProbeError = null;
       try
       {
         var st = McpServer.Portal.GetState();
         connected = st?.IsConnected ?? false;
         projectName = st?.Project;
       }
-      catch
+      catch (Exception ex)
       {
-        // ignored
+        // 探测抛异常时**不能表现成「没连上」**——那是另一个结论，Doctor 会因此给出错误诊断，
+        // 而这个工具存在的意义就是别让人猜。原因进 Detail，让人能分辨「没连」和「查不到」。
+        stateProbeError = ex.Message;
       }
 
       var hasProject = !string.IsNullOrWhiteSpace(projectName) && projectName != "-";
@@ -107,16 +110,20 @@ public static partial class McpServer
       {
         Name = "TIA connection / project",
         Ok = connected,
-        Detail = connected
-          ? hasProject
-            ? $"connected, project '{projectName}' open"
-            : "connected, no project bound"
-          : "not connected",
-        Fix = connected
-          ? hasProject
-            ? null
-            : "Call AttachToOpenProject (if a project is open in TIA UI) or OpenProject/CreateProject."
-          : "Call Connect (first call may pop an Openness authorization dialog in TIA — click Yes).",
+        Detail = stateProbeError != null
+          ? $"could not read the connection state ({stateProbeError}) — treat as NOT verified"
+          : connected
+            ? hasProject
+              ? $"connected, project '{projectName}' open"
+              : "connected, no project bound"
+            : "not connected",
+        Fix = stateProbeError != null
+          ? "Re-run Doctor; if it keeps failing, call RunCapabilitySelfTest and read the error detail."
+          : connected
+            ? hasProject
+              ? null
+              : "Call AttachToOpenProject (if a project is open in TIA UI) or OpenProject/CreateProject."
+            : "Call Connect (first call may pop an Openness authorization dialog in TIA — click Yes).",
       });
 
       string next;

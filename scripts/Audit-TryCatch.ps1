@@ -19,14 +19,17 @@
     为什么只强制 R1：本仓 P0–P2 修掉的 98 处静默 catch，全部都能被 R1 命中
     （7 处 P0 + 46 处无注释 + 48 处机械 // ignored 都是空体）。R1 是经实测验证过的那条线。
 
-    基线（ratchet）：存量违规按文件计数写在 scripts/try-catch-baseline.txt 里，
-    CI 只拦**新增**。清理一处就把数字改小，归零时删掉该行。
-    重新生成： .\scripts\Audit-TryCatch.ps1 -UpdateBaseline
+    基线（ratchet）：存量已清零，所以当前**没有**基线文件 —— 守卫按零容忍跑。
+    将来若确实要临时放行一批存量，用 -UpdateBaseline 生成 scripts/try-catch-baseline.txt
+    （格式 <仓库相对路径>=<允许的违规数>），CI 就只拦新增；清完再删掉该文件。
+    要清理存量时用 -NoBaseline，它会把基线内的违规也逐条列出来。
 
 .EXAMPLE
     pwsh -File .\scripts\Audit-TryCatch.ps1
 .EXAMPLE
     pwsh -File .\scripts\Audit-TryCatch.ps1 -Strict          # 连 R2 一起报（不设基线）
+.EXAMPLE
+    pwsh -File .\scripts\Audit-TryCatch.ps1 -NoBaseline      # 把基线内存量也逐条列出来，用于清理基线
 .EXAMPLE
     pwsh -File .\scripts\Audit-TryCatch.ps1 -UpdateBaseline  # 把当前存量写成基线
 #>
@@ -34,7 +37,8 @@ param(
     [Parameter(Mandatory = $false)][string]$SourceRoot = "",
     [Parameter(Mandatory = $false)][string]$Baseline = "",
     [switch]$Strict,
-    [switch]$UpdateBaseline
+    [switch]$UpdateBaseline,
+    [switch]$NoBaseline
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,7 +54,6 @@ function Get-MaskedSource {
     $sb = New-Object System.Text.StringBuilder $Text.Length
     $i = 0
     $n = $Text.Length
-    $stringPattern = $null
     while ($i -lt $n) {
         $c = $Text[$i]
         # 行注释
@@ -354,9 +357,9 @@ if ($UpdateBaseline) {
     exit 0
 }
 
-# 与基线对账
+# 与基线对账（-NoBaseline：把存量也当违规列出来，用于逐条清理基线）
 $baselineMap = @{}
-if ((Test-Path -LiteralPath $Baseline) -and -not $Strict) {
+if ((Test-Path -LiteralPath $Baseline) -and -not $Strict -and -not $NoBaseline) {
     foreach ($line in (Get-Content -LiteralPath $Baseline)) {
         $t = $line.Trim()
         if ($t -eq '' -or $t.StartsWith('#')) { continue }
@@ -375,7 +378,7 @@ foreach ($v in $all) {
 }
 
 Write-Host "== 静默 catch 检查 =="
-Write-Host ("  扫描 {0} 个 .cs 文件；命中 {1} 处{2}" -f $files.Count, $all.Count, $(if ($Strict) { '（-Strict：R1 + R2，不与基线对账）' } else { "，其中基线内 $($all.Count - $new.Count) 处" }))
+Write-Host ("  扫描 {0} 个 .cs 文件；命中 {1} 处{2}" -f $files.Count, $all.Count, $(if ($Strict) { '（-Strict：R1 + R2，不与基线对账）' } elseif ($NoBaseline) { '（-NoBaseline：存量也逐条列出）' } else { "，其中基线内 $($all.Count - $new.Count) 处" }))
 
 if ($new.Count -gt 0) {
     Write-Host ""

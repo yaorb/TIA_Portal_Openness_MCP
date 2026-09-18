@@ -41,7 +41,9 @@ jobs:
     # 但没有守卫它就会涨回来：同一个 Concat 修复被自动清理改回去过两次。
     # 只强制一条规则：空 catch 必须写明为什么可以吞。这条是实测选出来的 ——
     # 那轮修掉的 98 处静默 catch 全部能被它命中。
-    # 存量按 scripts/try-catch-baseline.txt 计数放行，CI 只拦**新增**。
+    # 存量已清零（P0–P2 一轮 + 烧基线一轮），所以现在没有基线文件、按零容忍跑。
+    # 将来若要临时放行一批存量，用 -UpdateBaseline 生成 scripts/try-catch-baseline.txt，
+    # 那时 CI 就只拦新增。
     # 脚本自带必错哨兵：闸门本身坏了会报 FAIL，而不是假 PASS。
     runs-on: ubuntu-latest
     steps:

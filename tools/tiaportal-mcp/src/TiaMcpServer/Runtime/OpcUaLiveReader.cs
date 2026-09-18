@@ -126,7 +126,7 @@ public static class OpcUaLiveReader
       }
       catch
       {
-        // ignored
+        // teardown：关闭残留通道失败无处可报（缓存已清空）
       }
     }
   }
@@ -219,7 +219,7 @@ public static class OpcUaLiveReader
     }
     catch
     {
-      // ignored
+      // 摘除失效通道失败不影响本次读取，下次读取会重建
     }
   }
 

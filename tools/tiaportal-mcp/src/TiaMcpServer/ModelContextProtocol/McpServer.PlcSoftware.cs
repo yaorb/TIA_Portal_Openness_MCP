@@ -4782,7 +4782,7 @@ public static partial class McpServer
       }
       catch
       {
-        // ignored
+        // 判断异常类型时的反射探测失败，即按「不是该类型」处理
       }
 
       return op(); // retry once, now fully offline

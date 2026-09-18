@@ -272,7 +272,7 @@ public static partial class McpServer
         }
         catch
         {
-          // ignored
+          // 反射读属性失败就留空，下面按 null 分支处理
         }
 
         if (value == null)
@@ -316,7 +316,7 @@ public static partial class McpServer
         }
         catch
         {
-          // ignored
+          // 同上：反射读属性失败即留空，由后续分支处理
         }
 
         if (value == null)

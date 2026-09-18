@@ -336,7 +336,7 @@ public static class CliCommands
       }
       catch
       {
-        // ignored
+        // 探测当前状态只为判断要不要继续；失败即按「没连上」继续清理
       }
       // heartbeat
     }
@@ -347,7 +347,7 @@ public static class CliCommands
     }
     catch
     {
-      // ignored
+      // teardown：停止时的断开失败无处可报（进程即将退出）
     }
 
     Console.WriteLine("prewarm: stopped.");

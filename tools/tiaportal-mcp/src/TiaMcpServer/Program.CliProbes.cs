@@ -1012,7 +1012,7 @@ public partial class Program
       }
       catch
       {
-        // ignored
+        // 报告逐行落盘的尽力而为：写不进去不影响探测继续（内容仍在内存里）
       }
     }
 
