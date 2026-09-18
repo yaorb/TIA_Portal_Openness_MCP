@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Diagnostics;
@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TiaMcpServer.Cli;
 using TiaMcpServer.ModelContextProtocol;
+using TiaMcpServer.Runtime;
 using TiaMcpServer.Siemens;
 
 #endregion
@@ -534,11 +535,17 @@ public partial class Program
       }
       else
       {
-        Program.LogDiag("User is not in the required group 'Siemens TIA Openness'. Exiting.");
+        // The gate above is the lenient one (it also tries to add the user). Getting here means
+        // the user is still not usable — so say which of the two states it is, instead of a
+        // single sentence that sent people to add themselves when they already were members.
+        var verdict = OpennessGroupCheck.Classify(WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName));
+        Program.LogDiag("User cannot use the required group 'Siemens TIA Openness'. Exiting.");
+        Program.LogDiag("原因: " + verdict.DetailZh);
+        Program.LogDiag("Reason: " + verdict.DetailEn);
         Program.LogDiag(
-          "FIX: run this exe with `doctor` (e.g. tia.cmd doctor --fix) or add your Windows user to the local group 'Siemens TIA Openness' (lusrmgr.msc), then sign out/in and restart the AI client.");
+          "FIX: " + (verdict.FixEn ?? "run this exe with `doctor` (e.g. tia.cmd doctor --fix), then sign out/in."));
         Program.LogDiag(
-          "修复：运行 tia.cmd doctor --fix，或手动把当前 Windows 用户加入本地组 'Siemens TIA Openness'（lusrmgr.msc），注销重登后重启 AI 客户端。");
+          "修复：" + (verdict.FixZh ?? "运行 tia.cmd doctor --fix，然后注销重登。"));
         Environment.ExitCode = 2;
       }
     }

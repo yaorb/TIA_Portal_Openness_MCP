@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net48</TargetFramework>
         <Nullable>enable</Nullable>
@@ -29,6 +29,10 @@
         <Reference Include="System.Management">
             <HintPath>C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8\System.Management.dll</HintPath>
         </Reference>
+        <!-- 「当前用户是不是 Siemens TIA Openness 组的成员」要读本机组成员列表（SAM），
+             不能只看登录令牌：令牌里的组是登录那一刻定下的，刚加进组的人令牌里还没有。
+             两个状态要给出完全不同的修法，所以必须能分辨。框架自带程序集，不随包分发。 -->
+        <Reference Include="System.DirectoryServices.AccountManagement" />
     </ItemGroup>
     <ItemGroup>
         <Compile Remove="tests\**"/>

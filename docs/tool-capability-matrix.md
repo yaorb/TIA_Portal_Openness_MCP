@@ -2,7 +2,7 @@
 
 本文件由源码中的 `[McpServerTool]` 静态抽取生成，运行时仍以 `tools/list` 为准。
 
-- 生成时间：2026-09-16 18:25:03
+- 生成时间：2026-09-19 04:05:48
 - 工具数量：222
 
 ## L0
@@ -19,7 +19,7 @@
 |---|---|
 | RunCapabilitySelfTest | [L0][Diagnostics]Run a read-only MCP/TIA readiness self-test. It checks Openness group membership, connection state, visible portal processes, optional automation context, and optional project tree readback without writing to the project. |
 | RunOnlineMonitoringSafetySelfTest | [L0][Diagnostics]Run a static, read-only safety self-test for online monitoring guardrails. It does not connect to TIA Portal, open projects, modify watch tables, write PLC values, or expose forced-value operations. |
-| Doctor | [L0][Diagnostics] One-call environment doctor for non-experts. Checks TIA install, Openness group membership, and connection/project state, and returns a plain-language diagnosis with the exact fix per problem. When fix=true (default) it ENSURES Openness group membership (adds the current user; may prompt a Windows UAC dialog). Read-only apart from that one fix. Call this first when setup is failing or you are unsure the environment is ready. |
+| Doctor | [L0][Diagnostics] One-call environment doctor for non-experts. Checks TIA install, Openness group membership, and connection/project state, and returns a plain-language diagnosis with the exact fix per problem — including the difference between 'not in the group' and 'in the group, but this Windows logon session predates it' (the second one only needs a sign-out/in). When fix=true (default) it ENSURES Openness group membership: it adds the current user only if they are not a member yet (may prompt a Windows UAC dialog). Read-only apart from that one fix. Call this first when setup is failing or you are unsure the environment is ready. |
 
 ### Guide
 
@@ -115,7 +115,7 @@
 | Connect | [L1][Portal] Connect to a running TIA Portal instance or start a new one. MUST be the first tool called in every session. On success, state becomes Connected=true. If TIA Portal is not installed or the user is not in the 'Siemens TIA Openness' Windows group, this will fail — run EnsureOpennessUserGroup first. |
 | ConnectIsolated | [L1][Portal] Start a BRAND-NEW headless TIA Portal instance instead of attaching to a running one. It never attaches to, modifies or closes any TIA window or project the user already has open. USE THIS when the user is working in the TIA Portal UI: plain Connect attaches to their instance and OpenProject then (correctly) refuses to touch their project, so the whole server is unusable until they close it. Must be the FIRST connection tool in a fresh MCP process — calling it after another connection leaves an orphaned portal process that later attaches steal. Afterwards use OpenProject / CreateProject as usual, then CloseProject and Disconnect. |
 | ListPortalProcessProjects | [L1][Portal]List running TIA Portal processes and the projects/sessions visible in each process. |
-| EnsureOpennessUserGroup | [L1][Portal]Ensure current Windows user is in TIA Openness user group (may prompt UI). Returns success=true when membership is OK. |
+| EnsureOpennessUserGroup | [L1][Portal]Ensure current Windows user is in TIA Openness user group (may prompt UI). Adds the user only when they are not a member yet; if they already are, nothing is changed and the answer explains that Windows only puts the group into the session token at logon, so a sign-out/in is what is actually left to do. success=true means this session may use Openness. |
 | Disconnect | [L1][Portal] Disconnect from TIA Portal and release the Openness handle. Call after all project work is done. Any unsaved changes will be lost — call SaveProject first if needed. |
 
 ### Project

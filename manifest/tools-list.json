@@ -1,6 +1,6 @@
 {
   "package": "TIA_MCP_Delivery_v2.4.0",
-  "generatedAt": "2026-09-16T17:25:02.533852+08:00",
+  "generatedAt": "2026-09-19T04:05:48.503954+08:00",
   "source": "live MCP tools/list of TiaMcpServer.exe",
   "toolCount": 222,
   "note": "Full roster (--profile full). The default lite profile lists ~49 of these; the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
@@ -819,7 +819,7 @@
       "parameters": [
         "fix"
       ],
-      "description": "[L0][Diagnostics] One-call environment doctor for non-experts. Checks TIA install, Openness group membership, and connection/project state, and returns a plain-language diagnosis with the exact fix per problem. When fix=true (default) it ENSURES Openness group membership (adds the current user; may prompt a Windows UAC dialog). Read-only apart from that one fix. Call this first when setup is failing or you are unsure the environment is ready."
+      "description": "[L0][Diagnostics] One-call environment doctor for non-experts. Checks TIA install, Openness group membership, and connection/project state, and returns a plain-language diagnosis with the exact fix per problem — including the difference between 'not in the group' and 'in the group, but this Windows logon session predates it' (the second one only needs a sign-out/in). When fix=true (default) it ENSURES Openness group membership: it adds the current user only if they are not a member yet (may prompt a Windows UAC dialog). Read-only apart from that one fix. Call this first when setup is failing or you are unsure the environment is ready."
     },
     {
       "name": "DownloadToPlc",
@@ -858,7 +858,7 @@
       "method": "EnsureOpennessUserGroup",
       "returnType": "",
       "parameters": [],
-      "description": "[L1][Portal]Ensure current Windows user is in TIA Openness user group (may prompt UI). Returns success=true when membership is OK."
+      "description": "[L1][Portal]Ensure current Windows user is in TIA Openness user group (may prompt UI). Adds the user only when they are not a member yet; if they already are, nothing is changed and the answer explains that Windows only puts the group into the session token at logon, so a sign-out/in is what is actually left to do. success=true means this session may use Openness."
     },
     {
       "name": "EnsureStartStopUnifiedHmi",

@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.IO;
@@ -457,38 +457,40 @@ public static class CliCommands
 
     // Openness group is the one check that can also repair itself, so it stays here rather
     // than in the shared read-only set.
-    bool groupOk;
-    string groupDetail;
-    try
+    // Two independent probes (token / local group store) feed the shared verdict — the old
+    // single boolean could not tell "not a member" from "member, but this logon session
+    // predates the change", and reported both as "not in the group". See OpennessGroupCheck.
+    var groupProbe = WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName);
+
+    // Repair only what a repair can fix: re-adding an existing member changes nothing and can
+    // still pop a UAC prompt, so the stale-token case is answered with "sign out/in" instead.
+    if (fix && groupProbe.MemberOnDisk != true && groupProbe.GroupExists != false)
     {
-      groupOk = fix
-        ? Openness.IsUserInGroup().GetAwaiter().GetResult()
-        : Openness.IsUserInGroupNoFix();
-      groupDetail = groupOk
-        ? zh
-          ? "当前用户已在 'Siemens TIA Openness' 组"
-          : "current user is in 'Siemens TIA Openness'"
-        : zh
-          ? "当前用户不在 'Siemens TIA Openness' 组"
-          : "current user NOT in 'Siemens TIA Openness'";
-    }
-    catch (Exception ex)
-    {
-      groupOk = false;
-      groupDetail = (zh
-        ? "检查失败："
-        : "check failed: ") + ex.Message;
+      try
+      {
+        if (!Openness.IsUserInGroup().GetAwaiter().GetResult())
+        {
+          groupProbe.ProbeError = CliCommands.Join(groupProbe.ProbeError,
+            "the add attempt reported failure (admin rights?)");
+        }
+
+        groupProbe = WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName);
+      }
+      catch (Exception ex)
+      {
+        // 修复路径失败要说出来：否则下面那句「你不在组里」会被读成「加过了但没用」。
+        groupProbe.ProbeError = CliCommands.Join(groupProbe.ProbeError, "add to group: " + ex.Message);
+      }
     }
 
-    Line(groupOk,
+    var groupVerdict = OpennessGroupCheck.Classify(groupProbe);
+    Line(groupVerdict.Ok,
       zh
         ? "Openness 用户组"
         : "Openness user group",
-      groupDetail,
-      zh
-        ? "运行 `tia doctor --fix`（会弹 UAC），或用 lusrmgr.msc 把当前 Windows 用户加入本地组 'Siemens TIA Openness'，然后注销重登。"
-        : "run `tia doctor --fix` (prompts UAC), or add your Windows user to the local group 'Siemens TIA Openness' (lusrmgr.msc) and sign out/in.");
-    ready &= groupOk;
+      groupVerdict.Detail(zh),
+      groupVerdict.Fix(zh));
+    ready &= groupVerdict.Ok;
 
     // AI host configs (informational — does not gate readiness)
     foreach (var h in McpConfigInstaller.KnownHosts())
@@ -619,6 +621,12 @@ public static class CliCommands
 
     return null;
   }
+
+  /// <summary>Appends a probe/fix failure to the detail that will be shown, keeping every reason.</summary>
+  private static string Join(string? existing, string addition) =>
+    string.IsNullOrWhiteSpace(existing)
+      ? addition
+      : existing + "; " + addition;
 
   private static bool Flag(string[] args, string name) =>
     args.Skip(1).Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase));

@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using TiaMcpServer.Runtime;
 using TiaMcpServer.Siemens;
 
 #endregion
@@ -106,14 +107,11 @@ public static partial class McpServer
         Transport = Environment.GetEnvironmentVariable("MCP_TRANSPORT") ?? "stdio",
       };
 
-      try
-      {
-        env.OpennessGroupOk = await Openness.IsUserInGroup();
-      }
-      catch
-      {
-        env.OpennessGroupOk = false;
-      }
+      // 只读探测，且与 Doctor 共用同一份判定：Bootstrap 不该替人改机器（不再调用会尝试加组的
+      // 那个重载），也不该在两处对同一个状态给出两种说法。
+      var groupVerdict = OpennessGroupCheck.Classify(
+        WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName));
+      env.OpennessGroupOk = groupVerdict.Ok;
 
       var portalDto = new BootstrapPortal();
       try
@@ -134,13 +132,19 @@ public static partial class McpServer
       string reason;
       if (env.OpennessGroupOk != true)
       {
-        nextTool = "EnsureOpennessUserGroup";
-        reason = "Current user is not in 'Siemens TIA Openness' Windows group; cannot use Openness API.";
+        // 「不在组里」要把人加进去，「在组里但本次登录令牌里还没有」只能注销重登 ——
+        // 建议下一步如果还是 EnsureOpennessUserGroup，第二种情况的调用方会白跑一趟
+        //（甚至弹一次 UAC），这正是原来那句话造成的误诊。
+        nextTool = groupVerdict.State == OpennessGroupState.MemberWithStaleToken
+          ? "(sign out and back in — the group is not in this logon session's token)"
+          : "EnsureOpennessUserGroup";
+        reason = groupVerdict.DetailEn + " " + (groupVerdict.FixEn ?? "");
       }
       else if (env.TiaVersionInUse == null && env.TiaVersionDetected == null)
       {
         nextTool = "(install TIA Portal)";
-        reason = "No TIA Portal installation detected. Install V18+ and set TiaPortalLocation env var.";
+        reason = "No TIA Portal installation detected. Install V20/V21 (with the Openness option), or set "
+          + "TiaPortalLocation to an existing install folder.";
       }
       else if (portalDto.Connected != true)
       {
@@ -333,18 +337,34 @@ public static partial class McpServer
 
   [McpServerTool(Name = "EnsureOpennessUserGroup")]
   [Description(
-    "[L1][Portal]Ensure current Windows user is in TIA Openness user group (may prompt UI). Returns success=true when membership is OK.")]
+    "[L1][Portal]Ensure current Windows user is in TIA Openness user group (may prompt UI). Adds the user only when they are not a member yet; if they already are, nothing is changed and the answer explains that Windows only puts the group into the session token at logon, so a sign-out/in is what is actually left to do. success=true means this session may use Openness.")]
   public static async Task<ResponseMessage> EnsureOpennessUserGroup()
   {
     try
     {
-      var ok = await Openness.IsUserInGroup();
+      // 这个工具能保证的只有「组成员关系存在」。它**做不到**把组塞进当前登录令牌——那是注销重登的事。
+      // 原来回一句 "Openness user group OK" 就够了，于是「已经是成员、只是令牌过期」也被报成 OK
+      //（实测撞到过：本机组成员列表里有这个人，令牌里没有），调用方据此继续往下走。
+      var verdict = OpennessGroupCheck.Classify(
+        WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName));
+
+      if (verdict.State == OpennessGroupState.NotAMember)
+      {
+        if (await Openness.IsUserInGroup())
+        {
+          verdict = OpennessGroupCheck.Classify(
+            WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName));
+        }
+      }
+
+      var message = verdict.DetailEn + (verdict.FixEn == null
+        ? ""
+        : " " + verdict.FixEn);
       return new ResponseMessage
       {
-        Message = ok
-          ? "Openness user group OK"
-          : "Openness user group NOT OK",
-        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = ok, },
+        // success == 「本次会话可以用 Openness」，与 Bootstrap / Doctor 的判据同一个来源。
+        Message = message,
+        Meta = new JsonObject { ["timestamp"] = DateTime.Now, ["success"] = verdict.Ok, ["groupState"] = verdict.State.ToString(), },
       };
     }
     catch (Exception ex) when (ex is not McpException)

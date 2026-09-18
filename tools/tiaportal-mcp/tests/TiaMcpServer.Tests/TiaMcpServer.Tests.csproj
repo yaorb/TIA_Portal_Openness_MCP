@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <!--
     最小离线自检套件。
 
@@ -43,5 +43,9 @@
     <!-- DescribeBlockLogic 的回读（issue #42）：错了不报错、不崩，只会让人看到不存在的逻辑。 -->
     <Compile Include="..\..\src\TiaMcpServer\ModelContextProtocol\SimaticMlText.cs" Link="SimaticMlText.cs" />
     <Compile Include="..\..\src\TiaMcpServer\ModelContextProtocol\LadTextRenderer.cs" Link="LadTextRenderer.cs" />
+    <!-- Openness 用户组判定：原实现把「本机组成员列表里有这个人、只是登录令牌过期」报成
+         「当前用户不在组里」，两种修法（加人 / 注销重登）完全不同。判定拆成零依赖的纯函数
+         就是为了能在这里把 27 种探测组合全枚举一遍，钉住「只有 InGroup 才允许 Ok」。 -->
+    <Compile Include="..\..\src\TiaMcpServer\Runtime\OpennessGroupCheck.cs" Link="OpennessGroupCheck.cs" />
   </ItemGroup>
 </Project>

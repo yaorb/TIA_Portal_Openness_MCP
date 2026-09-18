@@ -22,10 +22,10 @@ public static partial class McpServer
 {
   [McpServerTool(Name = "Doctor")]
   [Description(
-    "[L0][Diagnostics] One-call environment doctor for non-experts. Checks TIA install, Openness group membership, and connection/project state, and returns a plain-language diagnosis with the exact fix per problem. When fix=true (default) it ENSURES Openness group membership (adds the current user; may prompt a Windows UAC dialog). Read-only apart from that one fix. Call this first when setup is failing or you are unsure the environment is ready.")]
+    "[L0][Diagnostics] One-call environment doctor for non-experts. Checks TIA install, Openness group membership, and connection/project state, and returns a plain-language diagnosis with the exact fix per problem — including the difference between 'not in the group' and 'in the group, but this Windows logon session predates it' (the second one only needs a sign-out/in). When fix=true (default) it ENSURES Openness group membership: it adds the current user only if they are not a member yet (may prompt a Windows UAC dialog). Read-only apart from that one fix. Call this first when setup is failing or you are unsure the environment is ready.")]
   public static async Task<ResponseDoctor> Doctor(
     [Description(
-      "fix: when true (default), ensure Openness group membership (adds user, may prompt UAC). false = read-only diagnosis, no prompt.")]
+      "fix: when true (default), ensure Openness group membership (adds the user if missing, may prompt UAC). false = read-only diagnosis, no prompt.")]
     bool fix = true)
   {
     try
@@ -52,40 +52,41 @@ public static partial class McpServer
       var firstEnvProblem = checks.FirstOrDefault(c => !c.Ok)?.Name;
 
       // 2) Openness group membership (+ optional auto-fix)
-      bool groupOk;
-      if (fix)
+      //    Same shared verdict as `tia doctor` (OpennessGroupCheck): the token and the local
+      //    group store are probed separately, because "not a member" and "member, but this
+      //    logon session predates the change" need different fixes and used to be reported
+      //    as the same thing.
+      var groupProbe = WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName);
+
+      // Repair only what a repair can fix: re-adding an existing member changes nothing and can
+      // still pop a UAC prompt, and the stale-token case is fixed by signing out/in.
+      if (fix && groupProbe.MemberOnDisk != true && groupProbe.GroupExists != false)
       {
         try
         {
-          groupOk = await Openness.IsUserInGroup();
+          if (!await Openness.IsUserInGroup())
+          {
+            groupProbe.ProbeError = McpServer.JoinProbeError(groupProbe.ProbeError,
+              "the add attempt reported failure (admin rights?)");
+          }
+
+          groupProbe = WindowsGroupMembership.Probe(OpennessGroupCheck.GroupName);
         }
-        catch
+        catch (Exception ex)
         {
-          groupOk = false;
-        }
-      }
-      else
-      {
-        try
-        {
-          groupOk = Openness.IsUserInGroupNoFix();
-        }
-        catch
-        {
-          groupOk = false;
+          // 修复失败必须进报告：否则下面那句「不在组里」会被读成「加过了还是没加进去」。
+          groupProbe.ProbeError = McpServer.JoinProbeError(groupProbe.ProbeError, "add to group: " + ex.Message);
         }
       }
 
+      var groupVerdict = OpennessGroupCheck.Classify(groupProbe);
+      var groupOk = groupVerdict.Ok;
       checks.Add(new DoctorCheck
       {
         Name = "Openness user group",
-        Ok = groupOk,
-        Detail = groupOk
-          ? "current user is in 'Siemens TIA Openness' group"
-          : "current user NOT in 'Siemens TIA Openness' group",
-        Fix = groupOk
-          ? null
-          : "Run Doctor with fix=true (prompts UAC to add you), or manually add your Windows user to the 'Siemens TIA Openness' local group and sign out/in. Admin rights required.",
+        Ok = groupVerdict.Ok,
+        Detail = groupVerdict.DetailEn,
+        Fix = groupVerdict.FixEn,
       });
 
       // 3) Connection + project state
@@ -133,7 +134,10 @@ public static partial class McpServer
       }
       else if (!groupOk)
       {
-        next = "EnsureOpennessUserGroup";
+        // Same distinction as Bootstrap: only a non-member can be helped by adding one.
+        next = groupVerdict.State == OpennessGroupState.MemberWithStaleToken
+          ? "(sign out and back in — the group is not in this logon session's token)"
+          : "EnsureOpennessUserGroup";
       }
       else if (!connected)
       {
@@ -171,4 +175,10 @@ public static partial class McpServer
       throw new McpProtocolException($"Doctor unexpected error: {ex.Message}", ex, McpErrorCode.InternalError);
     }
   }
+
+  /// <summary>Appends a probe/fix failure to the detail that will be shown, keeping every reason.</summary>
+  private static string JoinProbeError(string? existing, string addition) =>
+    string.IsNullOrWhiteSpace(existing)
+      ? addition
+      : existing + "; " + addition;
 }

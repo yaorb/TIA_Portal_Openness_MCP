@@ -31,6 +31,8 @@
     <Reference Include="System.Management">
       <HintPath>C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8\System.Management.dll</HintPath>
     </Reference>
+    <!-- 与 TiaMcpServer.csproj（V21）一致：同一份源码两个工程共用，缺了它 V20 编不过。 -->
+    <Reference Include="System.DirectoryServices.AccountManagement" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="tests\**" />
