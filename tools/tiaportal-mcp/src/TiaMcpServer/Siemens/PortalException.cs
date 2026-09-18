@@ -1,20 +1,22 @@
+#region
+
 using System;
 using System.Collections.Generic;
 
-namespace TiaMcpServer.Siemens
+#endregion
+
+namespace TiaMcpServer.Siemens;
+
+public class PortalException : Exception
 {
-    public class PortalException : Exception
-    {
-        public PortalErrorCode Code { get; }
+  public PortalException(PortalErrorCode code, string message, IEnumerable<string>? candidates = null,
+    Exception? inner = null) : base(message, inner)
+  {
+    this.Code = code;
+    this.Candidates = candidates;
+  }
 
-        public IEnumerable<string>? Candidates { get; }
+  public PortalErrorCode Code { get; }
 
-        public PortalException(PortalErrorCode code, string message, IEnumerable<string>? candidates = null, Exception? inner = null)
-            : base(message, inner)
-        {
-            Code = code;
-            Candidates = candidates;
-        }
-    }
+  public IEnumerable<string>? Candidates { get; }
 }
-

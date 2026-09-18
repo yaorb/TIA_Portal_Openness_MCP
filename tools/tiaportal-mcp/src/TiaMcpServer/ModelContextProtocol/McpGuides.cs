@@ -1,22 +1,26 @@
-﻿using System.Collections.Generic;
+﻿#region
 
-namespace TiaMcpServer.ModelContextProtocol
+using System.Collections.Generic;
+
+#endregion
+
+namespace TiaMcpServer.ModelContextProtocol;
+
+/// <summary>
+///   Model-facing guidance, shipped inside the server so EVERY MCP client benefits —
+///   including hosts that never load SKILL.md (VS Code, Cursor, LobeChat, third-party
+///   agents). Two delivery channels:
+///   1. <see cref="ServerInstructions" /> — returned in the MCP initialize handshake;
+///   most hosts inject it into the model's system context automatically.
+///   2. <see cref="Topic(string)" /> — on-demand cheat sheets via the GetAuthoringGuide
+///   tool, for syntax details too large for the handshake.
+///   All facts here are verified against live TIA V20/V21 machines; do not add
+///   speculative syntax.
+/// </summary>
+public static class McpGuides
 {
-    /// <summary>
-    /// Model-facing guidance, shipped inside the server so EVERY MCP client benefits —
-    /// including hosts that never load SKILL.md (VS Code, Cursor, LobeChat, third-party
-    /// agents). Two delivery channels:
-    ///   1. <see cref="ServerInstructions"/> — returned in the MCP initialize handshake;
-    ///      most hosts inject it into the model's system context automatically.
-    ///   2. <see cref="Topic(string)"/> — on-demand cheat sheets via the GetAuthoringGuide
-    ///      tool, for syntax details too large for the handshake.
-    /// All facts here are verified against live TIA V20/V21 machines; do not add
-    /// speculative syntax.
-    /// </summary>
-    public static class McpGuides
-    {
-        public const string ServerInstructions =
-@"TIA Portal MCP server (Siemens PLC/HMI engineering via Openness). How to work well:
+  public const string ServerInstructions =
+    @"TIA Portal MCP server (Siemens PLC/HMI engineering via Openness). How to work well:
 
 FIRST CALL: Bootstrap — returns environment status, connection state, the recommended next tool, and operating rules. Do this before anything else. If the environment itself seems broken (TIA missing, group membership, nothing connects), call Doctor for a plain-language diagnosis with exact fixes.
 
@@ -39,11 +43,10 @@ DISCIPLINE:
 - On error: the message names the recovery tool; call it. Do not retry the same call unchanged and do not switch tools at random.
 - Prefer one big declarative call (ScaffoldProject / PlcBuildAndImport) over dozens of small calls — it is faster and far less error-prone.";
 
-        /// <summary>Cheat-sheet topics for the GetAuthoringGuide tool.</summary>
-        public static readonly IReadOnlyDictionary<string, string> Topics = new Dictionary<string, string>
-        {
-            ["workflow"] =
-@"WORKFLOW (verified order):
+  /// <summary>Cheat-sheet topics for the GetAuthoringGuide tool.</summary>
+  public static readonly IReadOnlyDictionary<string, string> Topics = new Dictionary<string, string>
+  {
+    ["workflow"] = @"WORKFLOW (verified order):
 Connect → (OpenProject | AttachToOpenProject | CreateProject) → GetProjectTree → read/write → CompileSoftware → SaveProject.
 - ScaffoldProject: one JSON spec builds PLC + tag tables + UDT/DB + SCL/LAD blocks + HMI screens + compile + save. dryRun=true validates offline (block shapes, file existence) without touching TIA. Use it for anything bigger than a single block.
 - PlcBuildAndImport: batch-import block set with compileAfter; also supports dryRun.
@@ -52,9 +55,7 @@ Connect → (OpenProject | AttachToOpenProject | CreateProject) → GetProjectTr
 - Cold start is slow (TIA launch). If many operations are planned, keep one session; do not Disconnect between calls.
 - .s7dcl block/network TITLES cannot inline Chinese: S7_NetworkTitle / S7_BlockTitle := ""中文"" imports silently as zero blocks ('importedBlocks:0' or 'Failed importing'). Keep the header ASCII (Chinese inside SCL body comments is fine); put a Chinese title in a .s7res MLC reference instead.
 - Verify a change actually LANDED by the block's ModifiedDate (= today), NOT by 'compiled with 0 errors' — an old block body plus a freshly imported tag table still compiles clean, so 0 errors does not prove your new logic is in.",
-
-            ["scl"] =
-@"SCL AUTHORING (verified):
+    ["scl"] = @"SCL AUTHORING (verified):
 Preferred import: ImportFromDocuments / ImportBlocksFromScl with .s7dcl files (UTF-8 WITH BOM). Alternative: GenerateBlocksFromExternalSource with .scl external source (UTF-8 WITHOUT BOM for ASCII-only; if the .scl has Chinese, no-BOM mojibakes it -> add a BOM or keep comments ASCII, or better author it as .s7dcl).
 CAUTION: GenerateBlocksFromExternalSource does NOT overwrite an existing block — re-running updates modifiedDate but keeps the OLD code (you then debug 'phantom' errors). To change a block: delete it first (InvokeObject methodName=Delete, instance DB first), then regenerate. (ImportFromDocuments/.s7dcl DOES overwrite with importOption=Override.)
 Skeleton (block names in English; for a .s7dcl Chinese comments are fine, but in a .scl external source keep comments ASCII unless the file has a BOM):
@@ -94,9 +95,7 @@ INSTRUCTION GOTCHAS (compile-verified on S7-1500/V21 — these are the ones weak
 - UNION is NOT supported in S7-1500 SCL ('data type UNION unknown'). For byte/word overlays use AT in a NON-optimized block: { S7_Optimized_Access := 'FALSE' } ... asBytes AT dw : Array[0..3] of Byte;
 - After import always CompileSoftware and read the diagnostics; fix and re-import the SAME block name (it overwrites).
 - One bad function call cascades bogus errors onto neighbouring valid statements — if a rung of errors looks wrong, isolate the suspect statement in a tiny test block to find the real culprit.",
-
-            ["lad"] =
-@"LADDER (LAD) — READING & AUTHORING (verified):
+    ["lad"] = @"LADDER (LAD) — READING & AUTHORING (verified):
 READING/ANALYZING existing LAD: call DescribeBlockLogic(softwarePath, blockPath). It reconstructs each rung as a readable expression (series contacts = ' · ', parallel = ' + ', NC shown as '/operand'), lists coils ( )/(S)/(R) and MOVE/compare/timer boxes with operands, and FLAGS a contact wired to a literal constant ('⟨恒断·禁用本行⟩' = a NO contact on FALSE that silently disables its rung). Use it instead of exporting XML and tracing wires by hand — it is the accurate, fast path.
 AUTHORING: DO NOT hand-write SimaticML FlgNet XML — UId bookkeeping and entity escaping make it fail constantly. The reliable path is S7DCL ladder TEXT imported with ImportBlocksFromScl(importPath=directory) / ImportFromDocuments. Files: Block.s7dcl (+ optional Block.s7res for Chinese texts), both UTF-8 WITH BOM.
 S7DCL LADDER DIALECT (compile-verified on S7-1500/V21):
@@ -129,17 +128,13 @@ MIXED LAD + SCL in ONE block: the block header keeps S7_PreferredLanguage := ""L
 - To learn any element you have not seen: ExportAsDocuments on a real LAD block and copy its .s7dcl structure (SD is ~9x smaller and readable vs XML).
 When only a plain FC/FB CALL network is needed, BuildFlgNetCallXml / ComposePlcLadFcBlockXml are safe (they generate the XML for you).
 Mixed LAD+SCL blocks are supported by .s7dcl. After import: CompileSoftware, then SaveProject.",
-
-            ["db"] =
-@"DB / UDT / TAG TABLES (verified):
+    ["db"] = @"DB / UDT / TAG TABLES (verified):
 - Global DB: BuildPlcGlobalDbXml → ImportBlock (XML, UTF-8 WITH BOM). Members need Name + Datatype (+ optional StartValue).
 - UDT: BuildPlcUdtXml → ImportType. A UDT with no members is invalid (dryRun catches it).
 - Tag tables: BuildPlcTagTableXml → ImportPlcTagTable; logical addresses like %I0.0 / %Q0.1 / %MW10.
 - Instance DBs are created automatically when a FB call is compiled — do not author them by hand.
 - Reading live values: ReadPlcLiveValuesS7 needs PUT/GET enabled and non-optimized access for absolute addressing; check GetPutGetAccess first. Optimized-block symbolic live read is NOT possible over classic S7 — do not promise it.",
-
-            ["hmi"] =
-@"HMI (WinCC Unified, verified):
+    ["hmi"] = @"HMI (WinCC Unified, verified):
 Order matters: create/complete the PLC side FIRST (tags/DB must exist), then HMI.
 - Connection: EnsureUnifiedHmiConnection (single connection auto-selects the driver).
 - Tags: EnsureUnifiedHmiTag bound SYMBOLICALLY to PLC tags (not absolute addresses); set acquisition cycle.
@@ -148,9 +143,7 @@ Order matters: create/complete the PLC side FIRST (tags/DB must exist), then HMI
 - HMI software path is usually 'HMI_RT_1'; ScaffoldProject auto-resolves it.
 - These tools verify after write (AbsoluteVerified in the response) — check it instead of re-reading.
 - CLASSIC/Comfort/Basic panels (KTP Basic, TP/KTP Comfort) CANNOT get their PLC connection created via Openness on this build (CommunicationConnections is not exposed). Prefer a WinCC Unified panel. If a classic panel is mandatory, the only automatable path is to import the HMI TAG TABLE with ABSOLUTE addressing: AddressAccessMode=Absolute, LogicalAddress=%DB1.DBX36.0 + the Connection name, and NO ControllerTag (a symbolic tag on a connection with no integrated partner resolves to 'controller tag not found'). The source DB must be non-optimized.",
-
-            ["errors"] =
-@"COMMON ERRORS → EXACT FIX (all seen on real machines):
+    ["errors"] = @"COMMON ERRORS → EXACT FIX (all seen on real machines):
 - 'Block not found' → name mismatch. GetBlocks/GetProjectTree for real names. ROOT-LEVEL blocks must use the BARE name (adding a 'Program blocks/' prefix fails — that container is NOT part of the path); only user-created subgroups are part of the path (e.g. '03_AutoControl/A3_6_SpeedCtrl').
 - 'The engineering version Vxx is not supported' → importing XML from another TIA version; the server normalizes this automatically on ImportBlock/ImportType — if you built the XML yourself, do not write <Engineering version> at all, or re-import through the provided Build*Xml tools.
 - Chinese text becomes '???' / mojibake / bogus 'BEGIN invalid' → wrong encoding. XML/.s7dcl need UTF-8 WITH BOM. A .scl external source is no-BOM ONLY when ASCII-only; a .scl WITH Chinese must have a BOM (utf-8-sig) or keep comments ASCII — otherwise it is read as GBK and the parser reports a mis-located fake syntax error.
@@ -162,15 +155,20 @@ Order matters: create/complete the PLC side FIRST (tags/DB must exist), then HMI
 - S7-1200 'identityConfirmed:false' right after connect is NORMAL, not an error — proceed.
 - Connect hangs / security error → an orphan TIA process is stuck; ask the user to close TIA instances (or kill Siemens.Automation.Portal.exe) and retry.
 - Long waits are normal on FIRST launch only (headless TIA cold start); subsequent calls are fast. Never spam-retry a slow call — you will spawn extra TIA instances.",
-        };
+  };
 
-        /// <summary>Get a topic text, or null. Case-insensitive.</summary>
-        public static string? Topic(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return null;
-            return Topics.TryGetValue(name.Trim().ToLowerInvariant(), out var t) ? t : null;
-        }
+  public static string TopicList => string.Join(", ", McpGuides.Topics.Keys);
 
-        public static string TopicList => string.Join(", ", Topics.Keys);
+  /// <summary>Get a topic text, or null. Case-insensitive.</summary>
+  public static string? Topic(string name)
+  {
+    if (string.IsNullOrWhiteSpace(name))
+    {
+      return null;
     }
+
+    return McpGuides.Topics.TryGetValue(name.Trim().ToLowerInvariant(), out var t)
+      ? t
+      : null;
+  }
 }
