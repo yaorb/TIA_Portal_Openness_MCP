@@ -214,27 +214,27 @@ public static class LadTextRenderer
     }
 
     var guard = new HashSet<string>();
-    foreach (var outp in outputs)
+    foreach (var output in outputs)
     {
-      if (LadTextRenderer.IsCoil(outp.Name))
+      if (LadTextRenderer.IsCoil(output.Name))
       {
-        var inKey = $"{outp.UId}:in";
+        var inKey = $"{output.UId}:in";
         var expr = flowSource.TryGetValue(inKey, out var src)
           ? LadTextRenderer.TraceChain(src, parts, flowSource, guard)
           : "?";
-        var coil = LadTextRenderer.CoilGlyph(outp.Name);
-        var operand = outp.Operands.TryGetValue("operand", out var o)
+        var coil = LadTextRenderer.CoilGlyph(output.Name);
+        var operand = output.Operands.TryGetValue("operand", out var o)
           ? o
           : "?";
         sb.Append($"   {operand} {coil}  ⇐  {(string.IsNullOrEmpty(expr) ? "RAIL(恒通)" : expr)}\n");
       }
       else // writing box (MOVE etc.) driven by EN
       {
-        var enKey = $"{outp.UId}:en";
+        var enKey = $"{output.UId}:en";
         var en = flowSource.TryGetValue(enKey, out var src)
           ? LadTextRenderer.TraceChain(src, parts, flowSource, guard)
           : "";
-        sb.Append($"   当 [{(string.IsNullOrEmpty(en) ? "RAIL(恒通)" : en)}] 时: {LadTextRenderer.DescribeBox(outp)}\n");
+        sb.Append($"   当 [{(string.IsNullOrEmpty(en) ? "RAIL(恒通)" : en)}] 时: {LadTextRenderer.DescribeBox(output)}\n");
       }
     }
 

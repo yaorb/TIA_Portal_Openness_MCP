@@ -157,6 +157,9 @@ public static class McpPrompts
      - softwarePath: {softwarePath}
      """;
 
+  // 不能收窄成 private：Program.cs 用 mcp.WithPromptsFromAssembly() **反射扫描**公有的
+  // [McpServerPrompt] 方法，收窄后这个 prompt 会从 MCP 的 prompt 列表里静默消失
+  // （编译照过、离线测试也不覆盖 McpPrompts.cs，抓不到）。
   [McpServerPrompt(Name = "ExportBlocks")]
   [Description("Export blocks from PLC software")]
   public static string ExportBlocks(string softwarePath, string exportPath, string regexName, bool preservePath) =>
@@ -180,6 +183,7 @@ public static class McpPrompts
       - preservePath: {{preservePath.ToString().ToLower()}}
       """;
 
+  // 同上：必须 public，否则反射扫描不到这个 prompt。
   [McpServerPrompt(Name = "ExportTypes")]
   [Description("Export types from PLC software")]
   public static string ExportTypes(string softwarePath, string exportPath, string regexName, bool preservePath) =>
@@ -196,6 +200,7 @@ public static class McpPrompts
      - preservePath: {preservePath.ToString().ToLower()}
      """;
 
+  // 同上：必须 public，否则反射扫描不到这个 prompt。
   [McpServerPrompt(Name = "ExportBlocksAsDocuments")]
   [Description("Export blocks as documents (.s7dcl/.s7res format, V20+)")]
   public static string ExportBlocksAsDocuments(string softwarePath, string exportPath, string regexName,

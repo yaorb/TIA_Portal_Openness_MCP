@@ -104,15 +104,9 @@ internal static class HmiScreenWalk
 
       foreach (var propName in HmiScreenWalk.ChildFolderProperties)
       {
-        if (HmiScreenWalk.GetProperty(container, propName) is IEnumerable groups && !(groups is string))
+        if (HmiScreenWalk.GetProperty(container, propName) is IEnumerable groups and not string)
         {
-          foreach (var group in groups)
-          {
-            if (group != null)
-            {
-              children.Add(group);
-            }
-          }
+          children.AddRange(groups.OfType<object>());
         }
       }
 

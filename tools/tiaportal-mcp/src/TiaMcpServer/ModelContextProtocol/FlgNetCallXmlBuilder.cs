@@ -69,23 +69,9 @@ public static class FlgNetCallXmlBuilder
           new XAttribute("UId", callUid),
           new XAttribute("Name", "en"))),
     };
-
-    foreach (var parameter in parameterList)
-    {
-      wires.Add(parameter.Section == "Output"
-        ? new XElement(FlgNetCallXmlBuilder.FlgNetNs + "Wire",
-          new XAttribute("UId", wireUid++),
-          new XElement(FlgNetCallXmlBuilder.FlgNetNs + "NameCon",
-            new XAttribute("UId", callUid),
-            new XAttribute("Name", parameter.ParameterName)),
-          new XElement(FlgNetCallXmlBuilder.FlgNetNs + "IdentCon", new XAttribute("UId", parameter.AccessUid)))
-        : new XElement(FlgNetCallXmlBuilder.FlgNetNs + "Wire",
-          new XAttribute("UId", wireUid++),
-          new XElement(FlgNetCallXmlBuilder.FlgNetNs + "IdentCon", new XAttribute("UId", parameter.AccessUid)),
-          new XElement(FlgNetCallXmlBuilder.FlgNetNs + "NameCon",
-            new XAttribute("UId", callUid),
-            new XAttribute("Name", parameter.ParameterName))));
-    }
+    wires.AddRange(parameterList.Select(parameter => parameter.Section == "Output"
+      ? new XElement(FlgNetCallXmlBuilder.FlgNetNs + "Wire", new XAttribute("UId", wireUid++), new XElement(FlgNetCallXmlBuilder.FlgNetNs + "NameCon", new XAttribute("UId", callUid), new XAttribute("Name", parameter.ParameterName)), new XElement(FlgNetCallXmlBuilder.FlgNetNs + "IdentCon", new XAttribute("UId", parameter.AccessUid)))
+      : new XElement(FlgNetCallXmlBuilder.FlgNetNs + "Wire", new XAttribute("UId", wireUid++), new XElement(FlgNetCallXmlBuilder.FlgNetNs + "IdentCon", new XAttribute("UId", parameter.AccessUid)), new XElement(FlgNetCallXmlBuilder.FlgNetNs + "NameCon", new XAttribute("UId", callUid), new XAttribute("Name", parameter.ParameterName)))));
 
     return new XElement(FlgNetCallXmlBuilder.FlgNetNs + "FlgNet",
       new XElement(FlgNetCallXmlBuilder.FlgNetNs + "Parts", accessParts.Concat(call)),

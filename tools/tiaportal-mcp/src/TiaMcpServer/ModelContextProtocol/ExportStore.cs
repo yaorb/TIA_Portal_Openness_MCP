@@ -190,11 +190,12 @@ public static class ExportStore
       {
         Id = id ?? "",
         Error = err,
-        Message = err == "evicted"
-          ? $"句柄 {id} 已被淘汰：寄存区放满了，最久没被读到的先出局。内容没过期但已丢弃，请重跑产生它的那个工具；要整份就直接 SaveExport 落盘，别一页页翻。"
-          : err == "expired"
-            ? $"句柄 {id} 已过期（寄存只保留 {ExportStore.DefaultTtlHours} 小时）。内容已经丢弃，要拿全量请重跑产生它的那个工具。"
-            : $"没有句柄 {id}。用 ListExports 看当前还有哪些，或者重跑产生它的工具拿一个新的。",
+        Message = err switch
+        {
+          "evicted" => $"句柄 {id} 已被淘汰：寄存区放满了，最久没被读到的先出局。内容没过期但已丢弃，请重跑产生它的那个工具；要整份就直接 SaveExport 落盘，别一页页翻。",
+          "expired" => $"句柄 {id} 已过期（寄存只保留 {ExportStore.DefaultTtlHours} 小时）。内容已经丢弃，要拿全量请重跑产生它的那个工具。",
+          _         => $"没有句柄 {id}。用 ListExports 看当前还有哪些，或者重跑产生它的工具拿一个新的。",
+        },
       };
     }
 
@@ -274,10 +275,7 @@ public static class ExportStore
     {
       ExportStore.PurgeExpiredLocked(now);
       ExportStore.Entries.TryGetValue(id ?? "", out var e);
-      if (e != null)
-      {
-        e.LastTouchUtc = now; // LRU：SaveExport 读过也算用过
-      }
+      e?.LastTouchUtc = now; // LRU：SaveExport 读过也算用过
 
       return e;
     }

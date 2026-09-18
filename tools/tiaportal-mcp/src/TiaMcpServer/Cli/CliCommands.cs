@@ -205,22 +205,24 @@ public static class CliCommands
       // print the actual tree text, not just the "(retrieved)" status line
       Console.WriteLine(tree.Tree ?? tree.Message ?? "(project tree)");
       var plc = CliCommands.Opt(args, "--plc");
-      if (!string.IsNullOrWhiteSpace(plc))
+      if (string.IsNullOrWhiteSpace(plc))
       {
-        var blocks = McpServer.GetBlocks(plc!);
-        Console.WriteLine();
-        Console.WriteLine($"== {plc} · 程序块 ==");
-        if (blocks.Items != null)
+        return 0;
+      }
+
+      var blocks = McpServer.GetBlocks(plc!);
+      Console.WriteLine();
+      Console.WriteLine($"== {plc} · 程序块 ==");
+      if (blocks.Items != null)
+      {
+        foreach (var b in blocks.Items)
         {
-          foreach (var b in blocks.Items)
-          {
-            Console.WriteLine($"  {b.TypeName,-12} {b.Name}  [{b.ProgrammingLanguage}]");
-          }
+          Console.WriteLine($"  {b.TypeName,-12} {b.Name}  [{b.ProgrammingLanguage}]");
         }
-        else
-        {
-          Console.WriteLine(blocks.Message);
-        }
+      }
+      else
+      {
+        Console.WriteLine(blocks.Message);
       }
     }
 
@@ -373,12 +375,12 @@ public static class CliCommands
       Console.WriteLine("Claude Desktop / Claude Code / Cursor (mcpServers):");
       Console.WriteLine(McpConfigInstaller.Snippet(exe, ver, McpConfigInstaller.HostStyle.McpServers, full));
       Console.WriteLine();
-      Console.WriteLine("VS Code — %APPDATA%\\Code\\User\\mcp.json (servers):");
+      Console.WriteLine(@"VS Code — %APPDATA%\Code\User\mcp.json (servers):");
       Console.WriteLine(McpConfigInstaller.Snippet(exe, ver, McpConfigInstaller.HostStyle.VsCode, full));
       Console.WriteLine();
       Console.WriteLine("Gemini CLI / Windsurf / Cline use the same mcpServers shape as the first snippet.");
       Console.WriteLine();
-      Console.WriteLine("Codex — %USERPROFILE%\\.codex\\config.toml (TOML):");
+      Console.WriteLine(@"Codex — %USERPROFILE%\.codex\config.toml (TOML):");
       Console.WriteLine(McpConfigInstaller.Snippet(exe, ver, McpConfigInstaller.HostStyle.CodexToml, full));
       return 0;
     }
@@ -398,19 +400,18 @@ public static class CliCommands
       var installed = File.Exists(h.ConfigPath) || Directory.Exists(Path.GetDirectoryName(h.ConfigPath));
       if (!targeted && !installed)
       {
-        Console.WriteLine("  [skip]   " + h.Name + " (not detected on this machine)");
+        Console.WriteLine($"  [skip]   {h.Name} (not detected on this machine)");
         continue;
       }
 
       try
       {
-        Console.WriteLine("  [ok]     " + h.Name + ": " +
-          McpConfigInstaller.Apply(h.ConfigPath, exe, ver, h.Style, full));
+        Console.WriteLine($"  [ok]     {h.Name}: {McpConfigInstaller.Apply(h.ConfigPath, exe, ver, h.Style, full)}");
         done++;
       }
       catch (Exception ex)
       {
-        Console.Error.WriteLine("  [failed] " + h.Name + ": " + ex.Message);
+        Console.Error.WriteLine($"  [failed] {h.Name}: {ex.Message}");
         failed++;
       }
     }
@@ -441,15 +442,6 @@ public static class CliCommands
         : " (read-only; pass --fix to auto-add the Openness group)"));
 
     var ready = true;
-
-    void Line(bool ok, string name, string detail, string? fixHint)
-    {
-      Console.WriteLine($"  [{(ok ? " ok " : "FAIL")}] {name}: {detail}");
-      if (!ok && !string.IsNullOrEmpty(fixHint))
-      {
-        Console.WriteLine($"         {(zh ? "修法" : "fix")}: {fixHint}");
-      }
-    }
 
     var detected = Engineering.DetectTiaMajorVersion();
     var compiled = EngineRouter.CompiledTiaMajorVersion;
@@ -546,6 +538,15 @@ public static class CliCommands
     return ready
       ? 0
       : 1;
+
+    void Line(bool ok, string name, string detail, string? fixHint)
+    {
+      Console.WriteLine($"  [{(ok ? " ok " : "FAIL")}] {name}: {detail}");
+      if (!ok && !string.IsNullOrEmpty(fixHint))
+      {
+        Console.WriteLine($"         {(zh ? "修法" : "fix")}: {fixHint}");
+      }
+    }
   }
 
   private static bool MatchesHost(string hostName, string query)

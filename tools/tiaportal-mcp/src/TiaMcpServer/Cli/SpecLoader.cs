@@ -67,7 +67,7 @@ public static class SpecLoader
       return text;
     }
 
-    return text.Replace("__BUNDLE__\\\\", root + "/") // JSON "__BUNDLE__\\templates" -> root + "/templates"
+    return text.Replace(@"__BUNDLE__\\", root + "/") // JSON "__BUNDLE__\\templates" -> root + "/templates"
       .Replace("__BUNDLE__/", root + "/")             // YAML / forward-slash form
       .Replace("__BUNDLE__", root);
   }

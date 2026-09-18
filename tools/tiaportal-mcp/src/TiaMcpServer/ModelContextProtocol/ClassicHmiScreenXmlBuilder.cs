@@ -43,7 +43,7 @@ public static class ClassicHmiScreenXmlBuilder
     };
   }
 
-  public static XDocument BuildDocument(JsonObject design)
+  private static XDocument BuildDocument(JsonObject design)
   {
     var screen = design["Screen"] as JsonObject ?? design["screen"] as JsonObject ?? design;
     var screenName = ClassicHmiScreenXmlBuilder.GetString(screen, "Name", "name", "Classic_Generated_Screen");
@@ -212,7 +212,7 @@ public static class ClassicHmiScreenXmlBuilder
       new("Width", ClassicHmiScreenXmlBuilder.GetInt(item, "Width", "width", 120)),
     };
 
-    if (elementName == "Hmi.Screen.Button" || elementName == "Hmi.Screen.IOField")
+    if (elementName is "Hmi.Screen.Button" or "Hmi.Screen.IOField")
     {
       attributes.Add(new XElement("Enabled", "true"));
       attributes.Add(new XElement("ForeColor",
@@ -428,7 +428,7 @@ public static class ClassicHmiScreenXmlBuilder
 
     if (type.StartsWith("Hmi", StringComparison.OrdinalIgnoreCase))
     {
-      type = type.Substring(3);
+      type = type[3..];
     }
 
     return type.Equals("TextField", StringComparison.OrdinalIgnoreCase)
@@ -449,15 +449,15 @@ public static class ClassicHmiScreenXmlBuilder
       return color;
     }
 
-    var hex = color.Substring(color.Length == 10
+    var hex = color[(color.Length == 10
       ? 4
-      : 2);
+      : 2)..];
     if (hex.Length != 6)
     {
       return color;
     }
 
-    var r = Convert.ToInt32(hex.Substring(0, 2), 16);
+    var r = Convert.ToInt32(hex[..2], 16);
     var g = Convert.ToInt32(hex.Substring(2, 2), 16);
     var b = Convert.ToInt32(hex.Substring(4, 2), 16);
     return $"{r}, {g}, {b}";
@@ -543,7 +543,7 @@ public static class ClassicHmiScreenXmlBuilder
   {
     var props = item["Properties"] as JsonObject ?? item["properties"] as JsonObject;
     return props?[name]?.ToString() ??
-      props?[char.ToLowerInvariant(name[0]) + name.Substring(1)]?.ToString() ?? fallback;
+      props?[char.ToLowerInvariant(name[0]) + name[1..]]?.ToString() ?? fallback;
   }
 
   private static int GetPropertyInt(JsonObject item, string name, int fallback) =>

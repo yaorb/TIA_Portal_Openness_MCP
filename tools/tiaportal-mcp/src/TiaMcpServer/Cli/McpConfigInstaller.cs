@@ -50,19 +50,19 @@ public static class McpConfigInstaller
   {
     var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
     var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-    return new List<Host>
-    {
-      new("Claude Desktop", Path.Combine(appData, "Claude", "claude_desktop_config.json"), HostStyle.McpServers),
-      new("Claude Code", Path.Combine(userProfile, ".claude.json"), HostStyle.McpServers),
-      new("Cursor", Path.Combine(userProfile, ".cursor", "mcp.json"), HostStyle.McpServers),
-      new("VS Code", Path.Combine(appData, "Code", "User", "mcp.json"), HostStyle.VsCode),
+    return
+    [
+      new Host("Claude Desktop", Path.Combine(appData, "Claude", "claude_desktop_config.json"), HostStyle.McpServers),
+      new Host("Claude Code", Path.Combine(userProfile, ".claude.json"), HostStyle.McpServers),
+      new Host("Cursor", Path.Combine(userProfile, ".cursor", "mcp.json"), HostStyle.McpServers),
+      new Host("VS Code", Path.Combine(appData, "Code", "User", "mcp.json"), HostStyle.VsCode),
       // The commercial GUI's config wizard has written these four for a while; the
       // engine's own `config` did not — so the zero-install path (just run 配置MCP.bat),
       // the one meant to have the LOWEST barrier, supported fewer clients than the GUI.
-      new("Codex", Path.Combine(userProfile, ".codex", "config.toml"), HostStyle.CodexToml),
-      new("Gemini CLI", Path.Combine(userProfile, ".gemini", "settings.json"), HostStyle.McpServers),
-      new("Windsurf", Path.Combine(userProfile, ".codeium", "windsurf", "mcp_config.json"), HostStyle.McpServers),
-      new("Cline",
+      new Host("Codex", Path.Combine(userProfile, ".codex", "config.toml"), HostStyle.CodexToml),
+      new Host("Gemini CLI", Path.Combine(userProfile, ".gemini", "settings.json"), HostStyle.McpServers),
+      new Host("Windsurf", Path.Combine(userProfile, ".codeium", "windsurf", "mcp_config.json"), HostStyle.McpServers),
+      new Host("Cline",
         Path.Combine(appData,
           "Code",
           "User",
@@ -71,7 +71,7 @@ public static class McpConfigInstaller
           "settings",
           "cline_mcp_settings.json"),
         HostStyle.McpServers),
-    };
+    ];
   }
 
   /// <summary>Full path of the currently running engine exe.</summary>
@@ -191,9 +191,9 @@ public static class McpConfigInstaller
     servers[McpConfigInstaller.ServerKey] = McpConfigInstaller.BuildServerEntry(exePath, tiaMajorVersion, style, full);
 
     McpConfigInstaller.AtomicWriteAllText(configPath, root.ToJsonString(McpConfigInstaller.JsonOpts));
-    return (existed
+    return $"{(existed
       ? "updated"
-      : "wrote") + " " + McpConfigInstaller.ServerKey + " -> " + configPath;
+      : "wrote")} {McpConfigInstaller.ServerKey} -> {configPath}";
   }
 
   /// <summary>
@@ -333,9 +333,9 @@ public static class McpConfigInstaller
 
     sb.Append(McpConfigInstaller.CodexTomlSection(exePath, tiaMajorVersion, full));
     McpConfigInstaller.AtomicWriteAllText(configPath, sb.ToString());
-    return (existed
+    return $"{(existed
       ? "updated"
-      : "wrote") + " " + McpConfigInstaller.ServerKey + " -> " + configPath;
+      : "wrote")} {McpConfigInstaller.ServerKey} -> {configPath}";
   }
 
   /// <summary>Windows path as a TOML literal string (no backslash escaping inside '...').</summary>
@@ -346,7 +346,7 @@ public static class McpConfigInstaller
       return "'" + s + "'";
     }
 
-    return "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n") + "\"";
+    return "\"" + s.Replace("\\", @"\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n") + "\"";
   }
 
   /// <summary>Temp file + replace: a crash mid-write must not truncate the user's config.</summary>

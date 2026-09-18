@@ -46,7 +46,7 @@ public static class ClassicHmiTagTableXmlBuilder
     };
   }
 
-  public static XDocument BuildDocument(JsonObject root)
+  private static XDocument BuildDocument(JsonObject root)
   {
     var tableName = ClassicHmiTagTableXmlBuilder.GetString(root,
       "Name",
@@ -242,43 +242,15 @@ public static class ClassicHmiTagTableXmlBuilder
     }
 
     // V21 Classic HMI 要求 Length 与 PLC 数据类型字节数一致；不一致 import 直接拒绝。
-    switch (dataType.Trim().ToUpperInvariant())
+    return dataType.Trim().ToUpperInvariant() switch
     {
-      case "BOOL":
-        return "1";
-
-      case "BYTE":
-      case "USINT":
-      case "SINT":
-      case "CHAR":
-        return "1";
-
-      case "WORD":
-      case "INT":
-      case "UINT":
-        return "2";
-
-      case "DWORD":
-      case "DINT":
-      case "UDINT":
-      case "REAL":
-      case "TIME":
-      case "TIME_OF_DAY":
-      case "DATE_AND_TIME":
-      case "TOD":
-        return "4";
-
-      case "LWORD":
-      case "LINT":
-      case "ULINT":
-      case "LREAL":
-      case "LTIME":
-      case "DTL":
-        return "8";
-
-      default:
-        return "2"; // 未识别类型给最常见值，调用方可手工传 Length 覆盖
-    }
+      "BOOL"                                                                                        => "1",
+      "BYTE" or "USINT" or "SINT" or "CHAR"                                                         => "1",
+      "WORD" or "INT" or "UINT"                                                                     => "2",
+      "DWORD" or "DINT" or "UDINT" or "REAL" or "TIME" or "TIME_OF_DAY" or "DATE_AND_TIME" or "TOD" => "4",
+      "LWORD" or "LINT" or "ULINT" or "LREAL" or "LTIME" or "DTL"                                   => "8",
+      _                                                                                             => "2",
+    };
   }
 
   private static string GetString(JsonObject obj, string pascal, string camel, string fallback) =>

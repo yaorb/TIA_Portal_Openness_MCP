@@ -341,7 +341,7 @@ public static class GlobalLibraryPackageAnalyzer
     var sb = new StringBuilder();
     foreach (var b in bytes)
     {
-      if (b >= 32 && b <= 126)
+      if (b is >= 32 and <= 126)
       {
         sb.Append((char)b);
         continue;
