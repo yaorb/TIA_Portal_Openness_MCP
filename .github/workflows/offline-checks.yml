@@ -35,6 +35,20 @@ jobs:
       - name: Descriptions must not name unregistered tools
         run: python3 scripts/Check-DeadToolReferences.py
 
+  mcp-attribute-visibility:
+    # 引擎不是靠人工登记，而是靠**反射扫描**把带 [McpServerTool] / [McpServerPrompt] /
+    # [McpServerResource] 的成员捞出来的（Program.cs 的 WithPromptsFromAssembly()；
+    # 工具侧是 McpServer.GetMcpToolNames() 的 BindingFlags.Public）。
+    # 把这类成员收窄成 private **不会编译报错**，只会在运行时从 MCP 列表里静默消失 ——
+    # 真踩过：一次「能收窄就收窄」的自动清理让 3 个 prompt 消失，而离线回归套件
+    # 不覆盖 McpPrompts.cs，当时没有任何东西兜得住。
+    # 脚本自带必错哨兵：注入一个 private 的特性方法，抓不到就报 FAIL，不给假 PASS。
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: MCP-attributed members must stay public
+        run: python3 scripts/Check-McpAttributeVisibility.py
+
   silent-catch-guard:
     # 异常被吞掉属于「坏了也悄无声息」那一类：调用方只看到「没有」，看不到「失败」。
     # 本仓刚做过一轮 P0–P2（见 docs/try-catch_审计报告.md），Siemens 层已清零 ——
