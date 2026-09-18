@@ -1,4 +1,79 @@
-﻿# Change Log
+# Change Log
+
+## [2.7.4] - 2026-09-19 - 环境诊断说真话：组状态分两种、装在别的盘的博途也认
+
+这一版没有新工具，修的是「报告说的和事实不一样」——两处都是在一台真机上实测出来的。
+
+### 修复
+
+- **用户组检查把「在组里、只是本次登录令牌里还没有」报成了「不在组里」。**
+  原来只问一句「当前登录令牌里有没有 `Siemens TIA Openness`」，答「没有」，就写成
+  「当前用户不在 'Siemens TIA Openness' 组」—— 而本机组的成员列表里明明有这个人。
+  实测取证：组的 SID `S-1-5-21-…-1012` 不在 `whoami /groups` 的 17 个组里，却在组的成员
+  列表里；Windows 只在登录那一刻把组放进令牌，所以这是两种完全不同的问题：
+
+  | 状态 | 该做什么 | 原来被报成 |
+  |---|---|---|
+  | 不是成员 | 把人加进组 → 注销重登 | 「不在组里」（对） |
+  | 是成员、令牌过期 | 注销重登（再加一次没有任何作用） | 「不在组里」（错） |
+
+  于是刚加过组的人会反复怀疑自己没加成功，或者去找管理员要本来就有的权限；
+  `--fix` 对已经是成员的人也只是白弹一次 UAC。
+
+  现在两个独立探针 + 一份共用判定（`Runtime/OpennessGroupCheck.cs` 纯逻辑、
+  `Runtime/WindowsGroupMembership.cs` 探测）：令牌探针 `WindowsPrincipal.IsInRole`
+  决定「本次会话能不能用 Openness」，组成员探针读本机 SAM、按 **SID** 比对并含嵌套组。
+  探针失败只说「未验证」并带出原因，不再伪装成「不在组里」。`tia doctor`、MCP `Doctor`、
+  `Bootstrap`、`EnsureOpennessUserGroup` 四处共用同一判定，不会再各说各话；
+  `EnsureOpennessUserGroup` 的成功判据改为「本次会话可用」，已是成员时直接说明
+  「加没有用，注销重登即可」。`--fix` 只在确实不是成员时才尝试加人。
+
+- **博途装在非默认盘时，引擎找不到自己的安装目录。** 实测一台 C 盘装 V18、E 盘装 V21 的
+  机器：不设 `TiaPortalLocation` 时版本探测答 **V18**（探测只扫
+  `%ProgramFiles%\Siemens\Automation\Portal V*`），而交付的 exe 是按 V21 编的 ——
+  引擎死在 `Siemens.Engineering.Base` 的加载上。另外 `TIAP21\TIA_Opns` 下**根本没有
+  `Path` 值**，旧代码的回退链只有「环境变量 → `TIA_Opns\Path`」两条，而它的失败消息里
+  那句「…and the default install folder were all checked」其实从来没查过默认目录。
+
+  而西门子自己一直把答案写在注册表里：
+  `HKLM\SOFTWARE\Siemens\Automation\Openness\{major}.{minor}\PublicAPI\{api}[\net48]`
+  的每个值都是 API DLL 的**完整路径**。探测与解析现在都吃这一来源（并要求 DLL 真实存在，
+  防止卸载残留的注册项），解析链补齐默认目录一环，于是那句话现在为真。
+  本机不设任何环境变量即可正常启动。
+
+### 改进
+
+- `tia doctor` 新增一条信息性检查：**用的是哪个目录、从哪找到的**（`--tia-portal-location`
+  / 环境变量 / `TIAP_Opns` / Openness 注册项 / 默认目录）。来源是环境变量时会提醒
+  「MCP 宿主不继承你 shell 的环境变量，客户端配置里也要写一份」；是非默认目录时说明
+  「引擎靠注册表就能找到，不需要环境变量」。
+- `Bootstrap` 的 `environment` 报同一份结果并新增 `tiaInstallPathSource`；原来它只读环境
+  变量，靠注册表定位的机器上恒为 `null`，读报告的人会以为「没有安装目录」。
+- `scripts/Check-LiteProfile.py`：引擎自动挑（`runtime\v<N>` 最高版，或 `--exe` 指定），
+  并默认按 exe 的版本号**显式**传 `--tia-major-version`（自动探测会答本机最高版，
+  正是上面那个死的死因）；新增 `--tia-portal-location`；引擎提前退出时把它的 stderr
+  原样带出来并附上该试什么，大退出码按 `0xE0434352` 这种可读形式打印。
+- **`scripts/Generate-ToolCapabilityMatrix.ps1` 早已解析不到任何工具。** 它的正则只认
+  「`[McpServerTool(…), Description(…)]` 写在同一行」，而 222 处全是分行写的两个特性 ——
+  于是它抛错、错误消息里还是空的 `$SourceFile`，`docs/tool-capability-matrix.md`
+  从源码改成这种写法那天起就无法再生成。现在两种写法都认，解析不到时报出实际扫描位置。
+- 新增 CI 闸 **`generated-matrix-in-sync`**：重新生成能力矩阵并与仓库里的文档对拍
+  （只忽略时间戳行）。上面那个生成器就是坏了三天没人发现——纯源码抽取，ubuntu 上
+  跑 `pwsh` 即可，不依赖 TIA。
+
+### 验证
+
+- 离线套件 **261 通过**（新增 27 种探测组合 + 不变量「**只有令牌里有组才允许 Ok**」）；
+- `Validate-Bundle -Strict` PASSED；死引用闸门、MCP 特性可见性闸门、静默 catch 闸门
+  （含 `-Strict` 下对本次新增文件）全部 0 命中；
+- 本机实测：`tia doctor` / MCP `Doctor` / `Bootstrap` / `EnsureOpennessUserGroup` 四处
+  一致输出「你确实在组里，但本次登录令牌里还没有 → 注销重登」，`--fix` 未触发任何加人动作；
+- 本机不设 `TiaPortalLocation`：doctor 报「V21 位于 E:\…\Portal V21（来源：注册表里的
+  Openness 注册项）」，`Check-LiteProfile` 222 / 55 / 55 通过。
+
+> 已知限制：本机没有 TIA V20，V20 工程只能做还原验证；组状态那一项的「Openness 运行时
+> 是否真会拒绝无令牌会话」由西门子的 API 决定，我们只能保证报告与实际令牌状态一致
+> （保守判定，不给假绿灯），以及提示正确的下一步。
 
 ## [2.7.3] - 2026-09-16 - 写 Unified JS 脚本不再赌上整个博途进程；画面分组里的画面不再隐形
 

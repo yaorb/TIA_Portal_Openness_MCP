@@ -1,9 +1,9 @@
 {
-  "package": "TIA_MCP_Delivery_v2.4.0",
-  "generatedAt": "2026-09-19T04:05:48.503954+08:00",
+  "package": "TIA_MCP_Delivery_v2.7.4_20260919",
+  "generatedAt": "2026-09-19T04:15:02.496492+08:00",
   "source": "live MCP tools/list of TiaMcpServer.exe",
   "toolCount": 222,
-  "note": "Full roster (--profile full). The default lite profile lists ~49 of these; the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
+  "note": "Full roster (--profile full). The default lite profile lists a subset of these (the count is in README under 工具档位); the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
   "tools": [
     {
       "name": "AddDevice",
