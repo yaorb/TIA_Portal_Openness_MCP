@@ -287,7 +287,10 @@ public static class LadTextRenderer
       if (p.Name == "O") // OR box: inputs in1,in2,... are parallel branches
       {
         var branches = new List<string>();
-        foreach (var pin in p.Operands.Keys.Concat("in1", "in2", "in3", "in4").Distinct())
+        // Concat 必须用 new[] 形式：4 参数写法只有 Siemens.Collaboration.Net.CoreExtensions 里那个
+        // 无命名空间的扩展方法认得，而本文件同时被离线单测工程链接（net8.0，不引用西门子程序集），
+        // 那边只有 BCL 的 Enumerable.Concat，4 参数会直接 CS1501。
+        foreach (var pin in p.Operands.Keys.Concat(new[] { "in1", "in2", "in3", "in4" }).Distinct())
         {
           if (!pin.StartsWith("in"))
           {

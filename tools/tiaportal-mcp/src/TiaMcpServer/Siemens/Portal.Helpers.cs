@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections;
@@ -330,17 +330,27 @@ public partial class Portal
   private bool TryGetUnifiedSoftware(StringBuilder sb, DeviceItem deviceItem, List<bool> ancestorStates,
     SoftwareContainer? softwareContainer, bool hasSoftware)
   {
-    if (softwareContainer?.Software is HmiSoftware hmiSoftware)
+    var software = softwareContainer?.Software;
+    if (software != null && Portal.IsUnifiedHmiSoftware(software))
     {
       var hasOtherItems = (deviceItem.Items != null && deviceItem.Items.Count > 0) ||
         (deviceItem.DeviceItems != null && deviceItem.DeviceItems.Count > 0);
       sb.AppendLine(
-        $"{this.GetTreePrefix(ancestorStates, !hasOtherItems && !hasSoftware)}HmiSoftware: {hmiSoftware.Name} [HMI Program]");
+        $"{this.GetTreePrefix(ancestorStates, !hasOtherItems && !hasSoftware)}HmiSoftware: {software.Name} [HMI Program]");
       hasSoftware = true;
     }
 
     return hasSoftware;
   }
+
+  /// <summary>
+  ///   是不是 WinCC Unified 的 HmiSoftware。该类型定义在 Siemens.Engineering.HmiUnified 程序集里，
+  ///   而这个程序集只在安装了 WinCC Unified Openness 的机器上存在 —— 没装的机器上连编译期引用都没有，
+  ///   所以按 FullName 判定（等价于 <c>software is HmiSoftware</c>，只是不依赖那个程序集）。
+  ///   本命名空间前缀的判断与 Portal.Software.cs 里其它 Unified 类型（控件 / 动态化）的判定一致。
+  /// </summary>
+  internal static bool IsUnifiedHmiSoftware(object software) =>
+    software.GetType().FullName?.StartsWith("Siemens.Engineering.HmiUnified.", StringComparison.Ordinal) == true;
 
   private void GetProjectTreeUngroupedDeviceGroup(StringBuilder sb, DeviceSystemGroup ungroupedDevicesGroup,
     List<bool> ancestorStates)

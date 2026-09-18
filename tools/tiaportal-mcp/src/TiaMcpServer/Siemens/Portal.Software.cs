@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections;
@@ -1815,10 +1815,11 @@ public partial class Portal
       return (classic.Name, "Classic", Portal.TryListScreens(classic));
     }
 
-    // Unified (HmiSoftware)
-    if (sw is HmiSoftware unified)
+    // Unified (HmiSoftware) —— 类型在 Siemens.Engineering.HmiUnified 程序集里，只在装了 WinCC Unified
+    // Openness 的机器上存在，故按 FullName 判定（见 Portal.IsUnifiedHmiSoftware）。
+    if (Portal.IsUnifiedHmiSoftware(sw))
     {
-      return (unified.Name, "Unified", TryListScreens(unified));
+      return (sw.Name, "Unified", TryListScreens(sw));
     }
 
     return (sw.ToString(), "Unknown", new List<string>());
