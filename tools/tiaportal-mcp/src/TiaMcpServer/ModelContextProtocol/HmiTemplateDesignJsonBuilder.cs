@@ -27,7 +27,9 @@ public static class HmiTemplateDesignJsonBuilder
     return HmiTemplateDesignJsonBuilder.BuildApplyDesign(root, fallbackWidth, fallbackHeight);
   }
 
-  private static JsonObject BuildApplyDesign(JsonObject root, int fallbackWidth, int fallbackHeight)
+  // 不能收窄成 private：离线单测工程直接链接本文件，这个重载（直接吃已解析的 JsonObject、
+  // 不碰文件系统）正是往里面喂真输入用的入口。
+  public static JsonObject BuildApplyDesign(JsonObject root, int fallbackWidth, int fallbackHeight)
   {
     var screen = root["Screen"] as JsonObject ?? root["screen"] as JsonObject ?? new JsonObject();
     var screenOut = new JsonObject();

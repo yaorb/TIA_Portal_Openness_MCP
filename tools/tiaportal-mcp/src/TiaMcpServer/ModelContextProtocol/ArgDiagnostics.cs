@@ -85,7 +85,8 @@ public static class ArgDiagnostics
   }
 
   /// <summary>'Tool(a: string, b?: integer)' —— 改法直接写在报错里，别让人再去翻文档。</summary>
-  private static string RenderSignature(string toolName, IReadOnlyList<string> known, IReadOnlyList<string> required,
+  // 不能收窄成 private：离线单测工程直接链接本文件，用它断言报错里给出的签名写法。
+  public static string RenderSignature(string toolName, IReadOnlyList<string> known, IReadOnlyList<string> required,
     IReadOnlyDictionary<string, string>? typeOf = null)
   {
     var parts = new List<string>(known.Count);
@@ -147,7 +148,8 @@ public static class ArgDiagnostics
   }
 
   /// <summary>Levenshtein 编辑距离。</summary>
-  private static int Distance(string? a, string? b)
+  // 不能收窄成 private：离线单测工程直接链接本文件，靠它单独验编辑距离本身。
+  public static int Distance(string? a, string? b)
   {
     a ??= "";
     b ??= "";
