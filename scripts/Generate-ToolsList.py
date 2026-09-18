@@ -15,6 +15,21 @@ EXE = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else (
     ROOT / "runtime" / "v21" / "TiaMcpServer.exe"
 )
 OUT = pathlib.Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else ROOT / "manifest" / "tools-list.json"
+MANIFEST = ROOT / "manifest" / "package-manifest.json"
+
+
+def package_name():
+    """从 manifest 读包名。
+
+    「package」以前是写死在这个脚本里的（TIA_MCP_Delivery_v2.4.0），于是每次重新生成都在
+    重新发布一个早已过期的包名 —— 生成物里唯一一个不是从别处读来的字段，正好是唯一会漂的
+    那个。manifest/package-manifest.json 有版本一致性闸门盯着，从那里读它就不可能再漂。
+    """
+    with MANIFEST.open(encoding="utf-8-sig") as handle:
+        name = (json.load(handle) or {}).get("packageName")
+    if not name:
+        raise SystemExit("manifest/package-manifest.json 里没有 packageName —— 不能凭空写一个")
+    return name
 
 # --profile full is REQUIRED, not cosmetic: the engine now defaults to the ~49-tool lite
 # roster, so a plain launch would silently write a manifest listing a quarter of the server
@@ -67,11 +82,12 @@ try:
         })
     rows.sort(key=lambda item: item["name"].lower())
     document = {
-        "package": "TIA_MCP_Delivery_v2.4.0",
+        "package": package_name(),
         "generatedAt": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
         "source": f"live MCP tools/list of {EXE.name}",
         "toolCount": len(rows),
-        "note": "Full roster (--profile full). The default lite profile lists ~49 of these; "
+        "note": "Full roster (--profile full). The default lite profile lists a subset of these "
+                "(the count is in README under 工具档位); "
                 "the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
         "tools": rows,
     }
