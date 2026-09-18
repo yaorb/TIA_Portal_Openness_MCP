@@ -1,6 +1,12 @@
 *.log
 *.startup.log
 .vs/
+# 本地 IDE / AI 工具的私有文件：Rider（.idea）、Codex CLI（.codex）、CodeRabbit（.cr）。
+# 本仓库不跟踪任何解决方案文件（构建都直接点 csproj，见 README），故 *.slnx 也只是本地产物。
+.idea/
+.codex/
+.cr/
+*.slnx
 **/obj/
 **/obj-v20/
 **/bin/Debug/
