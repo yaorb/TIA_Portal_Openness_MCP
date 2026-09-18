@@ -1,12 +1,15 @@
 *.log
 *.startup.log
 .vs/
-# 本地 IDE / AI 工具的私有文件：Rider（.idea）、Codex CLI（.codex）、CodeRabbit（.cr）。
+# 本地 IDE / AI 工具的私有文件：Rider（.idea / *.DotSettings）、Codex CLI（.codex）、CodeRabbit（.cr）。
 # 本仓库不跟踪任何解决方案文件（构建都直接点 csproj，见 README），故 *.slnx 也只是本地产物。
+# Rider 的个人覆盖文件 .DotSettings.user 已由下面的 *.user 覆盖；*.DotSettings 是共享设置文件，
+# 但本仓没有跟踪过它，也不打算跟踪（内容常常是拼写词典这类个人状态）。
 .idea/
 .codex/
 .cr/
 *.slnx
+*.DotSettings
 **/obj/
 **/obj-v20/
 **/bin/Debug/
