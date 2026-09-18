@@ -45,11 +45,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Software not found at '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Software not found at '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving software info from '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -78,11 +78,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"HMI program not found at '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"HMI program not found at '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving HMI program info from '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -112,7 +112,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -120,7 +120,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error describing HMI software '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -150,7 +150,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -158,7 +158,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error describing HMI screen '{screenName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -188,7 +188,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -196,7 +196,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error describing HMI tag table '{tagTableName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -227,7 +227,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -235,7 +235,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error describing HMI tag '{tagName}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error describing HMI tag '{tagName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -272,7 +272,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -280,7 +280,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error describing HMI screen item '{itemName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -313,7 +313,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -321,7 +321,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error describing property '{propertyPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -351,7 +351,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error ensuring unified HMI start/stop: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error ensuring unified HMI start/stop: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -372,7 +372,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error ensuring HMI screen '{screenName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -392,7 +392,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error ensuring HMI tag table '{tagTableName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -431,7 +431,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error ensuring HMI tag '{tagName}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error ensuring HMI tag '{tagName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -453,7 +453,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error ensuring HMI connection '{connectionName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -486,7 +486,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error ensuring HMI screen item '{itemName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -510,7 +510,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error applying Unified HMI design to '{screenName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -540,7 +540,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid Unified HMI theme JSON: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid Unified HMI theme JSON: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -567,7 +567,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid Unified HMI layout JSON: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid Unified HMI layout JSON: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -586,7 +586,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error applying Unified HMI theme: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error applying Unified HMI theme: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -607,7 +607,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error applying Unified HMI layout: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error applying Unified HMI layout: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -628,7 +628,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building Classic HMI screen XML offline: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -649,7 +649,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid PLC UDT builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid PLC UDT builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -668,7 +668,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid PLC tag table builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid PLC tag table builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -686,7 +686,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid PLC GlobalDB builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid PLC GlobalDB builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -709,7 +709,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid StructuredText builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid StructuredText builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -728,7 +728,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid FlgNet call builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid FlgNet call builder input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -747,7 +747,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid PLC FC composer input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid PLC FC composer input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -766,7 +766,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid PLC FB composer input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid PLC FB composer input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -785,7 +785,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Invalid PLC LAD FC composer input: {ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"Invalid PLC LAD FC composer input: {ex.Message}", ex, McpErrorCode.InvalidParams);
     }
   }
 
@@ -895,7 +895,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error running PlcBuildAndImport: {ex.Message}",
+      throw new McpProtocolException($"Unexpected error running PlcBuildAndImport: {ex.Message}",
         ex,
         McpErrorCode.InvalidParams);
     }
@@ -1257,7 +1257,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building Classic HMI tag table XML offline: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1288,7 +1288,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building Classic HMI minimal package offline: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1340,7 +1340,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error writing Classic HMI minimal package files offline: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1375,7 +1375,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error validating Classic HMI minimal package files offline: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1413,7 +1413,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error validating Classic HMI PLC symbol sync offline: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1448,7 +1448,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building PLC symbol manifest offline: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1477,7 +1477,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error running Classic HMI offline validation suite: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1508,7 +1508,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error running offline release validation suite: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1536,7 +1536,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error running V2 plan completion audit: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error running V2 plan completion audit: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -1569,7 +1569,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building release diagnostic report: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1604,7 +1604,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error building release runbook: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error building release runbook: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -1639,7 +1639,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error building release manifest: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error building release manifest: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -1666,7 +1666,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error rebuilding release handoff artifacts: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1697,7 +1697,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error running Classic HMI temporary import preflight: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1731,7 +1731,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error running HMI template PLC sync precheck suite: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1785,7 +1785,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building Unified HMI template execution design JSON: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1874,7 +1874,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building Unified HMI template execution design manifest: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2078,7 +2078,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error binding button '{buttonName}' to tag '{tagName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2104,7 +2104,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error listing Unified HMI API types: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error listing Unified HMI API types: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2127,7 +2127,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error ensuring button event handler '{buttonName}.{eventType}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2164,7 +2164,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -2172,7 +2172,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error describing button event script '{buttonName}.{eventType}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2207,7 +2207,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error setting button event script '{buttonName}.{eventType}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2241,7 +2241,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error building Unified HMI button action script: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2269,7 +2269,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error running HMI action script recipe safety self-test: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2339,7 +2339,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error applying Unified HMI button action '{buttonName}.{eventType}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2368,7 +2368,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error ensuring dynamization '{itemName}.{propertyName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2401,7 +2401,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error binding tag dynamization '{itemName}.{propertyName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2427,11 +2427,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error listing HMI screens for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2456,11 +2456,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error listing HMI tag tables for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2487,11 +2487,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error listing HMI tags for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2516,11 +2516,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error listing HMI connections for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2546,14 +2546,14 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Failed exporting HMI screen '{screenName}' from '{softwarePath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting HMI screen '{screenName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2579,14 +2579,14 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Failed exporting HMI tag table '{tagTableName}' from '{softwarePath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting HMI tag table '{tagTableName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2612,14 +2612,14 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Failed exporting HMI connection '{connectionName}' from '{softwarePath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting HMI connection '{connectionName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2648,11 +2648,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"HMI software not found at '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting HMI program: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting HMI program: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2677,13 +2677,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed importing HMI screen from '{importPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed importing HMI screen from '{importPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing HMI screen: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing HMI screen: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2708,13 +2708,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed importing HMI tag table from '{importPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed importing HMI tag table from '{importPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing HMI tag table: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing HMI tag table: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2738,13 +2738,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed importing HMI connection from '{importPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed importing HMI connection from '{importPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing HMI connection: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing HMI connection: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2776,7 +2776,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing HMI screens from '{dir}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2810,7 +2810,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing HMI tag tables from '{dir}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -2840,12 +2840,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Cross reference service not available for {objectKind} '{objectPath}'",
+      throw new McpProtocolException($"Cross reference service not available for {objectKind} '{objectPath}'",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error retrieving cross references: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error retrieving cross references: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2869,12 +2869,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
+      throw new McpProtocolException($"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error listing PLC external sources: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error listing PLC external sources: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2917,12 +2917,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
+      throw new McpProtocolException($"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error listing PLC tag tables: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error listing PLC tag tables: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2948,7 +2948,7 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed exporting PLC tag table '{tagTableName}' from '{softwarePath}'" +
+      throw new McpProtocolException($"Failed exporting PLC tag table '{tagTableName}' from '{softwarePath}'" +
         (string.IsNullOrWhiteSpace(reason)
           ? string.Empty
           : ": " + reason),
@@ -2956,7 +2956,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting PLC tag table: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting PLC tag table: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -2980,13 +2980,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed importing PLC tag table from '{importPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed importing PLC tag table from '{importPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing PLC tag table: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing PLC tag table: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3019,7 +3019,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing PLC tag tables from '{dir}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3044,12 +3044,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
+      throw new McpProtocolException($"PLC software not found at '{softwarePath}'.{McpServer.Portal.AvailablePlcPathsSuffix()}",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error listing PLC watch tables: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error listing PLC watch tables: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3074,7 +3074,7 @@ public static partial class McpServer
         // 原来这里返回 Items=[] + 一句「not found」的**正常**响应。
         // 只读 Items 的调用方看到的是「这台 PLC 没有强制表」——和「你路径写错了」
         // 是完全不同的结论，而它分辨不出来。
-        throw new McpException(
+        throw new McpProtocolException(
           $"GetPlcForceTables: PLC software not found at '{softwarePath}'. " +
           "Use GetProjectTree to get the exact PLC path.",
           McpErrorCode.InvalidParams);
@@ -3089,7 +3089,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error listing force tables for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3126,7 +3126,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error setting watch table entry: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error setting watch table entry: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3148,7 +3148,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error setting force table entry: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error setting force table entry: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3175,12 +3175,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed exporting PLC watch table '{watchTableName}' from '{softwarePath}'",
+      throw new McpProtocolException($"Failed exporting PLC watch table '{watchTableName}' from '{softwarePath}'",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting PLC watch table: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting PLC watch table: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3211,7 +3211,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting PLC watch tables: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting PLC watch tables: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3231,7 +3231,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error probing PLC monitor/online capabilities: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3255,7 +3255,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error reading PLC watch table values read-only: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3374,7 +3374,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error planning online read-only monitoring: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3553,7 +3553,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error planning read-only data provider: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error planning read-only data provider: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3603,7 +3603,7 @@ public static partial class McpServer
     }
     catch (Exception ex)
     {
-      throw new McpException(parameterName + " must be a JSON object. Parse error: " + ex.Message,
+      throw new McpProtocolException(parameterName + " must be a JSON object. Parse error: " + ex.Message,
         ex,
         McpErrorCode.InvalidParams);
     }
@@ -3624,7 +3624,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error probing global library: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error probing global library: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3661,7 +3661,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing global-library master copy: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3698,7 +3698,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error analyzing global library package: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error analyzing global library package: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3785,7 +3785,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error planning global library template reuse: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3821,7 +3821,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error analyzing HMI template/reference assets: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3853,7 +3853,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error analyzing Unified HMI template layout: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3893,7 +3893,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -3901,7 +3901,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error listing technology objects: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error listing technology objects: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3923,7 +3923,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting technology object: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting technology object: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -3945,7 +3945,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error batch-exporting technology objects: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -3970,13 +3970,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed importing technology object from '{importPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed importing technology object from '{importPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing technology object: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing technology object: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4009,7 +4009,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing technology objects from '{dir}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4031,7 +4031,7 @@ public static partial class McpServer
     {
       if (string.IsNullOrWhiteSpace(sclContent))
       {
-        throw new McpException("sclContent is empty — provide the full SCL source text to write.",
+        throw new McpProtocolException("sclContent is empty — provide the full SCL source text to write.",
           McpErrorCode.InvalidParams);
       }
 
@@ -4090,7 +4090,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error writing SCL source file: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error writing SCL source file: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4114,13 +4114,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed importing PLC external source [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed importing PLC external source [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing PLC external source: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing PLC external source: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4145,13 +4145,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed deleting PLC external source '{externalSourceName}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed deleting PLC external source '{externalSourceName}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error deleting PLC external source: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error deleting PLC external source: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4174,14 +4174,14 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Failed generating blocks from external source '{externalSourceName}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error generating blocks from external source: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4202,7 +4202,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error reading OPC UA config: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error reading OPC UA config: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4227,7 +4227,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error setting OPC UA interface enabled state: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4253,7 +4253,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting OPC UA interface: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting OPC UA interface: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4277,7 +4277,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing OPC UA interface: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing OPC UA interface: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4298,7 +4298,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting alarm classes: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting alarm classes: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4318,7 +4318,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing alarm classes: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing alarm classes: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4340,7 +4340,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting alarm text lists: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting alarm text lists: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4361,7 +4361,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing alarm text lists: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing alarm text lists: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4391,7 +4391,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting alarm instance texts: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting alarm instance texts: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4428,13 +4428,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed compiling software '{softwarePath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed compiling software '{softwarePath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error compiling software '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4461,7 +4461,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -4469,7 +4469,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error reading online state for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4505,7 +4505,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error going online for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error going online for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4524,7 +4524,7 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -4532,7 +4532,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error going offline for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4561,7 +4561,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"GoOfflineAll failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"GoOfflineAll failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4592,7 +4592,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"GetDeviceIpAddress failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"GetDeviceIpAddress failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4618,7 +4618,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"GetProjectTopology failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"GetProjectTopology failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4659,7 +4659,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"DumpDeviceAttributes failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"DumpDeviceAttributes failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4689,7 +4689,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"GetPutGetAccess failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"GetPutGetAccess failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4720,7 +4720,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"SetPutGetAccess failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"SetPutGetAccess failed for '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4787,7 +4787,7 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -4795,7 +4795,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error comparing '{softwarePath}' to online: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4820,7 +4820,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error checking download readiness for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -4882,7 +4882,7 @@ public static partial class McpServer
 
       if (result.Ok == false && result.Errors != null && result.Errors.Length > 0)
       {
-        throw new McpException($"Download to '{softwarePath}' failed: {result.Message}", McpErrorCode.InternalError);
+        throw new McpProtocolException($"Download to '{softwarePath}' failed: {result.Message}", McpErrorCode.InternalError);
       }
 
       return result;
@@ -4893,7 +4893,7 @@ public static partial class McpServer
     }
     catch (Exception ex)
     {
-      throw new McpException($"Unexpected error downloading to '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error downloading to '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -4920,12 +4920,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed retrieving software tree from '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Failed retrieving software tree from '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -4933,7 +4933,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving software tree from '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);

@@ -37,11 +37,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed retrieving project tree", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed retrieving project tree", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error retrieving project tree: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error retrieving project tree: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -70,11 +70,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Device not found at '{devicePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Device not found at '{devicePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving device info from '{devicePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -104,11 +104,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving device item info from '{deviceItemPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -134,11 +134,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving device item tree from '{deviceItemPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -164,11 +164,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Device item not found at '{deviceItemPath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving network info from '{deviceItemPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -201,13 +201,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"CAx/AML export failed for '{devicePath}': {pex.Message}",
+      throw new McpProtocolException($"CAx/AML export failed for '{devicePath}': {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting AML from '{devicePath}': {ex.Message}",
+      throw new McpProtocolException($"Unexpected error exporting AML from '{devicePath}': {ex.Message}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -228,7 +228,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error setting device item attribute '{attributeName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -250,7 +250,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error validating automation context: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error validating automation context: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -291,7 +291,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error connecting device nodes to PROFINET subnet: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -324,7 +324,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error validating hardware network plan: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error validating hardware network plan: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -345,7 +345,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error ensuring subnet '{subnetName}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error ensuring subnet '{subnetName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -373,7 +373,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error attaching device node to subnet '{subnetName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -395,7 +395,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error setting CPU common settings for '{cpuPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -425,7 +425,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error probing hardware HMI connection owner candidates: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -455,7 +455,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error scanning hardware HMI connection whitelisted services: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -496,11 +496,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed retrieving devices", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed retrieving devices", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error retrieving devices: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error retrieving devices: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -527,14 +527,14 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Failed to add device '{deviceName}' ({orderNumber} {version}) [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error adding device: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error adding device: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -582,7 +582,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error adding device with fallback: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error adding device with fallback: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -609,7 +609,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error searching installed GSD devices: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error searching installed GSD devices: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -641,13 +641,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed searching hardware catalog for '{keyword}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed searching hardware catalog for '{keyword}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error searching hardware catalog: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error searching hardware catalog: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -696,7 +696,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error adding GSD device with probe: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error adding GSD device with probe: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -746,7 +746,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error adding hardware catalog device with probe: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);

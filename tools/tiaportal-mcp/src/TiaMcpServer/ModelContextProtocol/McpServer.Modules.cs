@@ -40,7 +40,7 @@ public static partial class McpServer
       if (slots == null)
       {
         // 「没连上」和「路径不存在」都会是 null，对调用方是两件事，一次说清楚。
-        throw new McpException(
+        throw new McpProtocolException(
           $"读不到 '{deviceItemPath}' 的槽位：要么没有连接项目（先 Connect，再 AttachToOpenProject），" +
           "要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
           McpErrorCode.InvalidParams);
@@ -88,7 +88,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error reading plug locations of '{deviceItemPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -138,7 +138,7 @@ public static partial class McpServer
         var attemptText = r.Attempts.Count == 0
           ? ""
           : " | attempts: " + string.Join("; ", r.Attempts.Take(20));
-        throw new McpException($"PlugDeviceItem failed [{r.Reason}]: {r.Message}{attemptText}",
+        throw new McpProtocolException($"PlugDeviceItem failed [{r.Reason}]: {r.Message}{attemptText}",
           McpErrorCode.InvalidParams);
       }
 
@@ -221,7 +221,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error plugging '{orderNumber}' into '{deviceItemPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);

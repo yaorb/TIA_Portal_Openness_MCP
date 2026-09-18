@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+// SDK 2.x 里 IMcpServer 接口已由抽象类 McpServer 取代；本命名空间下另有同名静态类（本服务器自身），裸写会解析到它，故起别名。
+using McpServerHost = global::ModelContextProtocol.Server.McpServer;
 using Siemens.Engineering.SW.Blocks;
 using TiaMcpServer.Siemens;
 
@@ -57,11 +59,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Block not found at '{blockPath}' in '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Block not found at '{blockPath}' in '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving block info from '{blockPath}' in '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -86,7 +88,7 @@ public static partial class McpServer
       // `if (list != null)` 恒为真、`else throw` 永不执行，离线调用得到「成功，0 个」。
       if (list == null)
       {
-        throw new McpException(
+        throw new McpProtocolException(
           $"No TIA project is open, cannot list blocks of '{softwarePath}'. " +
           "Call Connect / OpenProject (or AttachToOpenProject) first. " + "This does NOT mean the PLC has no blocks.",
           McpErrorCode.InvalidParams);
@@ -126,12 +128,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed retrieving blocks with regex '{regexName}' in '{softwarePath}'",
+      throw new McpProtocolException($"Failed retrieving blocks with regex '{regexName}' in '{softwarePath}'",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving blocks with regex '{regexName}' in '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -158,12 +160,12 @@ public static partial class McpServer
       }
 
       // Specific failure: root group could not be resolved
-      throw new McpException($"Block root group not found for '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Block root group not found for '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
       // Generic unexpected failure wrapper
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving block hierarchy for '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -194,7 +196,7 @@ public static partial class McpServer
       }
 
       // Should not be reachable because Portal.ExportBlock throws on failure
-      throw new McpException($"Failed exporting block from '{blockPath}' to '{exportPath}'",
+      throw new McpProtocolException($"Failed exporting block from '{blockPath}' to '{exportPath}'",
         McpErrorCode.InternalError);
     }
     catch (PortalException pex)
@@ -205,7 +207,7 @@ public static partial class McpServer
         case PortalErrorCode.NotFound:
         {
           var msg = ("Block not found." + McpServer.BuildBlockDidYouMean(softwarePath, blockPath)).Trim();
-          throw new McpException(msg, McpErrorCode.InvalidParams);
+          throw new McpProtocolException(msg, McpErrorCode.InvalidParams);
         }
 
         case PortalErrorCode.ExportFailed:
@@ -224,22 +226,22 @@ public static partial class McpServer
             pex.Data?["blockPath"],
             pex.Data?["exportPath"]);
 
-          throw new McpException(msg, McpErrorCode.InternalError);
+          throw new McpProtocolException(msg, McpErrorCode.InternalError);
         }
 
         case PortalErrorCode.InvalidParams:
         case PortalErrorCode.InvalidState:
         {
-          throw new McpException(pex.Message, McpErrorCode.InvalidParams);
+          throw new McpProtocolException(pex.Message, McpErrorCode.InvalidParams);
         }
       }
 
       // Fallback
-      throw new McpException(pex.Message, McpErrorCode.InternalError);
+      throw new McpProtocolException(pex.Message, McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting block from '{blockPath}' to '{exportPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -267,11 +269,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed exporting block to temp", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed exporting block to temp", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting block to temp: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting block to temp: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -416,7 +418,7 @@ public static partial class McpServer
       {
         // 确知不符：块进去了，但和 XML 声明的不是同一个东西。
         // 这是**可判定的失败**，不能返回一条带 ⚠ 的正常响应了事。
-        throw new McpException($"ImportBlock: the block was imported from '{importPath}' into '{groupPath}', " +
+        throw new McpProtocolException($"ImportBlock: the block was imported from '{importPath}' into '{groupPath}', " +
           $"but read-back does NOT match what the XML declares: {outcome.Detail}. " +
           "⚠ The project HAS been modified — inspect it in TIA before retrying.",
           McpErrorCode.InternalError);
@@ -443,11 +445,11 @@ public static partial class McpServer
     catch (PortalException pex) when (pex.Code == PortalErrorCode.NotFound)
     {
       var hint = McpServer.BestEffortSuggestGroupPath(softwarePath, groupPath);
-      throw new McpException($"{pex.Message}{hint}", McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"{pex.Message}{hint}", McpErrorCode.InvalidParams);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Failed importing block from '{importPath}' to '{groupPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -481,7 +483,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing blocks from '{dir}' to '{groupPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -774,13 +776,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed compiling software '{softwarePath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed compiling software '{softwarePath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error compiling software '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -844,7 +846,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error repairing/reimporting block '{importPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -944,7 +946,7 @@ public static partial class McpServer
   [McpServerTool(Name = "ExportBlocks")]
   [Description(
     "[L2][PLC-Software] Export all (or regexName-filtered) blocks to a directory as SimaticML XML. Pick the right tool: readable SCL/.s7dcl text → ExportBlocksAsDocuments; a single block → ExportBlock.")]
-  public static async Task<ResponseExportBlocks> ExportBlocks(IMcpServer server,
+  public static async Task<ResponseExportBlocks> ExportBlocks(McpServerHost server,
     RequestContext<CallToolRequestParams> context,
     [Description("softwarePath: defines the path in the project structure to the plc software")] string softwarePath,
     [Description("exportPath: defines the path where to export the blocks")] string exportPath,
@@ -1110,7 +1112,7 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed exporting blocks with '{regexName}' from '{softwarePath}' to {exportPath}",
+      throw new McpProtocolException($"Failed exporting blocks with '{regexName}' from '{softwarePath}' to {exportPath}",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
@@ -1138,7 +1140,7 @@ public static partial class McpServer
 
       McpServer.Logger?.LogError(ex,
         $"Failed exporting blocks with '{regexName}' from '{softwarePath}' to {exportPath}");
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting blocks with '{regexName}' from '{softwarePath}' to {exportPath}: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -1166,11 +1168,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed exporting blocks to temp", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed exporting blocks to temp", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting blocks to temp: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting blocks to temp: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }

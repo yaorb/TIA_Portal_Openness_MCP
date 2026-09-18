@@ -30,7 +30,7 @@ public static partial class McpServer
       var group = McpServer.Portal.EnsurePlcBlockGroup(softwarePath, groupPath, out var created);
       if (group == null)
       {
-        throw new McpException($"Could not create block group '{groupPath}': PlcSoftware not found at '{softwarePath}'",
+        throw new McpProtocolException($"Could not create block group '{groupPath}': PlcSoftware not found at '{softwarePath}'",
           McpErrorCode.InvalidParams);
       }
 
@@ -44,13 +44,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed creating PLC block group '{groupPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed creating PLC block group '{groupPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error creating PLC block group '{groupPath}': {ex.Message}",
+      throw new McpProtocolException($"Unexpected error creating PLC block group '{groupPath}': {ex.Message}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -77,13 +77,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed moving block '{blockName}' to '{targetGroupPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed moving block '{blockName}' to '{targetGroupPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error moving block '{blockName}' to '{targetGroupPath}': {ex.Message}",
+      throw new McpProtocolException($"Unexpected error moving block '{blockName}' to '{targetGroupPath}': {ex.Message}",
         ex,
         McpErrorCode.InternalError);
     }

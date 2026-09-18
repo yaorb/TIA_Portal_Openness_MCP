@@ -36,7 +36,7 @@ public static partial class McpServer
       var block = McpServer.Portal.ExportBlock(softwarePath, blockPath, tempDir);
       if (block == null)
       {
-        throw new McpException(
+        throw new McpProtocolException(
           $"Could not export '{blockPath}' from '{softwarePath}' for analysis. If IsConsistent=false, compile first; if online, GoOffline first; verify the path with GetSoftwareTree.",
           McpErrorCode.InternalError);
       }
@@ -45,7 +45,7 @@ public static partial class McpServer
         .FirstOrDefault();
       if (xmlFile == null)
       {
-        throw new McpException($"Export of '{blockPath}' produced no XML to analyze.", McpErrorCode.InternalError);
+        throw new McpProtocolException($"Export of '{blockPath}' produced no XML to analyze.", McpErrorCode.InternalError);
       }
 
       var xml = File.ReadAllText(xmlFile.FullName);
@@ -68,7 +68,7 @@ public static partial class McpServer
     }
     catch (Exception ex)
     {
-      throw new McpException($"DescribeBlockLogic failed for '{blockPath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"DescribeBlockLogic failed for '{blockPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }

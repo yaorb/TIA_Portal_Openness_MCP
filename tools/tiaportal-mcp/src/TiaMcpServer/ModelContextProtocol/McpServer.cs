@@ -77,11 +77,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed to retrieve TIA-Portal MCP server state", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed to retrieve TIA-Portal MCP server state", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving TIA-Portal MCP server state: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -229,7 +229,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Bootstrap unexpected error: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Bootstrap unexpected error: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -258,13 +258,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed to connect to TIA-Portal [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed to connect to TIA-Portal [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error connecting to TIA-Portal: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error connecting to TIA-Portal: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -299,11 +299,11 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException(pex.Message, pex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException(pex.Message, pex, McpErrorCode.InvalidParams);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Failed to start isolated TIA Portal: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Failed to start isolated TIA Portal: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -325,7 +325,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error listing TIA Portal processes: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error listing TIA Portal processes: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -349,7 +349,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error ensuring Openness user group: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error ensuring Openness user group: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -371,11 +371,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed disconnecting from TIA-Portal", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed disconnecting from TIA-Portal", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error disconnecting from TIA-Portal: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error disconnecting from TIA-Portal: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -552,7 +552,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error running capability self-test: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error running capability self-test: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -666,7 +666,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error running online monitoring safety self-test: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -780,7 +780,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error generating acceptance report: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error generating acceptance report: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -928,7 +928,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error generating error report: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error generating error report: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }

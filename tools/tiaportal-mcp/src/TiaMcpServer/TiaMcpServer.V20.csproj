@@ -15,9 +15,12 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;obj-v20\**;bin\**;bin-v20\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0-preview.4.25258.110" />
-    <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.4" />
-    <PackageReference Include="YamlDotNet" Version="13.7.1" />
+    <!-- SDK 侧三个包与 TiaMcpServer.csproj（V21）保持一致：同一份源码两个工程共用，
+         版本不一致会让 V20 编不过（0.3.0-preview.4 没有 McpProtocolException），
+         也会让两边解析出不同的 Microsoft.Extensions.* 版本。Siemens 侧仍保持 V20 专属钉版本。 -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="11.0.0-rc.1.26425.128" />
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
     <PackageReference Include="Sharp7" Version="1.1.84" />
     <PackageReference Include="Workstation.UaClient" Version="3.2.3" />
     <PackageReference Include="Siemens.Collaboration.Net.OperatingSystem.Windows" Version="3.0.1725521661" />

@@ -39,7 +39,7 @@ public static partial class McpServer
       if (addresses == null)
       {
         // 「没连上」和「设备项不存在」都会返回 null，但对调用方是两件事，分开问一句更有用。
-        throw new McpException(
+        throw new McpProtocolException(
           $"读不到 '{deviceItemPath}' 的地址：要么没有连接项目（先 Connect / AttachToOpenProject），" +
           "要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
           McpErrorCode.InvalidParams);
@@ -85,7 +85,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error reading IO addresses of '{deviceItemPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -111,7 +111,7 @@ public static partial class McpServer
       // 预演对负数一律报「可以改」，等到真写时才失败 —— 预演就成了误导。
       if (startAddress < 0)
       {
-        throw new McpException(
+        throw new McpProtocolException(
           $"startAddress 不能为负数（收到 {startAddress}）。它是引擎原值字节偏移，" + "%I2.0 对应 startAddress=2，不要写成 \"2.0\"。",
           McpErrorCode.InvalidParams);
       }
@@ -122,7 +122,7 @@ public static partial class McpServer
         var current = McpServer.Portal.GetDeviceItemAddresses(deviceItemPath);
         if (current == null)
         {
-          throw new McpException(
+          throw new McpProtocolException(
             $"读不到 '{deviceItemPath}' 的地址：要么没有连接项目（先 Connect / AttachToOpenProject），" +
             "要么这个设备项路径不存在（用 GetDeviceItemTree 确认每一段）。",
             McpErrorCode.InvalidParams);
@@ -137,7 +137,7 @@ public static partial class McpServer
           var have = current.Count == 0
             ? "（一条都没有）"
             : string.Join(" / ", current.Select(x => x.IoType).Distinct());
-          throw new McpException($"[dryRun] 改不了：'{deviceItemPath}' 上没有 {ioType} 类型的地址；实际有的是 {have}。",
+          throw new McpProtocolException($"[dryRun] 改不了：'{deviceItemPath}' 上没有 {ioType} 类型的地址；实际有的是 {have}。",
             McpErrorCode.InvalidParams);
         }
 
@@ -173,7 +173,7 @@ public static partial class McpServer
       {
         // 地址越界/重叠/模块锁定/路径不存在，Portal 已经把**具体哪一步不成立**写进 message，
         // 原样抛出去；绝不返回一条看起来像成功的 ResponseMessage。
-        throw new McpException(
+        throw new McpProtocolException(
           $"SetDeviceItemIoAddress failed for '{deviceItemPath}' ({ioType} -> {startAddress}): {message}",
           McpErrorCode.InvalidParams);
       }
@@ -213,7 +213,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error setting IO address of '{deviceItemPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);

@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+// SDK 2.x 里 IMcpServer 接口已由抽象类 McpServer 取代；本命名空间下另有同名静态类（本服务器自身），裸写会解析到它，故起别名。
+using McpServerHost = global::ModelContextProtocol.Server.McpServer;
 using TiaMcpServer.Siemens;
 
 #endregion
@@ -49,11 +51,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Type not found at '{typePath}' in '{softwarePath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Type not found at '{typePath}' in '{softwarePath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving type info from '{typePath}' in '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -77,7 +79,7 @@ public static partial class McpServer
       // `if (list != null)` 恒为真、`else throw` 永不执行，离线调用得到「成功，0 个」。
       if (list == null)
       {
-        throw new McpException(
+        throw new McpProtocolException(
           $"No TIA project is open, cannot list types of '{softwarePath}'. " +
           "Call Connect / OpenProject (or AttachToOpenProject) first. " + "This does NOT mean the PLC has no types.",
           McpErrorCode.InvalidParams);
@@ -114,12 +116,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed retrieving user defined types with regex '{regexName}' in '{softwarePath}'",
+      throw new McpProtocolException($"Failed retrieving user defined types with regex '{regexName}' in '{softwarePath}'",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error retrieving user defined types with regex '{regexName}' in '{softwarePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -146,19 +148,19 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed exporting type from '{typePath}' to '{exportPath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Failed exporting type from '{typePath}' to '{exportPath}'", McpErrorCode.InternalError);
     }
     catch (PortalException pex)
     {
       switch (pex.Code)
       {
         case PortalErrorCode.NotFound:
-          throw new McpException(("Type not found." + McpServer.BuildTypeDidYouMean(softwarePath, typePath)).Trim(),
+          throw new McpProtocolException(("Type not found." + McpServer.BuildTypeDidYouMean(softwarePath, typePath)).Trim(),
             McpErrorCode.InvalidParams);
 
         case PortalErrorCode.InvalidState:
         case PortalErrorCode.InvalidParams:
-          throw new McpException(pex.Message, McpErrorCode.InvalidParams);
+          throw new McpProtocolException(pex.Message, McpErrorCode.InvalidParams);
 
         case PortalErrorCode.ExportFailed:
         {
@@ -174,15 +176,15 @@ public static partial class McpServer
             pex.Data?["softwarePath"],
             pex.Data?["typePath"],
             pex.Data?["exportPath"]);
-          throw new McpException(msg, McpErrorCode.InternalError);
+          throw new McpProtocolException(msg, McpErrorCode.InternalError);
         }
       }
 
-      throw new McpException(pex.Message, McpErrorCode.InternalError);
+      throw new McpProtocolException(pex.Message, McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting type from '{typePath}' to '{exportPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -210,11 +212,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed exporting type to temp", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed exporting type to temp", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting type to temp: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting type to temp: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -239,13 +241,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed importing type from '{importPath}' to '{groupPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed importing type from '{importPath}' to '{groupPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing type from '{importPath}' to '{groupPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -274,7 +276,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error seeding project from reference: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error seeding project from reference: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -282,7 +284,7 @@ public static partial class McpServer
 
   [McpServerTool(Name = "ExportTypes")]
   [Description("[L2][PLC-Software]Export types from the plc software to path")]
-  public static async Task<ResponseExportTypes> ExportTypes(IMcpServer server,
+  public static async Task<ResponseExportTypes> ExportTypes(McpServerHost server,
     RequestContext<CallToolRequestParams> context,
     [Description("softwarePath: defines the path in the project structure to the plc software")] string softwarePath,
     [Description("exportPath: defines the path where to export the types")] string exportPath,
@@ -442,7 +444,7 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed exporting types '{regexName}' from '{softwarePath}' to {exportPath}",
+      throw new McpProtocolException($"Failed exporting types '{regexName}' from '{softwarePath}' to {exportPath}",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
@@ -469,7 +471,7 @@ public static partial class McpServer
       }
 
       McpServer.Logger?.LogError(ex, $"Failed exporting types '{regexName}' from '{softwarePath}' to {exportPath}");
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting types '{regexName}' from '{softwarePath}' to {exportPath}: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -497,11 +499,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed exporting types to temp", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed exporting types to temp", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting types to temp: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error exporting types to temp: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }

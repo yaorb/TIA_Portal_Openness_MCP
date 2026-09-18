@@ -50,7 +50,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error retrieving open projects: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error retrieving open projects: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -70,7 +70,7 @@ public static partial class McpServer
       var foreign = McpServer.Portal.ForeignOpenProjectName();
       if (foreign != null && !closeForeignProject)
       {
-        throw new McpException("OpenProject refused: TIA Portal already has the project '" + foreign +
+        throw new McpProtocolException("OpenProject refused: TIA Portal already has the project '" + foreign +
           "' open and this " +
           "session did not open it - it belongs to the user. OpenProject closes the current project " +
           "first, which would discard any unsaved edits. To work on that project call " +
@@ -91,7 +91,7 @@ public static partial class McpServer
       // use regex to check if extension is .ap\d+ or .als\d+
       if (!Regex.IsMatch(extension, @"^\.ap\d+$") && !Regex.IsMatch(extension, @"^\.als\d+$"))
       {
-        throw new McpException(
+        throw new McpProtocolException(
           "Invalid project file extension. Use .apXX for projects or .alsXX for sessions, where XX=18,19,20,....",
           McpErrorCode.InvalidParams);
       }
@@ -118,14 +118,14 @@ public static partial class McpServer
       }
 
       var detail = McpServer.Portal.LastConnectError;
-      throw new McpException(string.IsNullOrWhiteSpace(detail)
+      throw new McpProtocolException(string.IsNullOrWhiteSpace(detail)
           ? $"Failed to open project '{path}'"
           : $"Failed to open project '{path}': {detail}",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error opening project '{path}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error opening project '{path}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -149,11 +149,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed to attach to open project '{projectName}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Failed to attach to open project '{projectName}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error attaching to open project '{projectName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -175,7 +175,7 @@ public static partial class McpServer
       var foreign = McpServer.Portal.ForeignOpenProjectName();
       if (foreign != null && !closeForeignProject)
       {
-        throw new McpException("CreateProject refused: TIA Portal already has the project '" + foreign +
+        throw new McpProtocolException("CreateProject refused: TIA Portal already has the project '" + foreign +
           "' open and this " +
           "session did not open it - it belongs to the user. CreateProject closes the current project " +
           "first, which would discard any unsaved edits. To work on that project call " +
@@ -192,7 +192,7 @@ public static partial class McpServer
       var ok = McpServer.Portal.CreateProject(directoryPath, projectName, closeForeignProject);
       if (!ok)
       {
-        throw new McpException($"Failed to create project '{projectName}' in '{directoryPath}'",
+        throw new McpProtocolException($"Failed to create project '{projectName}' in '{directoryPath}'",
           McpErrorCode.InternalError);
       }
 
@@ -204,7 +204,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error creating project: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error creating project: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -234,7 +234,7 @@ public static partial class McpServer
     }
     catch (Exception ex)
     {
-      throw new McpException($"ScaffoldProject: invalid spec JSON: {ex.Message}", McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"ScaffoldProject: invalid spec JSON: {ex.Message}", McpErrorCode.InvalidParams);
     }
 
     string S(string key, string def = "")
@@ -292,7 +292,7 @@ public static partial class McpServer
     var projectName = S("projectName");
     if (string.IsNullOrWhiteSpace(projectName))
     {
-      throw new McpException("ScaffoldProject: 'projectName' is required", McpErrorCode.InvalidParams);
+      throw new McpProtocolException("ScaffoldProject: 'projectName' is required", McpErrorCode.InvalidParams);
     }
 
     var directoryPath = S("directoryPath");
@@ -424,7 +424,7 @@ public static partial class McpServer
     {
       Step("connect", "failed", ex.Message);
       resp.Ok = false;
-      throw new McpException($"ScaffoldProject aborted at connect: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"ScaffoldProject aborted at connect: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -438,7 +438,7 @@ public static partial class McpServer
     {
       Step("createProject", "failed", ex.Message);
       resp.Ok = false;
-      throw new McpException($"ScaffoldProject aborted at createProject: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"ScaffoldProject aborted at createProject: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -452,7 +452,7 @@ public static partial class McpServer
       }
       else
       {
-        throw new McpException($"PLC device add failed: {d.Error}", McpErrorCode.InternalError);
+        throw new McpProtocolException($"PLC device add failed: {d.Error}", McpErrorCode.InternalError);
       }
     }
     catch (McpException)
@@ -465,7 +465,7 @@ public static partial class McpServer
     {
       Step("addDevicePlc", "failed", ex.Message);
       resp.Ok = false;
-      throw new McpException($"ScaffoldProject aborted at addDevicePlc: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"ScaffoldProject aborted at addDevicePlc: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -747,7 +747,7 @@ public static partial class McpServer
           };
         }
 
-        throw new McpException("Failed to save local session", McpErrorCode.InternalError);
+        throw new McpProtocolException("Failed to save local session", McpErrorCode.InternalError);
       }
 
       if (McpServer.Portal.SaveProject())
@@ -759,11 +759,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed to save project", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed to save project", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error saving local project/session: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error saving local project/session: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -778,7 +778,7 @@ public static partial class McpServer
     {
       if (McpServer.Portal.IsLocalSession)
       {
-        throw new McpException($"Cannot save local session as '{newProjectPath}'", McpErrorCode.InvalidParams);
+        throw new McpProtocolException($"Cannot save local session as '{newProjectPath}'", McpErrorCode.InvalidParams);
       }
 
       if (McpServer.Portal.SaveAsProject(newProjectPath))
@@ -790,11 +790,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed saving local project as '{newProjectPath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Failed saving local project as '{newProjectPath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error saving local project/session as '{newProjectPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -822,7 +822,7 @@ public static partial class McpServer
           };
         }
 
-        throw new McpException("Failed closing local session", McpErrorCode.InternalError);
+        throw new McpProtocolException("Failed closing local session", McpErrorCode.InternalError);
       }
 
       success = McpServer.Portal.CloseProject();
@@ -835,11 +835,11 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException("Failed closing project", McpErrorCode.InternalError);
+      throw new McpProtocolException("Failed closing project", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error closing local project/session: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error closing local project/session: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }

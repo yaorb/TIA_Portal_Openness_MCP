@@ -160,7 +160,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Doctor unexpected error: {ex.Message}", ex, McpErrorCode.InternalError);
+      throw new McpProtocolException($"Doctor unexpected error: {ex.Message}", ex, McpErrorCode.InternalError);
     }
   }
 }

@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+// SDK 2.x 里 IMcpServer 接口已由抽象类 McpServer 取代；本命名空间下另有同名静态类（本服务器自身），裸写会解析到它，故起别名。
+using McpServerHost = global::ModelContextProtocol.Server.McpServer;
 using Siemens.Engineering.SW;
 using Siemens.Engineering.SW.Blocks;
 using TiaMcpServer.Siemens;
@@ -50,7 +52,7 @@ public static partial class McpServer
     {
       if (Engineering.TiaMajorVersion < 20)
       {
-        throw new McpException("ExportAsDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
+        throw new McpProtocolException("ExportAsDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
       }
 
       if (McpServer.WithAutoOffline(() =>
@@ -63,12 +65,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed exporting documents from '{blockPath}' to '{exportPath}'",
+      throw new McpProtocolException($"Failed exporting documents from '{blockPath}' to '{exportPath}'",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error exporting documents from '{blockPath}' to '{exportPath}': {ex}",
+      throw new McpProtocolException($"Unexpected error exporting documents from '{blockPath}' to '{exportPath}': {ex}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -77,7 +79,7 @@ public static partial class McpServer
   [McpServerTool(Name = "ExportBlocksAsDocuments")]
   [Description(
     "[L2][PLC-Software] PREFERRED on V21+ for batch export. Exports multiple program blocks to SIMATIC SD textual / SCL document format (.s7dcl + .s7res) — far more readable/diff-friendly than SimaticML XML. Requires TIA Portal V20 or newer.")]
-  public static async Task<ResponseExportBlocksAsDocuments> ExportBlocksAsDocuments(IMcpServer server,
+  public static async Task<ResponseExportBlocksAsDocuments> ExportBlocksAsDocuments(McpServerHost server,
     RequestContext<CallToolRequestParams> context,
     [Description("softwarePath: defines the path in the project structure to the plc software")] string softwarePath,
     [Description("exportPath: defines the path where to export the documents")] string exportPath,
@@ -93,7 +95,7 @@ public static partial class McpServer
     {
       if (Engineering.TiaMajorVersion < 20)
       {
-        throw new McpException("ExportBlocksAsDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
+        throw new McpProtocolException("ExportBlocksAsDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
       }
 
       // First, get the list of blocks to determine total count
@@ -243,7 +245,7 @@ public static partial class McpServer
         return new ResponseExportBlocksAsDocuments { Message = msg, Items = responseList, Meta = meta, };
       }
 
-      throw new McpException($"Failed exporting documents to '{exportPath}'", McpErrorCode.InternalError);
+      throw new McpProtocolException($"Failed exporting documents to '{exportPath}'", McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
@@ -269,7 +271,7 @@ public static partial class McpServer
       }
 
       McpServer.Logger?.LogError(ex, $"Failed exporting documents to '{exportPath}'");
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error exporting documents to '{exportPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -293,7 +295,7 @@ public static partial class McpServer
     {
       if (Engineering.TiaMajorVersion < 20)
       {
-        throw new McpException("ImportFromDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
+        throw new McpProtocolException("ImportFromDocuments requires TIA Portal V20 or newer", McpErrorCode.InvalidParams);
       }
 
       var option = McpServer.ParseImportDocumentOption(importOption);
@@ -365,12 +367,12 @@ public static partial class McpServer
         };
       }
 
-      throw new McpException($"Failed importing '{fileNameWithoutExtension}' from '{importPath}'",
+      throw new McpProtocolException($"Failed importing '{fileNameWithoutExtension}' from '{importPath}'",
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error importing from documents: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error importing from documents: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -379,7 +381,7 @@ public static partial class McpServer
   [McpServerTool(Name = "ImportBlocksFromDocuments")]
   [Description(
     "[L2][PLC-Software] PREFERRED on V21+ for batch import. Imports multiple program blocks from SIMATIC SD textual / SCL documents (.s7dcl + .s7res) into PLC software. Requires TIA Portal V20 or newer.")]
-  public static async Task<ResponseImportBlocksFromDocuments> ImportBlocksFromDocuments(IMcpServer server,
+  public static async Task<ResponseImportBlocksFromDocuments> ImportBlocksFromDocuments(McpServerHost server,
     RequestContext<CallToolRequestParams> context,
     [Description("softwarePath: defines the path in the project structure to the plc software")] string softwarePath,
     [Description("groupPath: optional path within the PLC program where the blocks should be placed (empty for root)")]
@@ -397,7 +399,7 @@ public static partial class McpServer
     {
       if (Engineering.TiaMajorVersion < 20)
       {
-        throw new McpException("ImportBlocksFromDocuments requires TIA Portal V20 or newer",
+        throw new McpProtocolException("ImportBlocksFromDocuments requires TIA Portal V20 or newer",
           McpErrorCode.InvalidParams);
       }
 
@@ -595,7 +597,7 @@ public static partial class McpServer
       }
 
       McpServer.Logger?.LogError(ex, $"Failed importing documents from '{importPath}'");
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error importing documents from '{importPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -620,7 +622,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -628,7 +630,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error describing object: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error describing object: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -652,7 +654,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -660,7 +662,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error reading property: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error reading property: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -686,7 +688,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -694,7 +696,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error listing children: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error listing children: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -725,7 +727,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -733,7 +735,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error invoking method: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error invoking method: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -758,7 +760,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -766,7 +768,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error describing service: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error describing service: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -799,7 +801,7 @@ public static partial class McpServer
     catch (PortalException pex)
     {
       // 路径解析不到是调用方的参数问题，不是服务器内部意外错误。
-      throw new McpException(pex.Message,
+      throw new McpProtocolException(pex.Message,
         pex,
         pex.Code == PortalErrorCode.NotFound
           ? McpErrorCode.InvalidParams
@@ -807,7 +809,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error invoking service method: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error invoking service method: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -858,7 +860,7 @@ public static partial class McpServer
         return ImportDocumentOptions.ActivateInactiveCultures;
 
       default:
-        throw new McpException(
+        throw new McpProtocolException(
           $"Invalid importOption '{option}'. Allowed: None, Override, SkipInactiveCultures, ActivateInactiveCultures",
           McpErrorCode.InvalidParams);
     }

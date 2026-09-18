@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -71,6 +71,10 @@ internal sealed class ArgDiagnosticTool : McpServerTool
 
   // 协议层看到的仍是原工具的完整描述：这层只在出错时说话，不改工具的对外形状。
   public override Tool ProtocolTool => this._inner.ProtocolTool;
+
+  // SDK 2.x 给 McpServerTool 新增的抽象成员（0.3.0-preview.4 没有）。同样透传给内层工具，
+  // 包装层对外保持完全透明。
+  public override IReadOnlyList<object> Metadata => this._inner.Metadata;
 
   public override async ValueTask<CallToolResult> InvokeAsync(RequestContext<CallToolRequestParams> request,
     CancellationToken cancellationToken = default)

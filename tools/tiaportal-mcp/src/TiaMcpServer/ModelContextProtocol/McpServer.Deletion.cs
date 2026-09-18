@@ -83,13 +83,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed deleting PLC block '{blockPath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed deleting PLC block '{blockPath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error deleting PLC block '{blockPath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error deleting PLC block '{blockPath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -142,13 +142,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed deleting PLC tag table '{tagTableName}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed deleting PLC tag table '{tagTableName}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException(
+      throw new McpProtocolException(
         $"Unexpected error deleting PLC tag table '{tagTableName}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
@@ -192,13 +192,13 @@ public static partial class McpServer
     }
     catch (PortalException pex)
     {
-      throw new McpException($"Failed deleting PLC type '{typePath}' [{pex.Code}]: {pex.Message}",
+      throw new McpProtocolException($"Failed deleting PLC type '{typePath}' [{pex.Code}]: {pex.Message}",
         pex,
         McpErrorCode.InternalError);
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"Unexpected error deleting PLC type '{typePath}': {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"Unexpected error deleting PLC type '{typePath}': {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }

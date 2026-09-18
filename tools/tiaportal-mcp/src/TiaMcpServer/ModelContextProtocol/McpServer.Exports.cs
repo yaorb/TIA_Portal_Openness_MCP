@@ -1,4 +1,4 @@
-﻿#region
+#region
 
 using System;
 using System.Collections.Generic;
@@ -134,7 +134,7 @@ public static partial class McpServer
       // 句柄不存在/已过期/被淘汰 —— 这一页取不到，而且知道为什么。
       // 本线没有三态契约：取不到就抛，让宿主标 IsError，别返回一份空 Message
       // 让模型误以为「这份导出是空的」。
-      throw new McpException(slice.Message ?? $"取不到句柄 {exportId}（{slice.Error}）。", McpErrorCode.InvalidParams);
+      throw new McpProtocolException(slice.Message ?? $"取不到句柄 {exportId}（{slice.Error}）。", McpErrorCode.InvalidParams);
     }
 
     return new ResponseMessage
@@ -211,12 +211,12 @@ public static partial class McpServer
     {
       // 没这个句柄，文件一个字都没写。借 Slice 拿到「过期 / 被淘汰 / id 记错了」的准确说法。
       var probe = ExportStore.Slice(exportId, 0, 1);
-      throw new McpException(probe.Message ?? $"没有句柄 {exportId}。", McpErrorCode.InvalidParams);
+      throw new McpProtocolException(probe.Message ?? $"没有句柄 {exportId}。", McpErrorCode.InvalidParams);
     }
 
     if (string.IsNullOrWhiteSpace(outputPath))
     {
-      throw new McpException("outputPath 不能为空。", McpErrorCode.InvalidParams);
+      throw new McpProtocolException("outputPath 不能为空。", McpErrorCode.InvalidParams);
     }
 
     string full;
@@ -226,7 +226,7 @@ public static partial class McpServer
     }
     catch (Exception ex)
     {
-      throw new McpException($"outputPath 不是一个合法路径：{ex.Message}", ex, McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"outputPath 不是一个合法路径：{ex.Message}", ex, McpErrorCode.InvalidParams);
     }
 
     // 不覆盖已存在的文件。这个工具不动 TIA 工程，所以看起来「只读」、门槛低；
@@ -236,7 +236,7 @@ public static partial class McpServer
     {
       // 这是按设计主动不干，但对调用方来说文件没写成，必须报错 ——
       // 报成功会让它以为备份已经存下来了。
-      throw new McpException($"{full} 已存在，未覆盖。换个文件名，或者在用户同意后传 overwrite=true。", McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"{full} 已存在，未覆盖。换个文件名，或者在用户同意后传 overwrite=true。", McpErrorCode.InvalidParams);
     }
 
     // 先初始化：raw 分支不走 UnwrapPayload，out 参数不会被赋值。
@@ -258,7 +258,7 @@ public static partial class McpServer
     catch (Exception ex) when (ex is not McpException)
     {
       // 写盘抛了：内容没有完整写出去。注意磁盘上可能留了个半截文件，别当它是好的。
-      throw new McpException("写文件失败：" + ex.Message, ex, McpErrorCode.InternalError);
+      throw new McpProtocolException("写文件失败：" + ex.Message, ex, McpErrorCode.InternalError);
     }
 
     // WriteAllText 返回即文件已落盘，长度是写进去的那份内容的长度。
@@ -288,7 +288,7 @@ public static partial class McpServer
     {
       // 没找到时分不清是「本来就没有/已过期」还是「id 打错了」——
       // 后一种情况下调用方真正的那个句柄还活着，报成功等于骗它。
-      throw new McpException($"没有句柄 {exportId}（可能已过期或已删除，也可能 id 写错了）。用 ListExports 看当前还有哪些。",
+      throw new McpProtocolException($"没有句柄 {exportId}（可能已过期或已删除，也可能 id 写错了）。用 ListExports 看当前还有哪些。",
         McpErrorCode.InvalidParams);
     }
 
@@ -330,6 +330,10 @@ internal sealed class ResponseGuardTool : McpServerTool
 
   public override Tool ProtocolTool => this._inner.ProtocolTool;
 
+  // SDK 2.x 给 McpServerTool 新增的抽象成员（0.3.0-preview.4 没有）。同样透传给内层工具，
+  // 包装层对外保持完全透明。
+  public override IReadOnlyList<object> Metadata => this._inner.Metadata;
+
   public override async ValueTask<CallToolResult> InvokeAsync(RequestContext<CallToolRequestParams> request,
     CancellationToken cancellationToken = default)
   {
@@ -365,7 +369,7 @@ internal sealed class ResponseGuardTool : McpServerTool
   ///   闭源线里这个helper长在审计层上，本线没有审计层，就地放一份 —— 只有这里用得着，
   ///   挂到 McpServer 上反而会跟别的回流文件撞名。
   /// </summary>
-  internal static string DescribeTarget(IReadOnlyDictionary<string, JsonElement>? args)
+  internal static string DescribeTarget(IDictionary<string, JsonElement>? args)
   {
     if (args == null || args.Count == 0)
     {
@@ -453,7 +457,8 @@ internal sealed class ResponseGuardTool : McpServerTool
   }
 
   /// <summary>CallTool 转发的目标工具名；本次调用不是转发则返回 null。</summary>
-  internal static string? ForwardedToolName(string toolName, IReadOnlyDictionary<string, JsonElement>? args)
+  // SDK 2.x 把 CallToolRequestParams.Arguments 由 IReadOnlyDictionary 改成了 IDictionary。
+  internal static string? ForwardedToolName(string toolName, IDictionary<string, JsonElement>? args)
   {
     if (!string.Equals(toolName, "CallTool", StringComparison.Ordinal))
     {
@@ -550,7 +555,8 @@ internal sealed class ResponseGuardTool : McpServerTool
     {
       IsError = false,
       // 结构化输出也必须换掉，否则宿主照样把整份原文发给模型。
-      StructuredContent = stub,
+      // SDK 2.x 把 CallToolResult.StructuredContent 由 JsonObject? 改成了 JsonElement?。
+      StructuredContent = JsonSerializer.SerializeToElement(stub),
       Content = new List<ContentBlock> { new TextContentBlock { Text = stub.ToJsonString(), }, },
     };
   }

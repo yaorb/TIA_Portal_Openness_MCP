@@ -115,7 +115,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"S7 identity probe failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"S7 identity probe failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -250,7 +250,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"S7 live read failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"S7 live read failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -364,7 +364,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"S7 trend sampling failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"S7 trend sampling failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -390,7 +390,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"TraceTagCause failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"TraceTagCause failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -419,7 +419,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"TraceTagCauseLive failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"TraceTagCauseLive failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -491,7 +491,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"OPC UA live read failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"OPC UA live read failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -559,7 +559,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"GetPlcRunStateS7 failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"GetPlcRunStateS7 failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -587,7 +587,7 @@ public static partial class McpServer
     }
     catch (Exception ex) when (ex is not McpException)
     {
-      throw new McpException($"MonitorWatchTableLiveS7 failed: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"MonitorWatchTableLiveS7 failed: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }

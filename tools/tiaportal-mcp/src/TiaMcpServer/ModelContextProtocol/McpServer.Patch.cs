@@ -32,7 +32,7 @@ public static partial class McpServer
     }
     catch (Exception ex)
     {
-      throw new McpException($"PatchProject: invalid spec JSON: {ex.Message}", McpErrorCode.InvalidParams);
+      throw new McpProtocolException($"PatchProject: invalid spec JSON: {ex.Message}", McpErrorCode.InvalidParams);
     }
 
     string S(string key, string def = "")
@@ -90,7 +90,7 @@ public static partial class McpServer
     var projectPath = S("projectPath");
     if (string.IsNullOrWhiteSpace(projectPath))
     {
-      throw new McpException("PatchProject: 'projectPath' is required (the .apXX to open)", McpErrorCode.InvalidParams);
+      throw new McpProtocolException("PatchProject: 'projectPath' is required (the .apXX to open)", McpErrorCode.InvalidParams);
     }
 
     // Openness resolves relative paths against the exe dir; resolve against CWD so a
@@ -226,7 +226,7 @@ public static partial class McpServer
     {
       Step("connect", "failed", ex.Message);
       resp.Ok = false;
-      throw new McpException($"PatchProject aborted at connect: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"PatchProject aborted at connect: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
@@ -240,7 +240,7 @@ public static partial class McpServer
     {
       Step("openProject", "failed", ex.Message);
       resp.Ok = false;
-      throw new McpException($"PatchProject aborted at openProject: {ex.Message}{McpHints.Recovery(ex)}",
+      throw new McpProtocolException($"PatchProject aborted at openProject: {ex.Message}{McpHints.Recovery(ex)}",
         ex,
         McpErrorCode.InternalError);
     }
