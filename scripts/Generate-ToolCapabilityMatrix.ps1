@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     Regenerate docs/tool-capability-matrix.md from the [McpServerTool] attributes in McpServer.cs.
@@ -31,10 +31,16 @@ if (-not $SourceFile) {
     $text = [System.IO.File]::ReadAllText($SourceFile, [System.Text.Encoding]::UTF8)
 }
 
-# Match each attribute block: [McpServerTool(Name = "X"), Description( <body> )]
-# Body may span lines as "..." + "..." concatenation; Singleline lets . cross newlines.
+# Match each tool's attributes. Both spellings occur in this repo:
+#     [McpServerTool(Name = "X"), Description("...")]        (same line)
+#     [McpServerTool(Name = "X")]                            (stacked, the current style)
+#     [Description("...")]
+# Only the first form used to be matched, so once the source was reflowed to stacked attributes
+# this generator parsed ZERO tools and threw — i.e. the matrix silently stopped being regenerable
+# (the doc still looked fine, which is exactly how it went unnoticed). Description bodies may span
+# lines as "..." + "..." concatenation; Singleline lets . cross newlines.
 $blockRx = [regex]::new(
-    '\[McpServerTool\(Name\s*=\s*"(?<name>[^"]+)"\)\s*,\s*Description\((?<body>.*?)\)\]',
+    '(?m)^\s*\[McpServerTool\(Name\s*=\s*"(?<name>[^"]+)"\)\]\s*(?:,\s*Description\(|\r?\n\s*\[Description\()(?<body>.*?)\)\]',
     [System.Text.RegularExpressions.RegexOptions]::Singleline)
 $segRx = [regex]'"(?<seg>[^"]*)"'
 
@@ -49,7 +55,12 @@ foreach ($m in $blockRx.Matches($text)) {
     $descCell = $desc -replace '\|', '\|'
     $tools.Add([pscustomobject]@{ Name = $name; Layer = $layer; Domain = $domain; Desc = $descCell; Order = $tools.Count })
 }
-if ($tools.Count -eq 0) { throw "No [McpServerTool] entries parsed from $SourceFile" }
+if ($tools.Count -eq 0) {
+    # 报「从哪个文件/目录里没解析出来」。原来只打 $SourceFile，走默认扫描时它是空的，
+    # 于是这条错误消息本身什么也没说。
+    $where = if ($SourceFile) { $SourceFile } else { "the McpServer*.cs files under $dir" }
+    throw "No [McpServerTool] entries parsed from $where"
+}
 
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine("# MCP 工具能力矩阵")
