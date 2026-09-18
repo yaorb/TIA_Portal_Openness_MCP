@@ -465,7 +465,7 @@ internal static class PlcBuilderToolJson
       "type");
     var sourceKind = PlcBuilderToolJson.ReadOptionalString(parameter, "sourceKind", "source", "kind").Trim()
       .ToLowerInvariant();
-    if (sourceKind == "constant" || sourceKind == "literal" || sourceKind == "literalconstant")
+    if (sourceKind is "constant" or "literal" or "literalconstant")
     {
       return FlgNetCallParameter.Constant(name,
         section,
